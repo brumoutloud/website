@@ -2,4 +2,4 @@
 
 [build]
   # This line explicitly tells Netlify where your functions are located.
-  functions = "netlify/functions"
+functions = "netlify/functions"

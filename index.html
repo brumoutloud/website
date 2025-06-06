@@ -80,7 +80,6 @@
                 </button>
             </div>
         </nav>
-        <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden lg:hidden px-4 pb-4 space-y-2">
              <a href="#venues" class="block text-center text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Venues</a>
              <a href="#community" class="block text-center text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Community</a>
@@ -155,7 +154,7 @@
         const eventModal = document.getElementById('event-modal');
         function showEventModal() { 
             eventModal.classList.remove('hidden');
-            mobileMenu.classList.add('hidden'); // Close mobile menu when modal opens
+            mobileMenu.classList.add('hidden');
         }
         function hideEventModal() { 
             eventModal.classList.add('hidden');
@@ -164,8 +163,14 @@
         async function loadEvents() {
             const eventGrid = document.getElementById('event-grid');
             try {
-                const response = await fetch('/.netlify/functions/get-events');
-                if (!response.ok) throw new Error('Failed to fetch events.');
+                const fetchUrl = `/.netlify/functions/get-events`;
+                const response = await fetch(fetchUrl);
+                
+                if (!response.ok) {
+                    const errorDetails = await response.text();
+                    console.error(`Error from function: ${response.status} ${response.statusText}`, errorDetails);
+                    throw new Error(`Failed to fetch events. Server responded with status ${response.status}`);
+                }
                 
                 const events = await response.json();
 
@@ -177,11 +182,11 @@
                 eventGrid.innerHTML = ''; 
 
                 events.forEach(event => {
-                    const eventDate = new Date(event.date);
-                    const formattedDate = eventDate.toLocaleDateString('en-GB', {
+                    const eventDate = event.date ? new Date(event.date) : null;
+                    const formattedDate = eventDate ? eventDate.toLocaleDateString('en-GB', {
                         weekday: 'short', day: 'numeric', month: 'long',
                         hour: 'numeric', minute: '2-digit', hour12: true
-                    }).replace(' at', ' at ');
+                    }).replace(' at', ' at ') : 'Date & Time TBC';
 
                     const eventCard = `
                         <div class="event-card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
@@ -202,8 +207,8 @@
                 });
 
             } catch (error) {
-                console.error(error);
-                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Could not load events. Please try again later.</p>';
+                console.error('An error occurred in loadEvents:', error);
+                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Could not load events. Please check the browser console for more details.</p>';
             }
         }
 
@@ -214,4 +219,3 @@
     </script>
 </body>
 </html>
-

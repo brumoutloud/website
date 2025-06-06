@@ -57,7 +57,8 @@
         .modal {
             @apply fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300;
         }
-        .modal.hidden {
+        /* Using a custom class to avoid conflict with Tailwind's .hidden */
+        .modal.is-hidden {
             @apply opacity-0 pointer-events-none;
         }
     </style>
@@ -80,6 +81,7 @@
                 </button>
             </div>
         </nav>
+        <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden lg:hidden px-4 pb-4 space-y-2">
              <a href="#venues" class="block text-center text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Venues</a>
              <a href="#community" class="block text-center text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Community</a>
@@ -108,7 +110,8 @@
         
     </main>
     
-    <div id="event-modal" class="modal hidden">
+    <!-- Using custom .is-hidden class for modal visibility -->
+    <div id="event-modal" class="modal is-hidden">
         <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9]" id="modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
@@ -153,17 +156,17 @@
 
         const eventModal = document.getElementById('event-modal');
         function showEventModal() { 
-            eventModal.classList.remove('hidden');
+            eventModal.classList.remove('is-hidden');
             mobileMenu.classList.add('hidden');
         }
         function hideEventModal() { 
-            eventModal.classList.add('hidden');
+            eventModal.classList.add('is-hidden');
         }
 
         async function loadEvents() {
             const eventGrid = document.getElementById('event-grid');
             try {
-                const fetchUrl = `/.netlify/functions/get-events`;
+                const fetchUrl = '/.netlify/functions/get-events';
                 const response = await fetch(fetchUrl);
                 
                 if (!response.ok) {
@@ -184,8 +187,13 @@
                 events.forEach(event => {
                     const eventDate = event.date ? new Date(event.date) : null;
                     const formattedDate = eventDate ? eventDate.toLocaleDateString('en-GB', {
-                        weekday: 'short', day: 'numeric', month: 'long',
-                        hour: 'numeric', minute: '2-digit', hour12: true
+                        weekday: 'short', 
+                        day: 'numeric', 
+                        month: 'long',
+                        hour: 'numeric', 
+                        minute: '2-digit', 
+                        hour12: true,
+                        timeZone: 'Europe/London' // Force display in UK time
                     }).replace(' at', ' at ') : 'Date & Time TBC';
 
                     const eventCard = `

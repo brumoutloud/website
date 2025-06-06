@@ -51,7 +51,6 @@
         .filter-btn.active, .filter-btn:hover {
             @apply bg-[#FADCD9] text-[#333333];
         }
-        /* Custom styling for file input */
         .custom-file-input::file-selector-button {
             @apply bg-gray-700 text-white font-semibold mr-4 px-4 py-2 border-none rounded-lg cursor-pointer hover:bg-gray-600;
         }
@@ -85,53 +84,8 @@
                 <button class="filter-btn">All Filters</button>
             </div>
 
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                
-                <div class="event-card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
-                    <div class="event-card-thumbnail">
-                        <img src="https://placehold.co/400x400/b564f7/ffffff?text=Event" alt="Event Image">
-                    </div>
-                    <div class="pt-6 flex flex-col flex-grow">
-                        <h3 class="text-xl font-semibold text-white mb-2">Baga Chipz: Live at Eden</h3>
-                        <p class="text-sm text-gray-400 flex-grow mb-4">A night of comedy and chaos with the Drag Race UK icon. Expect hilarious stories, stand-up, and maybe even a song or two.</p>
-                        <div class="mt-auto">
-                           <p class="font-semibold text-[#B564F7] mb-1">Sat, 28 June 2025 at 9:00 PM</p>
-                           <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>Eden Bar</p>
-                           <span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded">Drag Show</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="event-card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
-                    <div class="event-card-thumbnail">
-                         <img src="https://placehold.co/400x400/fadcd9/333333?text=Event" alt="Event Image">
-                    </div>
-                     <div class="pt-6 flex flex-col flex-grow">
-                        <h3 class="text-xl font-semibold text-white mb-2">Glitterbox Birmingham</h3>
-                        <p class="text-sm text-gray-400 flex-grow mb-4">The iconic inclusive party returns with world-class DJs, dancers, and performers for a night of house and disco.</p>
-                        <div class="mt-auto">
-                           <p class="font-semibold text-[#B564F7] mb-1">Fri, 04 July 2025 at 10:00 PM</p>
-                           <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>The Mill, Digbeth</p>
-                           <span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded">Club Night</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="event-card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
-                    <div class="event-card-thumbnail">
-                        <img src="https://placehold.co/400x400/333333/ffffff?text=Event" alt="Event Image">
-                    </div>
-                    <div class="pt-6 flex flex-col flex-grow">
-                        <h3 class="text-xl font-semibold text-white mb-2">Queer Readers Book Club</h3>
-                         <p class="text-sm text-gray-400 flex-grow mb-4">Join us for a friendly discussion of this month's pick, "Detransition, Baby" by Torrey Peters. New members welcome!</p>
-                        <div class="mt-auto">
-                           <p class="font-semibold text-[#B564F7] mb-1">Tue, 08 July 2025 at 7:30 PM</p>
-                           <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>Wayland's Forge</p>
-                           <span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded">Community</span>
-                        </div>
-                    </div>
-                </div>
-
+            <div id="event-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <p class="col-span-full text-center text-gray-400">Loading events...</p>
             </div>
         </section>
         
@@ -146,29 +100,20 @@
             
             <form name="event-submission" id="event-form" class="space-y-4" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data">
                 <p class="hidden"><label>Don’t fill this out if you’re human: <input name="bot-field"></label></p>
-                
                 <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
-                
                 <textarea name="description" placeholder="Event Description" rows="4" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required></textarea>
-                
                 <div>
                     <label class="text-sm font-semibold mb-2 block">Promo Image</label>
                     <input type="file" name="promo-image" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-sm custom-file-input" accept="image/png, image/jpeg, image/webp">
                 </div>
-
                 <div class="grid grid-cols-2 gap-4">
                     <input type="date" name="date" aria-label="Event Date" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
                     <input type="time" name="start-time" aria-label="Event Start Time" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
                 </div>
-
                 <input type="text" name="venue" placeholder="Venue Name" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
-                
                 <input type="text" name="recurring-info" placeholder="Recurring Info (e.g., 'Every Friday')" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent">
-
                 <input type="url" name="link" placeholder="Link to tickets or more info" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent">
-                
                 <input type="email" name="email" placeholder="Your Email (for confirmation)" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
-                
                 <div class="text-right">
                     <button type="submit" class="bg-[#FADCD9] text-[#333333] px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit for Review</button>
                 </div>
@@ -184,20 +129,59 @@
 
     <script>
         const eventModal = document.getElementById('event-modal');
-        const modalContent = document.getElementById('modal-content');
-        function showEventModal() { 
-            eventModal.classList.remove('hidden');
-        }
-        function hideEventModal() { 
-            eventModal.classList.add('hidden');
+        function showEventModal() { eventModal.classList.remove('hidden'); }
+        function hideEventModal() { eventModal.classList.add('hidden'); }
+
+        async function loadEvents() {
+            const eventGrid = document.getElementById('event-grid');
+            try {
+                const response = await fetch('/.netlify/functions/get-events');
+                if (!response.ok) throw new Error('Failed to fetch events.');
+                
+                const events = await response.json();
+
+                if (events.length === 0) {
+                    eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found. Check back soon!</p>';
+                    return;
+                }
+                
+                eventGrid.innerHTML = ''; 
+
+                events.forEach(event => {
+                    const eventDate = new Date(event.date);
+                    const formattedDate = eventDate.toLocaleDateString('en-GB', {
+                        weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
+                        hour: 'numeric', minute: '2-digit', hour12: true
+                    }).replace(' at', ' at ');
+
+                    const eventCard = `
+                        <div class="event-card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
+                            <div class="event-card-thumbnail">
+                                <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${event.name}">
+                            </div>
+                            <div class="pt-6 flex flex-col flex-grow">
+                                <h3 class="text-xl font-semibold text-white mb-2">${event.name}</h3>
+                                <p class="text-sm text-gray-400 flex-grow mb-4">${event.description || ''}</p>
+                                <div class="mt-auto">
+                                   <p class="font-semibold text-[#B564F7] mb-1">${formattedDate}</p>
+                                   <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>${event.venue}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    eventGrid.innerHTML += eventCard;
+                });
+
+            } catch (error) {
+                console.error(error);
+                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Could not load events. Please try again later.</p>';
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
              document.getElementById('year').textContent = new Date().getFullYear();
+             loadEvents();
         });
     </script>
 </body>
 </html>
-```
-
-After deploying this new code, remember to update your Zapier automation to map the new `"promo-image"` and `"recurring-info"` fields from Netlify to your new Airtable fiel

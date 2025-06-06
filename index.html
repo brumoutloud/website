@@ -9,7 +9,6 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Corrected integrity attribute for Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" xintegrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <style>
@@ -239,8 +238,8 @@
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
                 <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
             </div>
-            <!-- Netlify Form Integration: add data-netlify="true" to the form tag -->
-            <form name="event-submission" id="event-form" class="space-y-4" data-netlify="true" netlify-honeypot="bot-field" action="/thank-you/">
+            <!-- Netlify Form: data-netlify="true" attribute and removed action attribute -->
+            <form name="event-submission" id="event-form" class="space-y-4" data-netlify="true" netlify-honeypot="bot-field">
                 <p class="hidden"><label>Don’t fill this out if you’re human: <input name="bot-field"></label></p>
                 <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 border-gray-300 rounded-lg" required>
                 <textarea name="description" placeholder="Event Description" rows="4" class="w-full p-3 border-gray-300 rounded-lg" required></textarea>

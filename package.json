@@ -1,0 +1,7 @@
+{
+  "name": "brumoutloud-site",
+  "version": "1.0.0",
+  "dependencies": {
+    "airtable": "^0.12.2"
+  }
+}

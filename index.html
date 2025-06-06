@@ -22,7 +22,7 @@
         .font-roboto-mono {
             font-family: 'Roboto Mono', monospace;
         }
-        .event-card-thumbnail {
+        .card-thumbnail {
             aspect-ratio: 1 / 1;
             height: 0;
             padding-top: 100%;
@@ -30,7 +30,7 @@
             overflow: hidden;
             position: relative;
         }
-        .event-card-thumbnail img {
+        .card-thumbnail img {
             position: absolute;
             top: 0;
             left: 0;
@@ -39,9 +39,15 @@
             object-fit: cover;
             transition: transform 0.3s ease, object-fit 0.3s ease;
         }
-        .event-card:hover .event-card-thumbnail img {
+        .card:hover .card-thumbnail img {
             transform: scale(0.95);
             object-fit: contain;
+        }
+        .nav-link {
+            @apply px-4 py-2 rounded-lg transition-colors duration-200 text-gray-300 hover:text-white hover:bg-gray-700;
+        }
+        .nav-link.active {
+            @apply bg-gray-700 text-white font-semibold;
         }
         .filter-btn {
             @apply px-4 py-2 rounded-full border border-[#FADCD9] text-[#FADCD9] uppercase text-xs font-semibold tracking-wider;
@@ -51,9 +57,6 @@
         .filter-btn.active, .filter-btn:hover {
             @apply bg-[#FADCD9] text-[#333333];
         }
-        .custom-file-input::file-selector-button {
-            @apply bg-gray-700 text-white font-semibold mr-4 px-4 py-2 border-none rounded-lg cursor-pointer hover:bg-gray-600;
-        }
     </style>
 </head>
 <body class="antialiased">
@@ -62,8 +65,9 @@
         <nav class="container mx-auto px-4 lg:px-0 py-4 flex justify-between items-center">
             <a href="/" class="text-3xl font-bold text-white">BrumOutLoud</a>
             <div class="hidden lg:flex items-center space-x-2">
-                <a href="#venues" class="text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Venues</a>
-                <a href="#community" class="text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Community</a>
+                <a href="#whats-on" class="nav-link active">What's On</a>
+                <a href="#venues" class="nav-link">Venues</a>
+                <a href="#community" class="nav-link">Community</a>
             </div>
             <div class="hidden lg:block">
                  <button onclick="showEventModal()" class="bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
@@ -76,8 +80,9 @@
         </nav>
         <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden lg:hidden px-4 pb-4 space-y-2">
-             <a href="#venues" class="block text-center text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Venues</a>
-             <a href="#community" class="block text-center text-white hover:text-white hover:bg-gray-700 px-4 py-2 rounded-lg">Community</a>
+             <a href="#whats-on" class="nav-link active block text-center">What's On</a>
+             <a href="#venues" class="nav-link block text-center">Venues</a>
+             <a href="#community" class="nav-link block text-center">Community</a>
              <button onclick="showEventModal()" class="w-full mt-2 bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
         </div>
     </header>
@@ -87,7 +92,6 @@
         <section id="whats-on" class="page">
             <h1 class="text-4xl font-extrabold mb-4 text-center">What's On</h1>
             <p class="text-center text-gray-400 mb-8">Your guide to the best LGBTQ+ events across Birmingham.</p>
-            
             <div class="bg-[#1e1e1e] p-4 rounded-xl shadow-md mb-8 flex flex-wrap gap-4 items-center justify-center">
                 <button class="filter-btn active">This Weekend</button>
                 <button class="filter-btn">Next Week</button>
@@ -95,23 +99,27 @@
                 <button class="filter-btn">Club Nights</button>
                 <button class="filter-btn">All Filters</button>
             </div>
-
             <div id="event-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading events...</p>
+            </div>
+        </section>
+
+        <section id="venues" class="page hidden">
+             <h1 class="text-4xl font-extrabold mb-4 text-center">Venues</h1>
+             <p class="text-center text-gray-400 mb-8">Discover the best LGBTQ+ friendly bars, clubs, and spaces in Birmingham.</p>
+             <div id="venue-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <p class="col-span-full text-center text-gray-400">Loading venues...</p>
             </div>
         </section>
         
     </main>
     
-    <!-- Modal styled directly with Tailwind classes and hidden with inline style -->
     <div id="event-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300" style="display: none;">
         <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9] max-h-[90vh] overflow-y-auto" id="modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
                 <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
             </div>
-            
-            <!-- Standard form that submits directly to Netlify -->
             <form name="event-submission" id="event-form" class="space-y-4" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data">
                 <p class="hidden"><label>Don’t fill this out if you’re human: <input name="bot-field"></label></p>
                 <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
@@ -142,13 +150,15 @@
     </footer>
 
     <script>
+        // --- Modal and Menu Logic ---
         const menuBtn = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
+        const eventModal = document.getElementById('event-modal');
+        
         menuBtn.addEventListener('click', () => {
             mobileMenu.classList.toggle('hidden');
         });
 
-        const eventModal = document.getElementById('event-modal');
         function showEventModal() { 
             eventModal.style.display = 'flex';
             mobileMenu.classList.add('hidden');
@@ -157,40 +167,44 @@
             eventModal.style.display = 'none';
         }
 
+        // --- Simple SPA Router Logic ---
+        const pages = document.querySelectorAll('.page');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        function handleNavigation() {
+            const hash = window.location.hash || '#whats-on';
+            pages.forEach(page => {
+                page.classList.toggle('hidden', `#${page.id}` !== hash);
+            });
+            navLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === hash);
+            });
+            mobileMenu.classList.add('hidden');
+        }
+
+        window.addEventListener('hashchange', handleNavigation);
+
+        // --- Data Loading Logic ---
         async function loadEvents() {
             const eventGrid = document.getElementById('event-grid');
             try {
-                const fetchUrl = '/.netlify/functions/get-events';
-                const response = await fetch(fetchUrl);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch events. Server responded with status ${response.status}`);
-                }
-                
+                const response = await fetch('/.netlify/functions/get-events');
+                if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
                 const events = await response.json();
-
+                eventGrid.innerHTML = ''; 
                 if (events.length === 0) {
-                    eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found. Check back soon!</p>';
+                    eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found.</p>';
                     return;
                 }
-                
-                eventGrid.innerHTML = ''; 
-
                 events.forEach(event => {
                     const eventDate = event.date ? new Date(event.date) : null;
                     const formattedDate = eventDate ? eventDate.toLocaleDateString('en-GB', {
-                        weekday: 'short', 
-                        day: 'numeric', 
-                        month: 'long',
-                        hour: 'numeric', 
-                        minute: '2-digit', 
-                        hour12: true,
-                        timeZone: 'Europe/London'
+                        weekday: 'short', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London'
                     }).replace(' at', ' at ') : 'Date & Time TBC';
 
                     const eventCard = `
-                        <div class="event-card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
-                            <div class="event-card-thumbnail">
+                        <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
+                            <div class="card-thumbnail">
                                 <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${event.name}">
                             </div>
                             <div class="pt-6 flex flex-col flex-grow">
@@ -201,20 +215,53 @@
                                    <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>${event.venue}</p>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                     eventGrid.innerHTML += eventCard;
                 });
-
             } catch (error) {
-                console.error('An error occurred in loadEvents:', error);
-                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Could not load events. Please check the browser console for more details.</p>';
+                console.error('An error occurred loading events:', error);
+                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Could not load events.</p>';
+            }
+        }
+
+        async function loadVenues() {
+            const venueGrid = document.getElementById('venue-grid');
+            try {
+                const response = await fetch('/.netlify/functions/get-venues');
+                if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+                const venues = await response.json();
+                venueGrid.innerHTML = '';
+                 if (venues.length === 0) {
+                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
+                    return;
+                }
+                venues.forEach(venue => {
+                    const venueCard = `
+                        <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6">
+                            <div class="card-thumbnail">
+                                <img src="${venue.photo || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${venue.name}">
+                            </div>
+                            <div class="pt-6 flex flex-col flex-grow">
+                                <h3 class="text-xl font-semibold text-white mb-2">${venue.name}</h3>
+                                <div class="mb-4">
+                                    ${venue.category.map(cat => `<span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded mr-2">${cat}</span>`).join('')}
+                                </div>
+                                <p class="text-sm text-gray-400 flex-grow">${venue.description || ''}</p>
+                            </div>
+                        </div>`;
+                    venueGrid.innerHTML += venueCard;
+                });
+            } catch (error) {
+                console.error('An error occurred loading venues:', error);
+                venueGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Could not load venues.</p>';
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
              document.getElementById('year').textContent = new Date().getFullYear();
+             handleNavigation(); // Initial page load
              loadEvents();
+             loadVenues();
         });
     </script>
 </body>

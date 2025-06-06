@@ -105,7 +105,7 @@
     
     <!-- Modal styled directly with Tailwind classes and hidden with inline style -->
     <div id="event-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300" style="display: none;">
-        <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9]" id="modal-content">
+        <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9] max-h-[90vh] overflow-y-auto" id="modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
                 <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>

@@ -1,37 +1,38 @@
 const Airtable = require('airtable');
 
-// Configure Airtable using the new Personal Access Token environment variable
+// Configure Airtable using the same environment variables
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
 exports.handler = async function (event, context) {
   try {
-    const records = await base('Events')
+    const records = await base('Venues')
       .select({
+        // Select only records where the Status is 'Approved'
         filterByFormula: "{Status} = 'Approved'",
-        sort: [{ field: 'Date', direction: 'asc' }],
         maxRecords: 100,
       })
       .all();
 
-    const events = records.map((record) => ({
+    // Clean up the data to send back to the website
+    const venues = records.map((record) => ({
       id: record.id,
-      name: record.get('Event Name'),
+      name: record.get('Name'),
       description: record.get('Description'),
-      date: record.get('Date'),
-      venue: record.get('Venue'),
-      recurringInfo: record.get('Recurring Info'),
-      image: record.get('Promo Image') ? record.get('Promo Image')[0].url : null,
+      address: record.get('Address'),
+      website: record.get('Website'),
+      photo: record.get('Photo') ? record.get('Photo')[0].url : null,
+      category: record.get('Category') || [],
     }));
 
     return {
       statusCode: 200,
-      body: JSON.stringify(events),
+      body: JSON.stringify(venues),
     };
   } catch (error) {
     console.error(error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch events' }),
+      body: JSON.stringify({ error: 'Failed to fetch venues' }),
     };
   }
 };

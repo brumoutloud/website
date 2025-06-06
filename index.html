@@ -54,9 +54,6 @@
         .custom-file-input::file-selector-button {
             @apply bg-gray-700 text-white font-semibold mr-4 px-4 py-2 border-none rounded-lg cursor-pointer hover:bg-gray-600;
         }
-        .modal {
-            @apply fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300;
-        }
     </style>
 </head>
 <body class="antialiased">
@@ -106,8 +103,8 @@
         
     </main>
     
-    <!-- Modal hidden by default with inline style -->
-    <div id="event-modal" class="modal" style="display: none;">
+    <!-- Modal styled directly with Tailwind classes and hidden with inline style -->
+    <div id="event-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300" style="display: none;">
         <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9]" id="modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
@@ -151,7 +148,6 @@
             mobileMenu.classList.toggle('hidden');
         });
 
-        // Robust modal control using inline styles
         const eventModal = document.getElementById('event-modal');
         function showEventModal() { 
             eventModal.style.display = 'flex';

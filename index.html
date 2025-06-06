@@ -51,6 +51,10 @@
         .filter-btn.active, .filter-btn:hover {
             @apply bg-[#FADCD9] text-[#333333];
         }
+        /* Custom styling for file input */
+        .custom-file-input::file-selector-button {
+            @apply bg-gray-700 text-white font-semibold mr-4 px-4 py-2 border-none rounded-lg cursor-pointer hover:bg-gray-600;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -140,17 +144,31 @@
                 <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
             </div>
             
-            <form name="event-submission" id="event-form" class="space-y-4" data-netlify="true" netlify-honeypot="bot-field">
+            <form name="event-submission" id="event-form" class="space-y-4" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data">
                 <p class="hidden"><label>Don’t fill this out if you’re human: <input name="bot-field"></label></p>
+                
                 <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
+                
                 <textarea name="description" placeholder="Event Description" rows="4" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required></textarea>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="date" name="date" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
-                    <input type="time" name="start-time" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
+                
+                <div>
+                    <label class="text-sm font-semibold mb-2 block">Promo Image</label>
+                    <input type="file" name="promo-image" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-sm custom-file-input" accept="image/png, image/jpeg, image/webp">
                 </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="date" name="date" aria-label="Event Date" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
+                    <input type="time" name="start-time" aria-label="Event Start Time" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
+                </div>
+
                 <input type="text" name="venue" placeholder="Venue Name" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
+                
+                <input type="text" name="recurring-info" placeholder="Recurring Info (e.g., 'Every Friday')" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent">
+
                 <input type="url" name="link" placeholder="Link to tickets or more info" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent">
+                
                 <input type="email" name="email" placeholder="Your Email (for confirmation)" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
+                
                 <div class="text-right">
                     <button type="submit" class="bg-[#FADCD9] text-[#333333] px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit for Review</button>
                 </div>
@@ -180,3 +198,6 @@
     </script>
 </body>
 </html>
+```
+
+After deploying this new code, remember to update your Zapier automation to map the new `"promo-image"` and `"recurring-info"` fields from Netlify to your new Airtable fiel

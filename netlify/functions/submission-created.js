@@ -1,4 +1,4 @@
-// v3 - Forcing a redeploy to pick up new environment variables.
+// v4 - Adds batching to handle Airtable's 10-record creation limit.
 const Airtable = require('airtable');
 
 // Initialize Airtable client
@@ -40,11 +40,16 @@ exports.handler = async function (event, context) {
         };
     });
 
-    // 4. Create the records in Airtable
+    // 4. Create the records in Airtable in batches of 10
     console.log(`Preparing to create ${recordsToCreate.length} record(s) in Airtable.`);
-    await base('Events').create(recordsToCreate);
+    const batchSize = 10;
+    for (let i = 0; i < recordsToCreate.length; i += batchSize) {
+        const batch = recordsToCreate.slice(i, i + batchSize);
+        console.log(`Creating batch of ${batch.length} records...`);
+        await base('Events').create(batch);
+    }
 
-    console.log("Successfully created records in Airtable.");
+    console.log("Successfully created all records in Airtable.");
     return {
         statusCode: 200,
         body: "Submission processed successfully."
@@ -76,7 +81,7 @@ async function getDatesFromAI(eventName, startDate, recurringInfo) {
     }
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

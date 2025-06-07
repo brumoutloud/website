@@ -7,6 +7,11 @@
   # This line explicitly tells Netlify where your functions are located.
   functions = "netlify/functions"
 
+# This section is another way to specify the functions directory,
+# making the configuration more robust.
+[functions]
+  directory = "netlify/functions"
+
 # This rule tells Netlify how to handle dynamic event pages.
 [[redirects]]
   # When a user requests a path like "/event/some-event-slug"...

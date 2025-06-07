@@ -1,3 +1,4 @@
+// v3 - Forcing a redeploy to pick up new environment variables.
 const Airtable = require('airtable');
 
 // Initialize Airtable client
@@ -68,7 +69,6 @@ async function getDatesFromAI(eventName, startDate, recurringInfo) {
         contents: [{ role: "user", parts: [{ text: prompt }] }]
     };
 
-    // Note: We need a Gemini API Key for this to work.
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         console.error("GEMINI_API_KEY environment variable is not set.");
@@ -76,7 +76,7 @@ async function getDatesFromAI(eventName, startDate, recurringInfo) {
     }
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

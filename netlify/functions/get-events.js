@@ -19,7 +19,8 @@ exports.handler = async function (event, context) {
       date: record.get('Date'),
       venue: record.get('Venue'),
       image: record.get('Promo Image') ? record.get('Promo Image')[0].url : null,
-      slug: record.get('Slug') // Fetch the new Slug field
+      slug: record.get('Slug'),
+      recurringInfo: record.get('Recurring Info') // Fetches the recurring info text
     }));
 
     return {

@@ -1,4 +1,4 @@
-<!-- Forced update to allow commit v7 -->
+<!-- Forced update v11 - Adds Autofill button to the form -->
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -121,6 +121,9 @@
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
                 <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
             </div>
+            
+            <button onclick="autofillForm()" type="button" class="w-full mb-4 bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-500">Autofill with Dummy Data</button>
+
             <form name="event-submission" id="event-form" class="space-y-4" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data">
                 <p class="hidden"><label>Don’t fill this out if you’re human: <input name="bot-field"></label></p>
                 <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
@@ -168,6 +171,27 @@
             eventModal.style.display = 'none';
         }
 
+        // --- Autofill Form Logic ---
+        function autofillForm() {
+            const sampleEvents = [
+                { name: "SlayStation: The Queer Gaming Night", venue: "Chance & Counters", type: "Gaming" },
+                { name: "The Big Gay Quiz", venue: "The Loft", type: "Quiz" },
+                { name: "Trans is Beautiful: A Celebration", venue: "Birmingham LGBT Centre", type: "Community" },
+                { name: "Divas Unleashed: A Drag Revue", venue: "The Nightingale Club", type: "Drag" },
+                { name: "Leather & Lace: Fetish Party", venue: "Eden Bar", type: "Club Night" },
+            ];
+            const randomEvent = sampleEvents[Math.floor(Math.random() * sampleEvents.length)];
+            const randomDate = new Date(Date.now() + Math.random() * 60 * 24 * 60 * 60 * 1000);
+            
+            document.querySelector('[name="event-name"]').value = randomEvent.name;
+            document.querySelector('[name="description"]').value = `A fantastic night celebrating our community. Join us for a special ${randomEvent.type} event at ${randomEvent.venue}. Expect great music, great people, and a great time.`;
+            document.querySelector('[name="date"]').value = randomDate.toISOString().split('T')[0];
+            document.querySelector('[name="start-time"]').value = `${String(19 + Math.floor(Math.random() * 4)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`;
+            document.querySelector('[name="venue"]').value = randomEvent.venue;
+            document.querySelector('[name="email"]').value = "test@example.com";
+        }
+
+
         // --- Simple SPA Router Logic ---
         const pages = document.querySelectorAll('.page');
         const navLinks = document.querySelectorAll('.nav-link');
@@ -204,7 +228,7 @@
                     }).replace(' at', ' at ') : 'Date & Time TBC';
 
                     const eventCard = `
-                        <a href="/event/${event.slug}" class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800 no-underline">
+                        <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
                             <div class="card-thumbnail">
                                 <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${event.name}">
                             </div>
@@ -216,7 +240,7 @@
                                    <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>${event.venue}</p>
                                 </div>
                             </div>
-                        </a>`;
+                        </div>`;
                     eventGrid.innerHTML += eventCard;
                 });
             } catch (error) {

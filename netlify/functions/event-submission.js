@@ -1,46 +1,37 @@
-// v8 - Renamed file to match the form name for automatic Netlify trigger.
+// v9 - Switched to a synchronous function for reliability and custom success page.
 const Airtable = require('airtable');
 
 // Initialize Airtable client
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
-// This is the main function that Netlify will run on form submission
 exports.handler = async function (event, context) {
   try {
-    // 1. Parse the submission data from the incoming event
     const submission = JSON.parse(event.body).payload.data;
     console.log("Received submission:", submission);
 
     let datesToCreate = [];
 
-    // 2. Check if there's recurring info to process
     if (submission['recurring-info'] && submission['recurring-info'].trim() !== '') {
         console.log("Recurring info found:", submission['recurring-info']);
-        // Use AI to get an array of dates
         datesToCreate = await getDatesFromAI(submission['event-name'], submission.date, submission['recurring-info']);
     } else {
-        // If not recurring, just use the single date provided
         datesToCreate.push(submission.date);
         console.log("Single event, using date:", submission.date);
     }
     
-    // 3. Prepare the records for Airtable
-    const recordsToCreate = datesToCreate.map(date => {
-        return {
-            fields: {
-                "Event Name": submission['event-name'],
-                "Description": submission.description,
-                "Date": `${date}T${submission['start-time']}:00.000Z`, // Combine date and time
-                "Venue": submission.venue,
-                "Link": submission.link,
-                "Submitter Email": submission.email,
-                "Promo Image": submission['promo-image'] ? [{ url: submission['promo-image'].url }] : null,
-                "Status": "Pending Review" // Always set new events as pending
-            }
-        };
-    });
+    const recordsToCreate = datesToCreate.map(date => ({
+        fields: {
+            "Event Name": submission['event-name'],
+            "Description": submission.description,
+            "Date": `${date}T${submission['start-time']}:00.000Z`,
+            "Venue": submission.venue,
+            "Link": submission.link,
+            "Submitter Email": submission.email,
+            "Promo Image": submission['promo-image'] ? [{ url: submission['promo-image'].url }] : null,
+            "Status": "Pending Review"
+        }
+    }));
 
-    // 4. Create the records in Airtable in batches of 10
     console.log(`Preparing to create ${recordsToCreate.length} record(s) in Airtable.`);
     const batchSize = 10;
     for (let i = 0; i < recordsToCreate.length; i += batchSize) {
@@ -49,17 +40,38 @@ exports.handler = async function (event, context) {
         await base('Events').create(batch);
     }
 
-    console.log("Successfully created all records in Airtable.");
+    console.log("Successfully created records in Airtable.");
+    
+    // Return a user-friendly HTML success page
     return {
         statusCode: 200,
-        body: "Submission processed successfully."
+        headers: { 'Content-Type': 'text/html' },
+        body: `
+            <!DOCTYPE html>
+            <html lang="en" class="dark">
+            <head>
+                <meta charset="UTF-8">
+                <title>Submission Received!</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+                <style>body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; }</style>
+            </head>
+            <body class="flex flex-col items-center justify-center min-h-screen text-center p-4">
+                <div class="bg-[#1e1e1e] p-8 rounded-2xl shadow-lg">
+                    <h1 class="text-4xl font-bold text-white mb-4">Thank You!</h1>
+                    <p class="text-gray-300 mb-6">Your event has been submitted and is now pending review.</p>
+                    <a href="/" class="bg-[#FADCD9] text-[#333333] px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Back to Homepage</a>
+                </div>
+            </body>
+            </html>
+        `
     };
 
   } catch (error) {
     console.error("An error occurred:", error);
     return {
         statusCode: 500,
-        body: "Error processing submission."
+        body: `<html><body><h1>Error</h1><p>There was an error processing your submission. Please try again later.</p><pre>${error.toString()}</pre></body></html>`
     };
   }
 };
@@ -77,12 +89,11 @@ async function getDatesFromAI(eventName, startDate, recurringInfo) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         console.error("GEMINI_API_KEY environment variable is not set.");
-        return [startDate]; // Fallback if no key is provided
+        return [startDate]; 
     }
 
     try {
-        // Using the exact model name from the user's screenshot
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -91,7 +102,7 @@ async function getDatesFromAI(eventName, startDate, recurringInfo) {
         if (!response.ok) {
             const errorBody = await response.text();
             console.error("AI API request failed:", response.status, response.statusText, errorBody);
-            return [startDate]; // Fallback to original date on failure
+            return [startDate];
         }
 
         const result = await response.json();
@@ -102,10 +113,10 @@ async function getDatesFromAI(eventName, startDate, recurringInfo) {
             return dateString.split(',').map(d => d.trim());
         } else {
             console.error("Unexpected AI response format:", result);
-            return [startDate]; // Fallback
+            return [startDate];
         }
     } catch (error) {
         console.error("Error calling AI:", error);
-        return [startDate]; // Fallback to original date on error
+        return [startDate];
     }
 }

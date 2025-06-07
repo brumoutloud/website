@@ -1,38 +1,42 @@
-// v10 - Correctly parses URL-encoded form data instead of JSON.
+// v11 - Re-adds saving of "Recurring Info" text to Airtable.
 const Airtable = require('airtable');
-const { parse } = require('querystring'); // Use the correct parser for form data
+const { parse } = require('querystring');
 
 // Initialize Airtable client
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
 exports.handler = async function (event, context) {
   try {
-    // Correctly parse the URL-encoded form data from the event body
     const submission = parse(event.body);
     console.log("Received submission:", submission);
 
     let datesToCreate = [];
+    const recurringInfoText = submission['recurring-info'] || null;
 
-    if (submission['recurring-info'] && submission['recurring-info'].trim() !== '') {
-        console.log("Recurring info found:", submission['recurring-info']);
-        datesToCreate = await getDatesFromAI(submission['event-name'], submission.date, submission['recurring-info']);
+    if (recurringInfoText && recurringInfoText.trim() !== '') {
+        console.log("Recurring info found:", recurringInfoText);
+        datesToCreate = await getDatesFromAI(submission['event-name'], submission.date, recurringInfoText);
     } else {
         datesToCreate.push(submission.date);
         console.log("Single event, using date:", submission.date);
     }
     
-    const recordsToCreate = datesToCreate.map(date => ({
-        fields: {
+    const recordsToCreate = datesToCreate.map((date, index) => {
+        const fields = {
             "Event Name": submission['event-name'],
             "Description": submission.description,
             "Date": `${date}T${submission['start-time']}:00.000Z`,
             "Venue": submission.venue,
             "Link": submission.link,
             "Submitter Email": submission.email,
-            // Note: File uploads are not handled in this version.
             "Status": "Pending Review"
+        };
+        // ONLY add the recurring info text to the VERY FIRST event in the series
+        if (index === 0 && recurringInfoText) {
+            fields["Recurring Info"] = recurringInfoText;
         }
-    }));
+        return { fields };
+    });
 
     console.log(`Preparing to create ${recordsToCreate.length} record(s) in Airtable.`);
     const batchSize = 10;
@@ -43,7 +47,6 @@ exports.handler = async function (event, context) {
 
     console.log("Successfully created records in Airtable.");
     
-    // Return a user-friendly HTML success page
     return {
         statusCode: 200,
         headers: { 'Content-Type': 'text/html' },
@@ -62,43 +65,23 @@ exports.handler = async function (event, context) {
 
 // --- Helper Function to Call Gemini AI ---
 async function getDatesFromAI(eventName, startDate, recurringInfo) {
-    console.log("Calling AI to parse recurring info...");
-
     const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Based on this rule, generate a list of all future dates for this event. Include the original start date in your list. The dates must be formatted as a comma-separated list of YYYY-MM-DD strings. Example output: 2025-07-04,2025-07-11,2025-07-18. If the "Recurring Info" field is empty or doesn't describe a clear rule, just return the original event's start date in YYYY-MM-DD format. Do not add any other text, explanation, or introductions.`;
-
-    const payload = {
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-    };
-
+    const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        console.error("GEMINI_API_KEY environment variable is not set.");
-        return [startDate]; 
-    }
-
+    if (!apiKey) return [startDate]; 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("AI API request failed:", response.status, response.statusText, errorBody);
-            return [startDate];
-        }
-
+        if (!response.ok) return [startDate];
         const result = await response.json();
-        
         if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
             const dateString = result.candidates[0].content.parts[0].text.trim();
-            console.log("AI responded with date string:", dateString);
             return dateString.split(',').map(d => d.trim());
-        } else {
-            console.error("Unexpected AI response format:", result);
-            return [startDate];
         }
+        return [startDate];
     } catch (error) {
         console.error("Error calling AI:", error);
         return [startDate];

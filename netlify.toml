@@ -3,9 +3,3 @@
 [build]
   # This line explicitly tells Netlify where your functions are located.
   functions = "netlify/functions"
-
-# This section makes the function discovery more robust.
-[functions]
-  # This pattern tells Netlify to forcefully include all .js files
-  # from within the specified functions directory.
-  included_files = ["netlify/functions/**/*.js"]

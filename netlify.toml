@@ -2,4 +2,14 @@
 
 [build]
   # This line explicitly tells Netlify where your functions are located.
-functions = "netlify/functions"
+  functions = "netlify/functions"
+
+# This rule tells Netlify how to handle dynamic event pages.
+[[redirects]]
+  # When a user requests a path like "/event/some-event-slug"...
+  from = "/event/*"
+  # ...run the get-event-details function instead of looking for a file.
+  # The :splat variable passes the slug to the function.
+  to = "/.netlify/functions/get-event-details?slug=:splat"
+  # A status of 200 means "OK" and shows the function's output as the page.
+  status = 200

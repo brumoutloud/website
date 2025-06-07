@@ -228,15 +228,11 @@
         async function loadVenues() {
             const venueGrid = document.getElementById('venue-grid');
             try {
-                console.log('Fetching venues...');
                 const response = await fetch('/.netlify/functions/get-venues');
-                console.log('Response from get-venues:', response);
-
                 if (!response.ok) {
                     throw new Error(`Server responded with status ${response.status}`);
                 }
                 const venues = await response.json();
-                console.log('Venues data received:', venues);
 
                 venueGrid.innerHTML = '';
                  if (venues.length === 0) {
@@ -252,7 +248,7 @@
                             <div class="pt-6 flex flex-col flex-grow">
                                 <h3 class="text-xl font-semibold text-white mb-2">${venue.name}</h3>
                                 <div class="mb-4">
-                                    ${(venue.category || []).map(cat => `<span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded mr-2">${cat}</span>`).join('')}
+                                    ${Array.isArray(venue.category) ? venue.category.map(cat => `<span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded mr-2">${cat}</span>`).join('') : ''}
                                 </div>
                                 <p class="text-sm text-gray-400 flex-grow">${venue.description || ''}</p>
                             </div>

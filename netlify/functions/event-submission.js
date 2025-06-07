@@ -1,6 +1,6 @@
-// Final Version v2 - Correctly parses form data.
+// Final Version v3 - Re-adds saving of "Recurring Info" text to Airtable.
 const Airtable = require('airtable');
-const { parse } = require('querystring'); // Use the correct parser
+const { parse } = require('querystring');
 
 // Initialize Airtable client
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
@@ -8,7 +8,6 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 exports.handler = async function (event, context) {
   let submission = {};
   try {
-      // Correctly parse the URL-encoded form data from the event body
       submission = parse(event.body);
   } catch (e) {
       console.error('Error parsing form data', e);
@@ -38,8 +37,8 @@ exports.handler = async function (event, context) {
             "Venue": submission.venue,
             "Link": submission.link,
             "Submitter Email": submission.email,
-            "Status": "Pending Review"
-            // Note: File uploads are not supported with this synchronous trigger method.
+            "Status": "Pending Review",
+            "Recurring Info": submission['recurring-info'] || null // This line saves the recurring info text
         }
     }));
 

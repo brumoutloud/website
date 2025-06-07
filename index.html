@@ -1,4 +1,4 @@
-<!-- Forced update to allow commit v6 -->
+<!-- Forced update to allow commit v7 -->
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -204,7 +204,7 @@
                     }).replace(' at', ' at ') : 'Date & Time TBC';
 
                     const eventCard = `
-                        <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
+                        <a href="/event/${event.slug}" class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800 no-underline">
                             <div class="card-thumbnail">
                                 <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${event.name}">
                             </div>
@@ -216,7 +216,7 @@
                                    <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>${event.venue}</p>
                                 </div>
                             </div>
-                        </div>`;
+                        </a>`;
                     eventGrid.innerHTML += eventCard;
                 });
             } catch (error) {
@@ -229,14 +229,11 @@
             const venueGrid = document.getElementById('venue-grid');
             try {
                 const response = await fetch('/.netlify/functions/get-venues');
-                if (!response.ok) {
-                    throw new Error(`Server responded with status ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
                 const venues = await response.json();
-
                 venueGrid.innerHTML = '';
                  if (venues.length === 0) {
-                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found. (Note: Check Airtable for approved venues)</p>';
+                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
                     return;
                 }
                 venues.forEach(venue => {

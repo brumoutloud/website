@@ -1,4 +1,4 @@
-<!-- Final Fix v15 - Re-adds recurring info pill -->
+<!-- Final Fix v16 - Restores tappable cards on mobile and recurring pill -->
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -86,6 +86,7 @@
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
                 <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
             </div>
+            
             <form name="event-submission" id="event-form" class="space-y-4" method="POST" action="/.netlify/functions/event-submission">
                 <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required>
                 <textarea name="description" placeholder="Event Description" rows="4" class="w-full p-3 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B564F7] focus:border-transparent" required></textarea>
@@ -156,7 +157,7 @@
                 }).replace(' at', ' at ') : 'Date & Time TBC';
                 
                 const eventCard = `
-                    <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
+                    <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800 relative">
                         <div class="card-thumbnail"><img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${event.name}"></div>
                         <div class="pt-6 flex flex-col flex-grow">
                             <h3 class="text-xl font-semibold text-white mb-2">${event.name}</h3>
@@ -167,6 +168,7 @@
                                 ${event.recurringInfo ? `<div class="mt-2"><span class="inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full"><i class="fas fa-sync-alt fa-xs mr-1"></i>${event.recurringInfo}</span></div>` : ''}
                             </div>
                         </div>
+                        <a href="/event/${event.slug}" class="absolute inset-0 z-10" aria-label="View details for ${event.name}"></a>
                     </div>`;
                 eventGrid.innerHTML += eventCard;
             });

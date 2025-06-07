@@ -5,34 +5,33 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 
 exports.handler = async function (event, context) {
   try {
-    const records = await base('Venues')
+    const records = await base('Events') // Corrected to fetch from 'Events' table
       .select({
-        // Select only records where the Status is 'Approved'
         filterByFormula: "{Status} = 'Approved'",
+        sort: [{ field: 'Date', direction: 'asc' }],
         maxRecords: 100,
       })
       .all();
 
-    // Clean up the data to send back to the website
-    const venues = records.map((record) => ({
+    const events = records.map((record) => ({
       id: record.id,
-      name: record.get('Name'),
+      name: record.get('Event Name'),
       description: record.get('Description'),
-      address: record.get('Address'),
-      website: record.get('Website'),
-      photo: record.get('Photo') ? record.get('Photo')[0].url : null,
-      category: record.get('Category') || [],
+      date: record.get('Date'),
+      venue: record.get('Venue'),
+      recurringInfo: record.get('Recurring Info'),
+      image: record.get('Promo Image') ? record.get('Promo Image')[0].url : null,
     }));
 
     return {
       statusCode: 200,
-      body: JSON.stringify(venues),
+      body: JSON.stringify(events),
     };
   } catch (error) {
     console.error(error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch venues' }),
+      body: JSON.stringify({ error: 'Failed to fetch events' }),
     };
   }
 };

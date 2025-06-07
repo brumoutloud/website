@@ -1,25 +1,16 @@
-// Final Version v3 - Re-adds saving of "Recurring Info" text to Airtable.
+// v9 - Switched to a synchronous function for reliability and custom success page.
 const Airtable = require('airtable');
-const { parse } = require('querystring');
 
 // Initialize Airtable client
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
 exports.handler = async function (event, context) {
-  let submission = {};
   try {
-      submission = parse(event.body);
-  } catch (e) {
-      console.error('Error parsing form data', e);
-      return { statusCode: 400, body: "Error processing form data." };
-  }
-  
-  console.log("Received submission:", submission);
+    const submission = JSON.parse(event.body).payload.data;
+    console.log("Received submission:", submission);
 
-  try {
     let datesToCreate = [];
 
-    // Check if there's recurring info to process
     if (submission['recurring-info'] && submission['recurring-info'].trim() !== '') {
         console.log("Recurring info found:", submission['recurring-info']);
         datesToCreate = await getDatesFromAI(submission['event-name'], submission.date, submission['recurring-info']);
@@ -28,7 +19,6 @@ exports.handler = async function (event, context) {
         console.log("Single event, using date:", submission.date);
     }
     
-    // Prepare the records for Airtable
     const recordsToCreate = datesToCreate.map(date => ({
         fields: {
             "Event Name": submission['event-name'],
@@ -37,8 +27,8 @@ exports.handler = async function (event, context) {
             "Venue": submission.venue,
             "Link": submission.link,
             "Submitter Email": submission.email,
-            "Status": "Pending Review",
-            "Recurring Info": submission['recurring-info'] || null // This line saves the recurring info text
+            "Promo Image": submission['promo-image'] ? [{ url: submission['promo-image'].url }] : null,
+            "Status": "Pending Review"
         }
     }));
 
@@ -46,6 +36,7 @@ exports.handler = async function (event, context) {
     const batchSize = 10;
     for (let i = 0; i < recordsToCreate.length; i += batchSize) {
         const batch = recordsToCreate.slice(i, i + batchSize);
+        console.log(`Creating batch of ${batch.length} records...`);
         await base('Events').create(batch);
     }
 
@@ -56,7 +47,24 @@ exports.handler = async function (event, context) {
         statusCode: 200,
         headers: { 'Content-Type': 'text/html' },
         body: `
-            <!DOCTYPE html><html lang="en" class="dark"><head><meta charset="UTF-8"><title>Submission Received!</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"><style>body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; }</style></head><body class="flex flex-col items-center justify-center min-h-screen text-center p-4"><div class="bg-[#1e1e1e] p-8 rounded-2xl shadow-lg"><h1 class="text-4xl font-bold text-white mb-4">Thank You!</h1><p class="text-gray-300 mb-6">Your event has been submitted and is now pending review.</p><a href="/" class="bg-[#FADCD9] text-[#333333] px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Back to Homepage</a></div></body></html>`
+            <!DOCTYPE html>
+            <html lang="en" class="dark">
+            <head>
+                <meta charset="UTF-8">
+                <title>Submission Received!</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+                <style>body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; }</style>
+            </head>
+            <body class="flex flex-col items-center justify-center min-h-screen text-center p-4">
+                <div class="bg-[#1e1e1e] p-8 rounded-2xl shadow-lg">
+                    <h1 class="text-4xl font-bold text-white mb-4">Thank You!</h1>
+                    <p class="text-gray-300 mb-6">Your event has been submitted and is now pending review.</p>
+                    <a href="/" class="bg-[#FADCD9] text-[#333333] px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Back to Homepage</a>
+                </div>
+            </body>
+            </html>
+        `
     };
 
   } catch (error) {
@@ -68,28 +76,47 @@ exports.handler = async function (event, context) {
   }
 };
 
-// --- Helper Function to Call Gemini AI (Unchanged) ---
+// --- Helper Function to Call Gemini AI ---
 async function getDatesFromAI(eventName, startDate, recurringInfo) {
+    console.log("Calling AI to parse recurring info...");
+
     const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Based on this rule, generate a list of all future dates for this event. Include the original start date in your list. The dates must be formatted as a comma-separated list of YYYY-MM-DD strings. Example output: 2025-07-04,2025-07-11,2025-07-18. If the "Recurring Info" field is empty or doesn't describe a clear rule, just return the original event's start date in YYYY-MM-DD format. Do not add any other text, explanation, or introductions.`;
-    const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+
+    const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+    };
+
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return [startDate]; 
+    if (!apiKey) {
+        console.error("GEMINI_API_KEY environment variable is not set.");
+        return [startDate]; 
+    }
+
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!response.ok) return [startDate];
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("AI API request failed:", response.status, response.statusText, errorBody);
+            return [startDate];
+        }
+
         const result = await response.json();
+        
         if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
             const dateString = result.candidates[0].content.parts[0].text.trim();
+            console.log("AI responded with date string:", dateString);
             return dateString.split(',').map(d => d.trim());
+        } else {
+            console.error("Unexpected AI response format:", result);
+            return [startDate];
         }
-        return [startDate];
     } catch (error) {
         console.error("Error calling AI:", error);
         return [startDate];
     }
 }
-

@@ -1,11 +1,10 @@
 const Airtable = require('airtable');
 
-// Configure Airtable using the same environment variables
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
 exports.handler = async function (event, context) {
   try {
-    const records = await base('Events') // Corrected to fetch from 'Events' table
+    const records = await base('Events')
       .select({
         filterByFormula: "{Status} = 'Approved'",
         sort: [{ field: 'Date', direction: 'asc' }],
@@ -19,8 +18,8 @@ exports.handler = async function (event, context) {
       description: record.get('Description'),
       date: record.get('Date'),
       venue: record.get('Venue'),
-      recurringInfo: record.get('Recurring Info'),
       image: record.get('Promo Image') ? record.get('Promo Image')[0].url : null,
+      slug: record.get('Slug') // Fetch the new Slug field
     }));
 
     return {

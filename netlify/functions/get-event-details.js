@@ -2,11 +2,11 @@ const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
 exports.handler = async function (event, context) {
-  // Get the slug from the URL query parameter (e.g., ?slug=baga-chipz-live-at-eden)
-  const { slug } = event.queryStringParameters;
+  // More robust method to get the slug from the end of the path
+  const slug = event.path.split("/").pop();
 
   if (!slug) {
-    return { statusCode: 400, body: 'Missing event slug' };
+    return { statusCode: 400, body: 'Error: Event slug could not be determined from the URL.' };
   }
 
   try {
@@ -19,7 +19,7 @@ exports.handler = async function (event, context) {
       .firstPage();
 
     if (!records || records.length === 0) {
-      return { statusCode: 404, body: 'Event not found' };
+      return { statusCode: 404, body: `Event with slug "${slug}" not found.` };
     }
 
     const event = records[0];
@@ -85,6 +85,6 @@ exports.handler = async function (event, context) {
 
   } catch (error) {
     console.error(error);
-    return { statusCode: 500, body: 'Server error' };
+    return { statusCode: 500, body: 'Server error while fetching event details.' };
   }
 };

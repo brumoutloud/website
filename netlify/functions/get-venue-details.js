@@ -1,7 +1,7 @@
+// v10 - Adds social media links to the venue detail page.
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
-// Helper function to fetch data from a table
 async function fetchRecords(tableName, options) {
     return await base(tableName).select(options).all();
 }
@@ -14,7 +14,7 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        // --- Query 1: Get the Venue's Details ---
+        // --- Get the Venue's Details ---
         const venueRecords = await fetchRecords('Venues', {
             maxRecords: 1,
             filterByFormula: `{Slug} = "${slug}"`,
@@ -25,19 +25,16 @@ exports.handler = async function (event, context) {
         }
         const venue = venueRecords[0].fields;
         
-        // --- Query 2: Get All Upcoming Events for this Venue ---
+        // --- Get All Upcoming Events for this Venue ---
         const eventRecords = await fetchRecords('Events', {
-            filterByFormula: `AND({Venue} = "${venue.Name}", IS_AFTER({Date}, TODAY()))`,
+            filterByFormula: `AND({Venue Name} = "${venue.Name}", IS_AFTER({Date}, TODAY()))`,
             sort: [{ field: 'Date', direction: 'asc' }],
         });
 
-        // --- Sort Events: Recurring First, then by Date ---
         const sortedEvents = eventRecords.map(rec => rec.fields).sort((a, b) => {
             const aIsRecurring = a['Recurring Info'] ? 0 : 1;
             const bIsRecurring = b['Recurring Info'] ? 0 : 1;
-            if (aIsRecurring !== bIsRecurring) {
-                return aIsRecurring - bIsRecurring;
-            }
+            if (aIsRecurring !== bIsRecurring) return aIsRecurring - bIsRecurring;
             return new Date(a.Date) - new Date(b.Date);
         });
         
@@ -90,6 +87,17 @@ exports.handler = async function (event, context) {
                                 <p class="text-gray-300 whitespace-pre-line">${venue.Accessibility || 'Info not provided.'}</p>
                             </div>
                              ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="block w-full text-center bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-500 transition-opacity">Visit Website</a>` : ''}
+                        
+                            <!-- Social Links Section -->
+                            <div class="border-t border-gray-700 pt-6">
+                                <h3 class="font-bold text-[#B564F7] text-lg mb-4 text-center">Follow Them</h3>
+                                <div class="flex justify-center space-x-6">
+                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-instagram fa-2x"></i></a>` : ''}
+                                    ${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-facebook fa-2x"></i></a>` : ''}
+                                    ${venue.TikTok ? `<a href="${venue.TikTok}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-tiktok fa-2x"></i></a>` : ''}
+                                    ${venue['X (Twitter)'] ? `<a href="${venue['X (Twitter)']}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-twitter fa-2x"></i></a>` : ''}
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Right Column: Upcoming Events -->

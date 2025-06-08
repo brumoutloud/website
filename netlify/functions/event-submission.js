@@ -58,9 +58,16 @@ exports.handler = async function (event, context) {
             return { fields };
         });
 
-        await base('Events').create(recordsToCreate, { typecast: true });
+        // --- Start of Chunking Logic ---
+        const chunkSize = 10;
+        for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
+            const chunk = recordsToCreate.slice(i, i + chunkSize);
+            await base('Events').create(chunk, { typecast: true });
+            console.log(`Successfully created chunk ${Math.floor(i / chunkSize) + 1} with ${chunk.length} record(s).`);
+        }
+        // --- End of Chunking Logic ---
 
-        console.log(`Successfully created ${recordsToCreate.length} record(s).`);
+        console.log(`Successfully created ${recordsToCreate.length} record(s) in total.`);
         return {
             statusCode: 200,
             headers: { 'Content-Type': 'text/html' },
@@ -73,7 +80,7 @@ exports.handler = async function (event, context) {
 };
 
 async function getDatesFromAI(eventName, startDate, recurringInfo) {
-    const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Generate a list of all future dates for this event. Include the original start date. The dates must be a comma-separated list of YYYY-MM-DD strings.`;
+    const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Generate a list of all future dates for this event. Include the original start date. The dates must be a comma-separated list ofYYYY-MM-DD strings.`;
     const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return [startDate]; 

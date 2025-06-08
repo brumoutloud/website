@@ -222,19 +222,23 @@
             try {
                 const venuesResponse = await fetch('/.netlify/functions/get-venues');
                 const venues = await venuesResponse.json();
-                console.log('Received venues data:', venues); // <--- Added this line
+                console.log('Received venues data:', venues);
                 const venueGrid = document.getElementById('venue-grid');
                 venueGrid.innerHTML = ''; // Clear loading message
 
                 if (venues && venues.length > 0) {
                     venues.forEach(venue => {
+                        // Ensure venue.description is a string before calling substring
+                        const descriptionText = venue.description || 'No description provided.'; 
+                        const truncatedDescription = descriptionText.substring(0, 70) + (descriptionText.length > 70 ? '...' : '');
+
                         const venueCard = `
                             <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card">
                                 <div class="card-thumbnail w-full mb-4">
                                     <img src="${venue.photo || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue'}" alt="${venue.name}" class="rounded-xl">
                                 </div>
                                 <h3 class="text-2xl font-bold text-white mb-2">${venue.name}</h3>
-                                <p class="text-gray-400 mb-4">${venue.description.substring(0, 70)}...</p>
+                                <p class="text-gray-400 mb-4">${truncatedDescription}</p>
                                 <a href="/venue/${venue.slug}" class="bg-[#B564F7] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">View Details</a>
                             </div>
                         `;
@@ -244,7 +248,7 @@
                     venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
                 }
             } catch (error) {
-                console.error("Error fetching venues on client-side:", error); // Updated error message
+                console.error("Error fetching venues on client-side:", error);
                 document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues. Please try again later.</p>';
             }
 

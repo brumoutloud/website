@@ -1,4 +1,4 @@
-// v6 - Adds a clear title for the "Add to Calendar" section.
+// v7 - Adds the full, uncropped promo image below the description.
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
@@ -74,6 +74,15 @@ exports.handler = async function (event, context) {
               <div class="prose prose-invert prose-lg max-w-none text-gray-300">
                 ${description.replace(/\n/g, '<br>')}
               </div>
+
+              <!-- New Section for Full Flyer -->
+              ${eventRecord.get('Promo Image') ? `
+                <div class="mt-12">
+                  <h2 class="text-3xl font-bold text-white mb-4">Event Flyer</h2>
+                  <img src="${imageUrl}" alt="Full flyer for ${eventName}" class="w-full h-auto rounded-lg shadow-md">
+                </div>
+              ` : ''}
+
             </div>
 
             <div class="lg:col-span-1 mt-8 lg:mt-0">

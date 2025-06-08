@@ -1,4 +1,4 @@
-// v5 - Adds GCal/ICS links, better sharing, and clearer CTAs.
+// v6 - Adds a clear title for the "Add to Calendar" section.
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
@@ -31,7 +31,6 @@ exports.handler = async function (event, context) {
     const recurringInfo = eventRecord.get('Recurring Info');
     const pageUrl = `https://bolwebsite.netlify.app${event.path}`;
 
-    // Prepare data for the Add to Calendar function
     const eventDataForClient = {
         title: eventName,
         description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
@@ -40,7 +39,6 @@ exports.handler = async function (event, context) {
         location: venue
     };
     
-    // Dynamically generate the full HTML for the page
     const html = `
       <!DOCTYPE html>
       <html lang="en" class="dark">
@@ -70,7 +68,6 @@ exports.handler = async function (event, context) {
         <main class="container mx-auto p-4 lg:p-8">
           <div class="max-w-7xl mx-auto lg:grid lg:grid-cols-3 lg:gap-12">
             
-            <!-- Main Content Column -->
             <div class="lg:col-span-2">
               <img src="${imageUrl}" alt="${eventName}" class="w-full h-auto rounded-2xl mb-8 shadow-lg object-cover aspect-video">
               <h1 class="text-4xl lg:text-5xl font-extrabold text-white mb-4">${eventName}</h1>
@@ -79,7 +76,6 @@ exports.handler = async function (event, context) {
               </div>
             </div>
 
-            <!-- Sidebar Column -->
             <div class="lg:col-span-1 mt-8 lg:mt-0">
                 <div class="bg-[#1e1e1e] rounded-2xl p-6 sticky top-24">
                     <div class="flex flex-col space-y-4">
@@ -103,9 +99,12 @@ exports.handler = async function (event, context) {
                         
                         ${ticketLink ? `<a href="${ticketLink}" target="_blank" rel="noopener noreferrer" class="w-full text-center bg-[#FADCD9] text-[#333333] px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Get Tickets</a>` : ''}
 
-                        <div class="grid grid-cols-2 gap-2">
-                            <a id="google-calendar-btn" href="#" target="_blank" class="w-full text-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-500 transition-opacity text-sm">Google Calendar</a>
-                            <a id="add-to-calendar-btn" href="#" class="w-full text-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-500 transition-opacity text-sm">Apple/Outlook</a>
+                        <div>
+                            <h3 class="font-bold text-white mb-2">Add to Your Calendar</h3>
+                            <div class="grid grid-cols-2 gap-2">
+                                <a id="google-calendar-btn" href="#" target="_blank" class="w-full text-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-500 transition-opacity text-sm">Google Calendar</a>
+                                <a id="add-to-calendar-btn" href="#" class="w-full text-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-500 transition-opacity text-sm">Apple/Outlook</a>
+                            </div>
                         </div>
 
                         <div class="border-t border-gray-700 my-4"></div>
@@ -124,7 +123,6 @@ exports.handler = async function (event, context) {
         </main>
         
         <script>
-            // Data for the client-side script
             const eventData = ${JSON.stringify(eventDataForClient)};
             const pageUrl = "${pageUrl}";
 

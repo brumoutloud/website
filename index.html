@@ -1,4 +1,4 @@
-<!-- Final Fix v18 - Adds functional event filters -->
+<!-- Final Fix v19 - Adds advanced search and filtering -->
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -22,8 +22,7 @@
         .card:hover .card-thumbnail img { transform: scale(0.95); object-fit: contain; }
         .nav-link { @apply px-4 py-2 rounded-lg transition-colors duration-200 text-gray-300 hover:text-white hover:bg-gray-700; }
         .nav-link.active { @apply bg-gray-700 text-white font-semibold; }
-        .filter-btn { @apply px-4 py-2 rounded-full border border-[#FADCD9] text-[#FADCD9] uppercase text-xs font-semibold tracking-wider transition-colors duration-200; font-family: 'Poppins', sans-serif; font-weight: 600; }
-        .filter-btn.active, .filter-btn:hover { @apply bg-[#FADCD9] text-[#333333]; }
+        .filter-input { @apply bg-gray-700 border border-gray-600 text-white rounded-lg p-2 focus:ring-2 focus:ring-[#B564F7] focus:border-transparent; }
     </style>
 </head>
 <body class="antialiased">
@@ -58,13 +57,22 @@
         <section id="whats-on" class="page">
             <h1 class="text-4xl font-extrabold mb-4 text-center">What's On</h1>
             <p class="text-center text-gray-400 mb-8">Your guide to the best LGBTQ+ events across Birmingham.</p>
-            <div id="filter-container" class="bg-[#1e1e1e] p-4 rounded-xl shadow-md mb-8 flex flex-wrap gap-4 items-center justify-center">
-                <button class="filter-btn" onclick="filterEvents('all')">All</button>
-                <button class="filter-btn" onclick="filterEvents('weekend')">This Weekend</button>
-                <button class="filter-btn" onclick="filterEvents('drag')">Drag</button>
-                <button class="filter-btn" onclick="filterEvents('club-night')">Club Nights</button>
-                <button class="filter-btn" onclick="filterEvents('community')">Community</button>
+            
+            <!-- Advanced Filters -->
+            <div id="filter-container" class="bg-[#1e1e1e] p-6 rounded-xl shadow-lg mb-8 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <input type="text" id="search-input" placeholder="Search by keyword..." class="filter-input lg:col-span-2">
+                    <select id="category-filter" class="filter-input"><option value="">All Categories</option></select>
+                    <select id="venue-filter" class="filter-input"><option value="">All Venues</option></select>
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+                    <input type="date" id="start-date-filter" aria-label="Start Date" class="filter-input">
+                    <input type="date" id="end-date-filter" aria-label="End Date" class="filter-input">
+                    <button id="apply-filters-btn" class="bg-[#FADCD9] text-[#333333] font-bold py-2 px-4 rounded-lg hover:opacity-90">Apply Filters</button>
+                    <button id="clear-filters-btn" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-500">Clear</button>
+                </div>
             </div>
+
             <div id="event-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading events...</p>
             </div>
@@ -129,8 +137,9 @@
         }
         window.addEventListener('hashchange', handleNavigation);
         
-        // --- Global store for all events ---
+        // --- Global stores for data ---
         let allEvents = [];
+        let allVenues = [];
 
         async function loadData(endpoint, gridId) {
             const grid = document.getElementById(gridId);
@@ -176,80 +185,72 @@
             });
         }
 
-        function filterEvents(filter) {
-            const filterButtons = document.querySelectorAll('#filter-container .filter-btn');
-            filterButtons.forEach(button => {
-                button.classList.toggle('active', button.getAttribute('onclick').includes(`'${filter}'`));
+        function populateFilters() {
+            const categoryFilter = document.getElementById('category-filter');
+            const venueFilter = document.getElementById('venue-filter');
+            
+            const uniqueCategories = [...new Set(allEvents.flatMap(event => event.category))];
+            uniqueCategories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categoryFilter.appendChild(option);
             });
 
-            let filteredEvents = [];
-            const now = new Date();
-            const endOfWeekend = new Date();
-            endOfWeekend.setDate(now.getDate() + (6 - now.getDay()) + 1); // Next Sunday
+            const uniqueVenues = [...new Set(allVenues.map(venue => venue.name))].sort();
+            uniqueVenues.forEach(venue => {
+                 const option = document.createElement('option');
+                option.value = venue;
+                option.textContent = venue;
+                venueFilter.appendChild(option);
+            });
+        }
 
-            switch(filter) {
-                case 'all':
-                    filteredEvents = allEvents;
-                    break;
-                case 'weekend':
-                    filteredEvents = allEvents.filter(event => {
-                        const eventDate = new Date(event.date);
-                        return eventDate >= now && eventDate <= endOfWeekend;
-                    });
-                    break;
-                case 'drag':
-                    filteredEvents = allEvents.filter(event => event.category.includes('Drag'));
-                    break;
-                case 'club-night':
-                     filteredEvents = allEvents.filter(event => event.category.includes('Club Night'));
-                    break;
-                case 'community':
-                    filteredEvents = allEvents.filter(event => event.category.includes('Community'));
-                    break;
-                default:
-                    filteredEvents = allEvents;
-            }
+        function applyFilters() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const category = document.getElementById('category-filter').value;
+            const venue = document.getElementById('venue-filter').value;
+            const startDate = document.getElementById('start-date-filter').value;
+            const endDate = document.getElementById('end-date-filter').value;
+
+            let filteredEvents = allEvents.filter(event => {
+                const eventDate = new Date(event.date);
+
+                const matchesSearch = !searchTerm || event.name.toLowerCase().includes(searchTerm) || (event.description || '').toLowerCase().includes(searchTerm);
+                const matchesCategory = !category || event.category.includes(category);
+                const matchesVenue = !venue || event.venue === venue;
+                const matchesStartDate = !startDate || eventDate >= new Date(startDate);
+                const matchesEndDate = !endDate || eventDate <= new Date(endDate);
+                
+                return matchesSearch && matchesCategory && matchesVenue && matchesStartDate && matchesEndDate;
+            });
             renderEvents(filteredEvents);
         }
 
-        async function loadVenues() {
-             const venueGrid = document.getElementById('venue-grid');
-             try {
-                const venues = await loadData('get-venues', 'venue-grid');
-                venueGrid.innerHTML = '';
-                 if (venues.length === 0) {
-                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
-                    return;
-                }
-                venues.forEach(venue => {
-                    const venueCard = `
-                        <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6">
-                            <div class="card-thumbnail"><img src="${venue.photo || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${venue.name}"></div>
-                            <div class="pt-6 flex flex-col flex-grow">
-                                <h3 class="text-xl font-semibold text-white mb-2">${venue.name}</h3>
-                                <div class="mb-4">${Array.isArray(venue.category) ? venue.category.map(cat => `<span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded mr-2">${cat}</span>`).join('') : ''}</div>
-                                <p class="text-sm text-gray-400 flex-grow">${venue.description || ''}</p>
-                            </div>
-                        </div>`;
-                    venueGrid.innerHTML += venueCard;
-                });
-            } catch (error) {
-                console.error('An error occurred loading venues:', error);
-                venueGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Could not load venues.</p>';
-            }
+        function clearFilters() {
+             document.getElementById('search-input').value = '';
+             document.getElementById('category-filter').value = '';
+             document.getElementById('venue-filter').value = '';
+             document.getElementById('start-date-filter').value = '';
+             document.getElementById('end-date-filter').value = '';
+             applyFilters();
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-             document.getElementById('year').textContent = new Date().getFullYear();
-             handleNavigation();
-             allEvents = await loadData('get-events', 'event-grid');
-             renderEvents(allEvents); // Render all events initially
-             loadVenues();
-             document.querySelector('#filter-container .filter-btn').classList.add('active'); // Set 'All' as active initially
-        });
+        document.getElementById('apply-filters-btn').addEventListener('click', applyFilters);
+        document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
+
+
+        async function init() {
+            document.getElementById('year').textContent = new Date().getFullYear();
+            handleNavigation();
+            allEvents = await loadData('get-events', 'event-grid');
+            allVenues = await loadData('get-venues', 'venue-grid');
+            renderEvents(allEvents); 
+            renderVenues(allVenues);
+            populateFilters();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
-```
-
-After committing these changes, the filter buttons on your "What's On" page should work perfect

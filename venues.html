@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Listed | Brum Out Loud</title>
+    <meta name="description" content="Get your LGBTQ+ friendly venue listed on Birmingham's essential guide.">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" xintegrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; }
+        :root {
+         --brand-peach: #FADCD9;
+         --brand-dark-text: #333333;
+        }
+        .custom-file-input::file-selector-button {
+            @apply bg-gray-600 text-white font-semibold mr-4 px-4 py-2 border-none rounded-lg cursor-pointer hover:bg-gray-500 transition-colors;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-[#1e1e1e] shadow-md">
+        <nav class="container mx-auto px-4 lg:px-0 py-4 flex justify-between items-center">
+            <a href="/" class="text-3xl font-bold text-white">BrumOutLoud</a>
+            <a href="/" class="bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Back to Main Site</a>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 lg:p-8">
+        <div class="max-w-4xl mx-auto">
+            
+            <section class="text-center mb-12">
+                <h1 class="text-5xl lg:text-6xl font-extrabold text-white mb-4">Get Your Venue Listed</h1>
+                <p class="text-xl text-gray-300">Join Birmingham's essential guide for the LGBTQ+ community and connect with a vibrant, engaged audience looking for their new favourite spot.</p>
+            </section>
+
+            <section class="grid md:grid-cols-3 gap-8 mb-12 text-center">
+                <div class="bg-[#1e1e1e] p-6 rounded-lg">
+                    <i class="fas fa-users fa-2x text-[#B564F7] mb-4"></i>
+                    <h3 class="font-bold text-xl mb-2">Reach a New Audience</h3>
+                    <p class="text-gray-400">Connect with LGBTQ+ locals and visitors actively searching for places to go.</p>
+                </div>
+                 <div class="bg-[#1e1e1e] p-6 rounded-lg">
+                    <i class="fas fa-bullhorn fa-2x text-[#B564F7] mb-4"></i>
+                    <h3 class="font-bold text-xl mb-2">Promote Your Events</h3>
+                    <p class="text-gray-400">Your events will be automatically linked to your new venue page, driving more traffic.</p>
+                </div>
+                 <div class="bg-[#1e1e1e] p-6 rounded-lg">
+                    <i class="fas fa-check-circle fa-2x text-[#B564F7] mb-4"></i>
+                    <h3 class="font-bold text-xl mb-2">It's Completely Free</h3>
+                    <p class="text-gray-400">Our platform is a community project, dedicated to supporting local queer spaces.</p>
+                </div>
+            </section>
+
+            <section class="bg-[#1e1e1e] p-8 rounded-2xl shadow-lg">
+                 <h2 class="text-3xl font-bold text-white mb-6 text-center">Submit Your Venue Details</h2>
+                
+                <form name="venue-submission" id="venue-form" class="space-y-6" method="POST" action="/.netlify/functions/venue-submission" enctype="multipart/form-data">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="venue-name" class="block text-sm font-semibold mb-2">Venue Name</label>
+                            <input type="text" id="venue-name" name="venue-name" class="w-full p-3 bg-gray-700 rounded-lg focus:ring-2 focus:ring-[#B564F7]" required>
+                        </div>
+                        <div>
+                            <label for="address" class="block text-sm font-semibold mb-2">Address</label>
+                            <input type="text" id="address" name="address" class="w-full p-3 bg-gray-700 rounded-lg" required>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="description" class="block text-sm font-semibold mb-2">The Vibe (Description)</label>
+                        <textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-700 rounded-lg" placeholder="e.g., A relaxed, friendly pub perfect for a quiet pint, or a high-energy club with DJs..."></textarea>
+                    </div>
+
+                    <div>
+                        <label for="photo" class="block text-sm font-semibold mb-2">Venue Photo</label>
+                        <input type="file" id="photo" name="photo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500" accept="image/png, image/jpeg, image/webp">
+                    </div>
+
+                    <div>
+                        <label for="opening-hours" class="block text-sm font-semibold mb-2">Opening Hours</label>
+                        <textarea id="opening-hours" name="opening-hours" rows="3" class="w-full p-3 bg-gray-700 rounded-lg" placeholder="e.g.,&#10;Mon-Thu: 5pm - 12am&#10;Fri-Sat: 4pm - 2am&#10;Sun: 4pm - 11pm"></textarea>
+                    </div>
+
+                     <div>
+                        <label for="accessibility" class="block text-sm font-semibold mb-2">Accessibility Information</label>
+                        <textarea id="accessibility" name="accessibility" rows="3" class="w-full p-3 bg-gray-700 rounded-lg" placeholder="e.g., Step-free access, gender-neutral toilets, quiet space available..."></textarea>
+                    </div>
+
+                    <div class="border-t border-gray-700 pt-6">
+                        <h3 class="font-bold text-xl mb-4">Links</h3>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div>
+                                <label for="website" class="block text-sm font-semibold mb-2">Website</label>
+                                <input type="url" id="website" name="website" class="w-full p-3 bg-gray-700 rounded-lg">
+                            </div>
+                             <div>
+                                <label for="instagram" class="block text-sm font-semibold mb-2">Instagram URL</label>
+                                <input type="url" id="instagram" name="instagram" class="w-full p-3 bg-gray-700 rounded-lg">
+                            </div>
+                             <div>
+                                <label for="facebook" class="block text-sm font-semibold mb-2">Facebook URL</label>
+                                <input type="url" id="facebook" name="facebook" class="w-full p-3 bg-gray-700 rounded-lg">
+                            </div>
+                             <div>
+                                <label for="tiktok" class="block text-sm font-semibold mb-2">TikTok URL</label>
+                                <input type="url" id="tiktok" name="tiktok" class="w-full p-3 bg-gray-700 rounded-lg">
+                            </div>
+                         </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-700 pt-6">
+                         <label for="contact-email" class="block text-sm font-semibold mb-2">Your Contact Email (for verification)</label>
+                         <input type="email" id="contact-email" name="contact-email" class="w-full p-3 bg-gray-700 rounded-lg" required>
+                    </div>
+
+                    <div class="text-right">
+                        <button type="submit" class="bg-[#FADCD9] text-[#333333] px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Venue for Review</button>
+                    </div>
+                </form>
+            </section>
+
+        </div>
+    </main>
+</body>
+</html>

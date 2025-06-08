@@ -1,4 +1,4 @@
-// v9 - Safely fetches the Recurring Info field.
+// v7 - Fetches the new 'Category' field for filtering.
 const Airtable = require('airtable');
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
@@ -14,9 +14,6 @@ exports.handler = async function (event, context) {
       .all();
 
     const events = records.map((record) => {
-      // Safely get the recurring info, providing a null fallback if it doesn't exist.
-      const recurringInfo = record.get('Recurring Info') || null;
-
       return {
         id: record.id,
         name: record.get('Event Name'),
@@ -25,7 +22,8 @@ exports.handler = async function (event, context) {
         venue: record.get('Venue'),
         image: record.get('Promo Image') ? record.get('Promo Image')[0].url : null,
         slug: record.get('Slug'),
-        recurringInfo: recurringInfo
+        recurringInfo: record.get('Recurring Info') || null,
+        category: record.get('Category') || [] // Fetches the new Category field
       };
     });
 

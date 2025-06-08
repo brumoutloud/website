@@ -79,7 +79,6 @@
             </div>
             <div class="hidden lg:flex items-center space-x-4">
                  <button onclick="showEventModal()" class="bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
-                 <button onclick="showVenueModal()" class="bg-gray-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-gray-600 transition-colors">Submit Venue</button>
             </div>
             <div class="lg:hidden">
                 <button id="menu-btn" class="text-white focus:outline-none text-2xl">
@@ -92,7 +91,6 @@
              <a href="#venues" class="nav-link block text-center">Venues</a>
              <a href="#community" class="nav-link block text-center">Community</a>
              <button onclick="showEventModal()" class="w-full mt-2 bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
-             <button onclick="showVenueModal()" class="w-full mt-2 bg-gray-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-gray-600 transition-colors">Submit Venue</button>
         </div>
     </header>
 
@@ -224,6 +222,7 @@
             try {
                 const venuesResponse = await fetch('/.netlify/functions/get-venues');
                 const venues = await venuesResponse.json();
+                console.log('Received venues data:', venues); // <--- Added this line
                 const venueGrid = document.getElementById('venue-grid');
                 venueGrid.innerHTML = ''; // Clear loading message
 
@@ -245,7 +244,7 @@
                     venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
                 }
             } catch (error) {
-                console.error("Error fetching venues:", error);
+                console.error("Error fetching venues on client-side:", error); // Updated error message
                 document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues. Please try again later.</p>';
             }
 

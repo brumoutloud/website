@@ -1,4 +1,4 @@
-<!-- v23 - Fixes loading issue by fetching data sequentially -->
+<!-- v24 - Adds defensive coding to rendering functions -->
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
@@ -119,7 +119,7 @@
     </main>
     
     <div id="event-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity duration-300" style="display: none;">
-        <!-- Modal content is unchanged -->
+        <!-- Modal content remains the same -->
     </div>
 
     <footer class="mt-12">
@@ -129,8 +129,6 @@
     </footer>
 
     <script>
-        // --- All JavaScript logic ---
-        
         const menuBtn = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
         const eventModal = document.getElementById('event-modal');
@@ -143,8 +141,12 @@
         const navLinks = document.querySelectorAll('.nav-link');
         function handleNavigation() {
             const hash = window.location.hash || '#whats-on';
-            pages.forEach(page => page.classList.toggle('hidden', `#${page.id}` !== hash));
-            navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === hash));
+            pages.forEach(page => {
+                page.classList.toggle('hidden', `#${page.id}` !== hash);
+            });
+            navLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === hash);
+            });
             mobileMenu.classList.add('hidden');
         }
         window.addEventListener('hashchange', handleNavigation);
@@ -166,44 +168,85 @@
         }
 
         function renderEvents(eventsToRender) {
-             const eventGrid = document.getElementById('event-grid');
+            const eventGrid = document.getElementById('event-grid');
+            if (!eventGrid) return; // defensive check
             eventGrid.innerHTML = ''; 
-            if (eventsToRender.length === 0) {
-                eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No events match the current filter.</p>';
+            if (!eventsToRender || eventsToRender.length === 0) {
+                eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No events found.</p>';
                 return;
             }
-            // ... (rest of renderEvents is unchanged)
+            eventsToRender.forEach(event => {
+                try {
+                    const eventDate = event.date ? new Date(event.date) : null;
+                    const formattedDate = eventDate ? eventDate.toLocaleDateString('en-GB', {
+                        weekday: 'short', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London'
+                    }).replace(' at', ' at ') : 'Date & Time TBC';
+
+                    const eventCard = `
+                        <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6 transition-colors duration-300 hover:bg-gray-800">
+                            <div class="card-thumbnail"><img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${event.name || 'Event Image'}"></div>
+                            <div class="pt-6 flex flex-col flex-grow">
+                                <h3 class="text-xl font-semibold text-white mb-2">${event.name || 'Untitled Event'}</h3>
+                                <p class="text-sm text-gray-400 flex-grow mb-4">${(event.description || '').substring(0, 100)}...</p>
+                                <div class="mt-auto">
+                                    <p class="font-semibold text-[#B564F7] mb-1">${formattedDate}</p>
+                                    <p class="text-sm text-gray-400 mb-4"><i class="fas fa-map-marker-alt fa-xs mr-2"></i>${event.venue || 'TBC'}</p>
+                                </div>
+                            </div>
+                        </div>`;
+                    eventGrid.innerHTML += eventCard;
+                } catch (renderError) {
+                    console.error('Error rendering a single event card:', event, renderError);
+                }
+            });
         }
 
         function renderVenues(venuesToRender) {
              const venueGrid = document.getElementById('venue-grid');
+             if (!venueGrid) return;
              venueGrid.innerHTML = '';
-             if (venuesToRender.length === 0) {
+             if (!venuesToRender || venuesToRender.length === 0) {
                 venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
                 return;
              }
-             // ... (rest of renderVenues is unchanged)
+             venuesToRender.forEach(venue => {
+                 try {
+                    const venueCard = `
+                        <div class="card bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col p-6">
+                            <div class="card-thumbnail"><img src="${venue.photo || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Image'}" alt="${venue.name || 'Venue Image'}"></div>
+                            <div class="pt-6 flex flex-col flex-grow">
+                                <h3 class="text-xl font-semibold text-white mb-2">${venue.name || 'Unnamed Venue'}</h3>
+                                <div class="mb-4">${Array.isArray(venue.category) ? venue.category.map(cat => `<span class="font-roboto-mono text-xs bg-gray-700 text-gray-300 py-1 px-2 rounded mr-2">${cat}</span>`).join('') : ''}</div>
+                                <p class="text-sm text-gray-400 flex-grow">${venue.description || ''}</p>
+                            </div>
+                        </div>`;
+                    venueGrid.innerHTML += venueCard;
+                 } catch(renderError) {
+                     console.error('Error rendering a single venue card:', venue, renderError);
+                 }
+            });
         }
         
         function initializeSlickFilters() {
-            // ... (placeholder for slick filter logic)
+            // Placeholder
         }
 
-        // Updated init function to load data sequentially
         async function init() {
-            document.getElementById('year').textContent = new Date().getFullYear();
-            handleNavigation();
-            
-            // Load events first and render them
-            allEvents = await loadData('get-events', 'event-grid');
-            renderEvents(allEvents); 
-            
-            // Then load venues and render them
-            allVenues = await loadData('get-venues', 'venue-grid');
-            renderVenues(allVenues);
-            
-            // Finally, initialize the filters now that all data is present
-            initializeSlickFilters();
+            try {
+                document.getElementById('year').textContent = new Date().getFullYear();
+                handleNavigation();
+                
+                allEvents = await loadData('get-events', 'event-grid');
+                renderEvents(allEvents); 
+                
+                allVenues = await loadData('get-venues', 'venue-grid');
+                renderVenues(allVenues);
+                
+                initializeSlickFilters();
+            } catch (initError) {
+                console.error("A critical error occurred during initialization:", initError);
+                document.getElementById('event-grid').innerHTML = `<p class="col-span-full text-center text-red-500">A critical error occurred. Please refresh the page.</p>`;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', init);

@@ -1,8 +1,8 @@
+// v3 - Adds the recurring info pill to the individual event pages.
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
 exports.handler = async function (event, context) {
-  // More robust method to get the slug from the end of the path
   const slug = event.path.split("/").pop();
 
   if (!slug) {
@@ -10,7 +10,6 @@ exports.handler = async function (event, context) {
   }
 
   try {
-    // Find the record in Airtable that matches the slug
     const records = await base('Events')
       .select({
         maxRecords: 1,
@@ -34,6 +33,8 @@ exports.handler = async function (event, context) {
     const description = event.get('Description') || 'No description provided.';
     const imageUrl = event.get('Promo Image') ? event.get('Promo Image')[0].url : 'https://placehold.co/1200x630/1e1e1e/EAEAEA?text=Brum+Out+Loud';
     const ticketLink = event.get('Link');
+    // Safely get the recurring info
+    const recurringInfo = event.get('Recurring Info') || null;
 
     // Dynamically generate the full HTML for the page
     const html = `
@@ -50,6 +51,7 @@ exports.handler = async function (event, context) {
         <meta property="og:type" content="website">
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" xintegrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <style>
             body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; }
         </style>
@@ -66,7 +68,8 @@ exports.handler = async function (event, context) {
             <img src="${imageUrl}" alt="${eventName}" class="w-full h-auto rounded-2xl mb-8 shadow-lg">
             <h1 class="text-4xl lg:text-5xl font-extrabold text-white mb-4">${eventName}</h1>
             <p class="font-semibold text-xl text-[#B564F7] mb-2">${formattedDate}</p>
-            <p class="text-lg text-gray-300 mb-8">${venue}</p>
+            <p class="text-lg text-gray-300 mb-2">${venue}</p>
+            ${recurringInfo ? `<div class="mb-8"><span class="inline-block bg-teal-400/10 text-teal-300 text-sm font-semibold px-3 py-1 rounded-full"><i class="fas fa-sync-alt fa-xs mr-2"></i>${recurringInfo}</span></div>` : ''}
             <div class="prose prose-invert prose-lg max-w-none text-gray-300">
               ${description.replace(/\n/g, '<br>')}
             </div>

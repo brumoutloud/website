@@ -119,12 +119,18 @@
                 <h3 class="text-3xl font-bold">Submit an Event</h3>
                 <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
             </div>
-            <form name="event-submission" class="space-y-4" method="POST" action="/.netlify/functions/event-submission">
+            <form name="event-submission" class="space-y-4" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
                 <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
                 <textarea name="description" placeholder="Event Description" rows="4" class="w-full p-3 bg-white border-gray-300 rounded-lg" required></textarea>
                 <input type="text" name="venue" placeholder="Venue Name" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
                 <input type="date" name="date" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
                 <input type="time" name="start-time" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
+                
+                <div>
+                    <label for="promo-image" class="block text-sm font-semibold mb-2 text-gray-700">Promo Image (Optional)</label>
+                    <input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500" accept="image/png, image/jpeg, image/webp">
+                </div>
+
                 <input type="url" name="link" placeholder="Ticket/Info Link (Optional)" class="w-full p-3 bg-white border-gray-300 rounded-lg">
                 <textarea name="recurring-info" placeholder="Recurring Info (e.g., 'Every Thursday', 'First Monday of month')" rows="2" class="w-full p-3 bg-white border-gray-300 rounded-lg"></textarea>
                 <input type="email" name="email" placeholder="Your Contact Email" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
@@ -200,7 +206,7 @@
                         const eventCard = `
                             <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card">
                                 <div class="card-thumbnail w-full mb-4">
-                                    <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="rounded-xl">
+                                    <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="rounded-xl" loading="lazy">
                                 </div>
                                 <h3 class="text-2xl font-bold text-white mb-2">${event.name}</h3>
                                 <p class="text-gray-400 mb-2">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
@@ -235,7 +241,7 @@
                         const venueCard = `
                             <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card">
                                 <div class="card-thumbnail w-full mb-4">
-                                    <img src="${venue.photo || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue'}" alt="${venue.name}" class="rounded-xl">
+                                    <img src="${venue.photo || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue'}" alt="${venue.name}" class="rounded-xl" loading="lazy">
                                 </div>
                                 <h3 class="text-2xl font-bold text-white mb-2">${venue.name}</h3>
                                 <p class="text-gray-400 mb-4">${truncatedDescription}</p>

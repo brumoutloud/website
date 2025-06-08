@@ -2,6 +2,7 @@
   "name": "brumoutloud-site",
   "version": "1.0.0",
   "dependencies": {
-    "airtable": "^0.12.2"
+    "airtable": "^0.12.2",
+    "lambda-multipart-parser": "^1.0.1"
   }
 }

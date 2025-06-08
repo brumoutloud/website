@@ -1,23 +1,16 @@
 # This is the main configuration file for your Netlify site.
 
 [build]
-  # This line tells Netlify where your built site is located.
-  # For a single HTML file project, this is the root.
-  publish = "."
-  # This line explicitly tells Netlify where your functions are located.
   functions = "netlify/functions"
 
-# This section is another way to specify the functions directory,
-# making the configuration more robust.
-[functions]
-  directory = "netlify/functions"
-
-# This rule tells Netlify how to handle dynamic event pages.
+# Rule for individual EVENT pages
 [[redirects]]
-  # When a user requests a path like "/event/some-event-slug"...
   from = "/event/*"
-  # ...run the get-event-details function instead of looking for a file.
-  # The :splat variable passes the slug to the function.
   to = "/.netlify/functions/get-event-details?slug=:splat"
-  # A status of 200 means "OK" and shows the function's output as the page.
+  status = 200
+
+# NEW Rule for individual VENUE pages
+[[redirects]]
+  from = "/venue/*"
+  to = "/.netlify/functions/get-venue-details?slug=:splat"
   status = 200

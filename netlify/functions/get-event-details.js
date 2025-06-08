@@ -1,4 +1,4 @@
-// v4 - Redesigns the event page with a two-column layout and "Add to Calendar" button.
+// v5 - Adds GCal/ICS links, better sharing, and clearer CTAs.
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
@@ -29,14 +29,13 @@ exports.handler = async function (event, context) {
     const imageUrl = eventRecord.get('Promo Image') ? eventRecord.get('Promo Image')[0].url : 'https://placehold.co/1200x630/1e1e1e/EAEAEA?text=Brum+Out+Loud';
     const ticketLink = eventRecord.get('Link');
     const recurringInfo = eventRecord.get('Recurring Info');
-    const pageUrl = `https://bolwebsite.netlify.app${event.path}`; // Use your actual domain
+    const pageUrl = `https://bolwebsite.netlify.app${event.path}`;
 
     // Prepare data for the Add to Calendar function
     const eventDataForClient = {
         title: eventName,
-        description: description.replace(/\n/g, '\\n'), // Escape newlines for ICS
+        description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
         startTime: eventDate.toISOString(),
-        // Let's assume a 2-hour duration for now
         endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
         location: venue
     };
@@ -102,16 +101,21 @@ exports.handler = async function (event, context) {
                             </div>
                         </div>
                         
-                        <a id="add-to-calendar-btn" href="#" class="w-full text-center bg-[#FADCD9] text-[#333333] px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Add to Calendar</a>
-                        ${ticketLink ? `<a href="${ticketLink}" target="_blank" rel="noopener noreferrer" class="w-full text-center bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-500 transition-opacity">Get Tickets</a>` : ''}
+                        ${ticketLink ? `<a href="${ticketLink}" target="_blank" rel="noopener noreferrer" class="w-full text-center bg-[#FADCD9] text-[#333333] px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">Get Tickets</a>` : ''}
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <a id="google-calendar-btn" href="#" target="_blank" class="w-full text-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-500 transition-opacity text-sm">Google Calendar</a>
+                            <a id="add-to-calendar-btn" href="#" class="w-full text-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-500 transition-opacity text-sm">Apple/Outlook</a>
+                        </div>
 
                         <div class="border-t border-gray-700 my-4"></div>
                         
-                        <h3 class="font-bold text-white text-center">Share This Event</h3>
+                        <h3 class="font-bold text-white text-center">Invite your mates?</h3>
                         <div class="flex justify-center space-x-4">
-                            <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent(eventName)}&url=${encodeURIComponent(pageUrl)}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-twitter fa-2x"></i></a>
-                            <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-facebook fa-2x"></i></a>
+                            <a href="https://wa.me/?text=${encodeURIComponent('Check out this event: ' + eventName + ' - ' + pageUrl)}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-whatsapp fa-2x"></i></a>
+                             <button onclick="copyLink()" class="text-gray-400 hover:text-white"><i class="fas fa-link fa-2x"></i></button>
                         </div>
+                        <span id="copy-success" class="text-center text-sm text-green-400 hidden">Link Copied!</span>
                     </div>
                 </div>
             </div>
@@ -122,11 +126,13 @@ exports.handler = async function (event, context) {
         <script>
             // Data for the client-side script
             const eventData = ${JSON.stringify(eventDataForClient)};
+            const pageUrl = "${pageUrl}";
+
+            function toICSDate(isoDate) {
+                return new Date(isoDate).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            }
 
             function generateICSFile() {
-                // Format dates to be ICS compliant (YYYYMMDDTHHMMSSZ)
-                const toICSDate = (isoDate) => new Date(isoDate).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-                
                 const icsContent = [
                     'BEGIN:VCALENDAR',
                     'VERSION:2.0',
@@ -142,15 +148,36 @@ exports.handler = async function (event, context) {
                     'END:VEVENT',
                     'END:VCALENDAR'
                 ].join('\\r\\n');
-
                 return 'data:text/calendar;charset=utf8,' + encodeURIComponent(icsContent);
             }
 
+            function generateGoogleCalendarLink() {
+                const baseUrl = 'https://www.google.com/calendar/render?action=TEMPLATE';
+                const params = new URLSearchParams({
+                    text: eventData.title,
+                    dates: \`\${toICSDate(eventData.startTime)}/\${toICSDate(eventData.endTime)}\`,
+                    details: eventData.description,
+                    location: eventData.location
+                });
+                return \`\${baseUrl}&\${params.toString()}\`;
+            }
+
+            function copyLink() {
+                const dummy = document.createElement('input');
+                document.body.appendChild(dummy);
+                dummy.value = pageUrl;
+                dummy.select();
+                document.execCommand('copy');
+                document.body.removeChild(dummy);
+                const successMsg = document.getElementById('copy-success');
+                successMsg.classList.remove('hidden');
+                setTimeout(() => successMsg.classList.add('hidden'), 2000);
+            }
+
             document.addEventListener('DOMContentLoaded', () => {
-                const calendarBtn = document.getElementById('add-to-calendar-btn');
-                calendarBtn.href = generateICSFile();
-                // Set a suggested filename for the download
-                calendarBtn.download = \`\${eventData.title.replace(/ /g, '_')}.ics\`;
+                document.getElementById('add-to-calendar-btn').href = generateICSFile();
+                document.getElementById('add-to-calendar-btn').download = \`\${eventData.title.replace(/ /g, '_')}.ics\`;
+                document.getElementById('google-calendar-btn').href = generateGoogleCalendarLink();
             });
         </script>
       </body>

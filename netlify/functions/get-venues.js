@@ -1,20 +1,14 @@
-// v2 - Makes the function more robust and fetches the slug.
 const Airtable = require('airtable');
 
-// Add console.log to check if environment variables are being accessed
-console.log('Airtable Personal Access Token available:', !!process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN);
-console.log('Airtable Base ID available:', !!process.env.AIRTABLE_BASE_ID);
+const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
-try {
-  // Initialize Airtable client outside the handler, but ensure env vars are present
-  // If this line fails, it might be due to missing env vars.
-  const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
-
-  exports.handler = async function (event, context) {
+exports.handler = async function (event, context) {
     try {
       const records = await base('Venues')
         .select({
           filterByFormula: "{Status} = 'Approved'",
+          // Add the new photo URL fields to the request
+          fields: ['Name', 'Description', 'Slug', 'Category', 'Photo Medium URL', 'Photo Thumbnail URL'],
           maxRecords: 100,
         })
         .all();
@@ -24,37 +18,26 @@ try {
           id: record.id,
           name: record.get('Name'),
           description: record.get('Description'),
-          photo: record.get('Photo') ? record.get('Photo')[0].url : null,
-          category: record.get('Category') || [], // Default to empty array if undefined
-          slug: record.get('Slug') || '' // Safely get slug
+          // Create a photo object with the different sizes
+          photo: {
+              medium: record.get('Photo Medium URL') || null,
+              thumbnail: record.get('Photo Thumbnail URL') || null,
+          },
+          category: record.get('Category') || [],
+          slug: record.get('Slug') || ''
         };
       });
 
-      console.log('Successfully fetched venues:', venues.length); // Log success
+      console.log('Successfully fetched venues:', venues.length);
       return {
         statusCode: 200,
         body: JSON.stringify(venues),
       };
     } catch (error) {
-      // Log the full error object and its message/stack for more details
       console.error('Error fetching venues within handler:', error);
-      console.error('Error message:', error.message);
-      if (error.stack) {
-          console.error('Error stack:', error.stack);
-      }
       return {
         statusCode: 500,
         body: JSON.stringify({ error: 'Failed to fetch venues' }),
       };
     }
-  };
-} catch (outerError) {
-  // This catch block will capture errors during Airtable client initialization
-  console.error('Error initializing Airtable client outside handler:', outerError);
-  exports.handler = async function (event, context) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to initialize Airtable client' }),
-    };
-  };
-}
+};

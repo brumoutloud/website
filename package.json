@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "dependencies": {
     "airtable": "^0.12.2",
+    "cloudinary": "^1.41.3",
     "lambda-multipart-parser": "^1.0.1"
   }
 }

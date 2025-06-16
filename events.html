@@ -38,7 +38,7 @@
         </section>
     </main>
     
-    <!-- Redesigned Event Submission Modal -->
+    <!-- Event Submission Modal -->
     <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" style="display: none;">
         <div class="w-full max-w-2xl">
              <form name="event-submission" class="card-bg p-8 md:p-12 space-y-6 relative" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
@@ -67,6 +67,10 @@
                 <div>
                     <label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label>
                     <textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="Tell us about the event..."></textarea>
+                </div>
+                <div>
+                    <label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label>
+                    <input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday until August">
                 </div>
                 <div>
                     <label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>

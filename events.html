@@ -9,6 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
+    <style>
+        .filter-button {
+            @apply bg-transparent text-gray-300 border-2 border-gray-600 px-4 py-2 rounded-full cursor-pointer text-sm font-semibold uppercase tracking-wider transition-colors duration-200 whitespace-nowrap;
+        }
+        .filter-button:hover {
+            @apply bg-gray-700 text-white border-gray-500;
+        }
+        .filter-button.active {
+            @apply bg-accent-color-secondary text-gray-800 border-accent-color-secondary;
+        }
+    </style>
 </head>
 <body class="antialiased">
 
@@ -32,93 +43,170 @@
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">WHAT'S <span class="accent-color">ON</span></h1>
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
+
+            <!-- Filter Controls -->
+            <div id="filter-controls" class="card-bg p-6 mb-12">
+                <div class="mb-4">
+                    <h3 class="font-bold text-lg mb-3 accent-color-secondary">Filter by Date</h3>
+                    <div id="date-filters" class="flex flex-wrap gap-3">
+                        <button class="filter-button active" data-filter="all">All Upcoming</button>
+                        <button class="filter-button" data-filter="today">Today</button>
+                        <button class="filter-button" data-filter="this-weekend">This Weekend</button>
+                        <button class="filter-button" data-filter="this-week">This Week</button>
+                        <button class="filter-button" data-filter="next-week">Next Week</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg mb-3 accent-color-secondary">Filter by Category</h3>
+                    <div id="category-filters" class="flex flex-wrap gap-3">
+                        <p class="text-gray-400">Loading categories...</p>
+                    </div>
+                </div>
+            </div>
+
             <div id="event-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading events...</p>
             </div>
+             <p id="no-results-message" class="hidden col-span-full text-center text-gray-400 text-xl mt-8">No events match your selected filters.</p>
         </section>
     </main>
     
-    <!-- Event Submission Modal -->
+    <!-- Event Submission Modal (No changes here) -->
     <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" style="display: none;">
         <div class="w-full max-w-2xl">
              <form name="event-submission" class="card-bg p-8 md:p-12 space-y-6 relative" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
                 <button type="button" onclick="hideEventModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl">&times;</button>
                 <h3 class="font-anton text-4xl text-center heading-gradient mb-4">Submit an <span class="accent-color">Event</span></h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label>
-                        <input type="text" id="event-name" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-accent-color outline-none" required>
-                    </div>
-                     <div>
-                        <label for="venue" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label>
-                        <input type="text" id="venue" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
-                    </div>
-                </div>
-                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label>
-                        <input type="date" id="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
-                    </div>
-                     <div>
-                        <label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label>
-                        <input type="time" id="start-time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
-                    </div>
-                </div>
-                <div>
-                    <label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label>
-                    <textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="Tell us about the event..."></textarea>
-                </div>
-                <div>
-                    <label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label>
-                    <input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday until August">
-                </div>
-                <div>
-                    <label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
-                    <input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
-                </div>
-                <div class="text-right pt-4">
-                    <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button>
-                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" id="event-name" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div><div><label for="venue" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="venue" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" id="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div><div><label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" id="start-time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div></div><div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div><div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div><div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div><div class="text-right pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
             </form>
         </div>
     </div>
 
     <script>
+        // --- Global State ---
+        let allEvents = [];
+        let activeDateFilter = 'all';
+        let activeCategoryFilter = 'all';
+        
+        // --- DOM Elements ---
+        const eventGrid = document.getElementById('event-grid');
+        const noResultsMessage = document.getElementById('no-results-message');
+        const dateFiltersContainer = document.getElementById('date-filters');
+        const categoryFiltersContainer = document.getElementById('category-filters');
+
+        // --- Modal Functions ---
         function showEventModal() { document.getElementById('event-modal').style.display = 'flex'; }
         function hideEventModal() { document.getElementById('event-modal').style.display = 'none'; }
         
-        async function renderEvents() {
-            try {
-                const eventsResponse = await fetch('/.netlify/functions/get-events');
-                const events = await eventsResponse.json();
-                const eventGrid = document.getElementById('event-grid');
-                eventGrid.innerHTML = ''; 
-                if (events && events.length > 0) {
-                    events.forEach(event => {
-                        const eventCard = `
-                            <a href="/event/${event.slug}" class="item-card card-bg block group">
-                                <div class="item-card-image-container">
-                                    <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy">
-                                </div>
-                                <div class="p-6">
-                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3>
-                                    <p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
-                                    <p class="text-gray-400">${event.venue}</p>
-                                </div>
-                            </a>
-                        `;
-                        eventGrid.insertAdjacentHTML('beforeend', eventCard);
-                    });
-                } else {
-                    eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found.</p>';
-                }
-            } catch (error) {
-                console.error("Error fetching events:", error);
-                document.getElementById('event-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
+        // --- Date Helper Functions ---
+        const getToday = () => {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            return now;
+        };
+        
+        // --- Filtering Logic ---
+        function applyFilters() {
+            let filteredEvents = [...allEvents];
+
+            // 1. Apply Date Filter
+            const today = getToday();
+            if (activeDateFilter !== 'all') {
+                filteredEvents = filteredEvents.filter(event => {
+                    const eventDate = new Date(event.date);
+                    eventDate.setHours(0, 0, 0, 0);
+
+                    switch (activeDateFilter) {
+                        case 'today':
+                            return eventDate.getTime() === today.getTime();
+                        case 'this-week':
+                            const endOfWeek = new Date(today);
+                            endOfWeek.setDate(today.getDate() + (6 - today.getDay())); // Sunday
+                            return eventDate >= today && eventDate <= endOfWeek;
+                        case 'this-weekend':
+                            const friday = new Date(today);
+                            friday.setDate(today.getDate() + (5 - today.getDay()));
+                            const sunday = new Date(friday);
+                            sunday.setDate(friday.getDate() + 2);
+                            return eventDate >= friday && eventDate <= sunday;
+                        case 'next-week':
+                             const startOfNextWeek = new Date(today);
+                             startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()) + 1);
+                             const endOfNextWeek = new Date(startOfNextWeek);
+                             endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
+                             return eventDate >= startOfNextWeek && eventDate <= endOfNextWeek;
+                    }
+                    return true;
+                });
+            }
+
+            // 2. Apply Category Filter
+            if (activeCategoryFilter !== 'all') {
+                filteredEvents = filteredEvents.filter(event => event.category && event.category.includes(activeCategoryFilter));
+            }
+
+            renderEvents(filteredEvents);
+        }
+
+        // --- Rendering Functions ---
+        function renderEvents(events) {
+            eventGrid.innerHTML = '';
+            if (events && events.length > 0) {
+                noResultsMessage.classList.add('hidden');
+                events.forEach(event => {
+                    const eventCard = `<a href="/event/${event.slug}" class="item-card card-bg block group"><div class="item-card-image-container"><img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy"></div><div class="p-6"><h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3><p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p><p class="text-gray-400">${event.venue}</p></div></a>`;
+                    eventGrid.insertAdjacentHTML('beforeend', eventCard);
+                });
+            } else {
+                noResultsMessage.classList.remove('hidden');
             }
         }
 
-        document.addEventListener('DOMContentLoaded', renderEvents);
+        function renderCategoryFilters() {
+            const categories = [...new Set(allEvents.flatMap(event => event.category))];
+            categoryFiltersContainer.innerHTML = '<button class="filter-button active" data-filter="all">All Categories</button>';
+            categories.sort().forEach(category => {
+                if(category) {
+                     const button = `<button class="filter-button" data-filter="${category}">${category}</button>`;
+                    categoryFiltersContainer.insertAdjacentHTML('beforeend', button);
+                }
+            });
+        }
+        
+        // --- Initial Data Fetch ---
+        async function initializePage() {
+            try {
+                const eventsResponse = await fetch('/.netlify/functions/get-events');
+                allEvents = await eventsResponse.json();
+                renderEvents(allEvents);
+                renderCategoryFilters();
+            } catch (error) {
+                console.error("Error fetching events:", error);
+                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
+            }
+        }
+
+        // --- Event Listeners ---
+        dateFiltersContainer.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                dateFiltersContainer.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                activeDateFilter = e.target.dataset.filter;
+                applyFilters();
+            }
+        });
+
+        categoryFiltersContainer.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                categoryFiltersContainer.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                activeCategoryFilter = e.target.dataset.filter;
+                applyFilters();
+            }
+        });
+        
+        // --- Run on page load ---
+        document.addEventListener('DOMContentLoaded', initializePage);
     </script>
 </body>
 </html>

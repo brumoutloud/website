@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venues | Brum Out Loud</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body class="antialiased">
+
+    <header class="p-8">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+            <div class="hidden md:flex items-center space-x-8 font-semibold">
+                <a href="/events.html" class="nav-link text-gray-300 hover:accent-color transition-colors">Events</a>
+                <a href="/all-venues.html" class="nav-link accent-color transition-colors">Venues</a>
+                <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
+            </div>
+            <a href="/get-listed.html" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+                GET LISTED
+            </a>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-8 py-16">
+        <section id="venues">
+             <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">THE <span class="accent-color-secondary">VENUES</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Discover the best LGBTQ+ friendly bars, clubs, and spaces in Birmingham.</p>
+            </div>
+            <div id="venue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <p class="col-span-full text-center text-gray-400">Loading venues...</p>
+            </div>
+        </section>
+    </main>
+    
+    <script>
+        async function renderVenues() {
+            try {
+                const venuesResponse = await fetch('/.netlify/functions/get-venues');
+                const venues = await venuesResponse.json();
+                const venueGrid = document.getElementById('venue-grid');
+                venueGrid.innerHTML = '';
+                if (venues && venues.length > 0) {
+                    venues.forEach(venue => {
+                        const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
+                        const mediumSrc = venue.photo?.medium || placeholder;
+                        const venueCard = `
+                            <a href="/venue/${venue.slug}" class="item-card card-bg block group">
+                                <div class="item-card-image-container">
+                                    <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
+                                </div>
+                                <div class="p-6">
+                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color-secondary">${venue.name}</h3>
+                                    <p class="text-gray-400 h-12 overflow-hidden">${venue.description}</p>
+                                </div>
+                            </a>
+                        `;
+                        venueGrid.insertAdjacentHTML('beforeend', venueCard);
+                    });
+                } else {
+                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
+                }
+            } catch (error) {
+                console.error("Error fetching venues:", error);
+                document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderVenues);
+    </script>
+</body>
+</html>

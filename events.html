@@ -35,13 +35,32 @@
             color: #B564F7; /* accent-color */
             border-color: #B564F7; /* accent-color */
         }
+        /* FIX: Corrected popover styles */
         .popover {
-            @apply hidden absolute mt-2 w-72 rounded-xl shadow-2xl p-4 z-20;
+            display: none; /* Initially hidden */
+            position: absolute;
+            margin-top: 0.5rem;
+            width: 18rem; /* w-72 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1rem;
+            z-index: 20;
             background-color: #2a2a2a; /* card-bg */
             border: 1px solid #3a3a3a;
         }
+        .popover.show {
+            display: block;
+        }
         .popover-option {
-            @apply block w-full text-left px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-700;
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem; /* rounded-lg */
+            color: #D1D5DB; /* text-gray-300 */
+        }
+        .popover-option:hover {
+            background-color: #374151; /* bg-gray-700 */
         }
     </style>
 </head>
@@ -68,7 +87,7 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
 
-            <!-- NEW: Filter bar with Popovers -->
+            <!-- Filter bar with Popovers -->
             <div id="filter-bar-container" class="mb-12 flex flex-wrap gap-3">
                 <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
                 <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
@@ -76,12 +95,12 @@
                 
                 <!-- Custom Date Range Popover -->
                 <div class="relative" id="custom-date-popover-container">
-                    <button id="custom-date-btn" class="filter-button" data-filter-type="date" data-filter-value="custom">Custom Date</button>
+                    <button id="custom-date-btn" class="filter-button">Custom Date</button>
                     <div id="custom-date-popover" class="popover">
                         <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
-                        <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3">
+                        <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
                         <label for="date-to" class="block text-sm font-semibold mb-1 text-gray-400">To</label>
-                        <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md">
+                        <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md text-white">
                     </div>
                 </div>
 
@@ -146,14 +165,17 @@
                     switch (activeDateFilter.type) {
                         case 'today': return eventDate.getTime() === today.getTime();
                         case 'this-weekend':
+                            const dayOfWeek = today.getDay();
                             const friday = new Date(today);
-                            friday.setDate(today.getDate() - today.getDay() + 5);
+                            friday.setDate(today.getDate() - dayOfWeek + (dayOfWeek > 5 ? -2 : 5) ); // Get this week's Friday
                             const sunday = new Date(friday);
                             sunday.setDate(friday.getDate() + 2);
                             return eventDate >= friday && eventDate <= sunday;
                         case 'custom':
                             const from = activeDateFilter.from ? new Date(activeDateFilter.from) : null;
                             const to = activeDateFilter.to ? new Date(activeDateFilter.to) : null;
+                            if(from) from.setHours(0,0,0,0);
+                            if(to) to.setHours(0,0,0,0);
                             if (from && to) return eventDate >= from && eventDate <= to;
                             if (from) return eventDate >= from;
                             if (to) return eventDate <= to;
@@ -180,11 +202,11 @@
             });
         }
         
+        // FIX: Correctly render individual buttons for each category
         function renderCategoryOptions() {
             const categories = [...new Set(allEvents.flatMap(event => event.category))].filter(Boolean).sort();
             categoryPopover.innerHTML = '';
             
-            // Add "All Categories" option
             const allButton = document.createElement('button');
             allButton.className = 'popover-option';
             allButton.textContent = 'All Categories';
@@ -202,7 +224,6 @@
         
         // --- Popover & Filter Event Listeners ---
         function setupEventListeners() {
-            // General click listener for filters
             filterBarContainer.addEventListener('click', e => {
                 const button = e.target.closest('.filter-button');
                 if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn') return;
@@ -211,24 +232,23 @@
                 button.classList.add('active');
                 
                 activeDateFilter.type = button.dataset.filterValue;
+                activeDateFilter.from = null;
+                activeDateFilter.to = null;
                 applyFilters();
             });
 
-            // Custom Date popover toggle
             customDateBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                categoryPopover.classList.add('hidden');
-                customDatePopover.classList.toggle('hidden');
+                categoryPopover.classList.remove('show');
+                customDatePopover.classList.toggle('show');
             });
             
-            // Category popover toggle
             categoryBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                customDatePopover.classList.add('hidden');
-                categoryPopover.classList.toggle('hidden');
+                customDatePopover.classList.remove('show');
+                categoryPopover.classList.toggle('show');
             });
 
-            // Apply custom date filter when inputs change
             [dateFromInput, dateToInput].forEach(input => {
                 input.addEventListener('change', () => {
                     activeDateFilter.type = 'custom';
@@ -240,20 +260,18 @@
                 });
             });
             
-            // Apply category filter on selection
             categoryPopover.addEventListener('click', e => {
                 const button = e.target.closest('.popover-option');
                 if(!button) return;
                 activeCategoryFilter = button.dataset.filterValue;
                 categoryBtn.querySelector('span').textContent = button.textContent;
-                categoryPopover.classList.add('hidden');
+                categoryPopover.classList.remove('show');
                 applyFilters();
             });
             
-            // Close popovers if clicking outside
             window.addEventListener('click', () => {
-                customDatePopover.classList.add('hidden');
-                categoryPopover.classList.add('hidden');
+                customDatePopover.classList.remove('show');
+                categoryPopover.classList.remove('show');
             });
         }
 

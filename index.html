@@ -14,13 +14,14 @@
 
     <header class="p-8">
         <nav class="container mx-auto flex justify-between items-center">
-            <a href="/" class="font-anton text-2xl tracking-widest">BRUM OUT LOUD</a>
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
             <div class="hidden md:flex items-center space-x-8 font-semibold">
-                <a href="#whats-on" class="nav-link hover:accent-color transition-colors">Events</a>
-                <a href="#venues" class="nav-link hover:accent-color transition-colors">Venues</a>
-                <a href="/community.html" class="hover:accent-color transition-colors">Community</a>
+                <a href="#whats-on" class="nav-link text-gray-300 hover:accent-color transition-colors">Events</a>
+                <a href="#venues" class="nav-link text-gray-300 hover:accent-color transition-colors">Venues</a>
+                <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
             </div>
-            <a href="/venues.html" class="bg-accent-color text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+            <!-- Using original peach button style -->
+            <a href="/venues.html" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
                 GET LISTED
             </a>
         </nav>
@@ -32,13 +33,13 @@
             <h1 class="font-anton text-7xl md:text-9xl lg:text-[10rem] leading-none tracking-wider heading-gradient">
                 OUR CITY. <br><span class="accent-color">OUR</span> SCENE.
             </h1>
-            <p class="mt-4 text-xl font-semibold tracking-widest">YOUR GUIDE TO LGBTQ+ BIRMINGHAM</p>
+            <p class="mt-4 text-xl font-semibold tracking-widest text-gray-300">YOUR GUIDE TO LGBTQ+ BIRMINGHAM</p>
         </section>
 
         <section id="whats-on">
             <div class="flex items-center gap-6 mb-8">
                 <div class="spark-icon accent-color">✦</div>
-                <h2 class="font-anton text-4xl md:text-6xl">WHAT'S ON</h2>
+                <h2 class="font-anton text-4xl md:text-6xl text-white">WHAT'S ON</h2>
             </div>
             <div id="event-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading events...</p>
@@ -48,7 +49,7 @@
         <section id="venues" class="mt-32">
              <div class="flex items-center gap-6 mb-8">
                 <div class="spark-icon accent-color-secondary">✦</div>
-                <h2 class="font-anton text-4xl md:text-6xl">VENUES</h2>
+                <h2 class="font-anton text-4xl md:text-6xl text-white">VENUES</h2>
             </div>
             <div id="venue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading venues...</p>
@@ -59,8 +60,8 @@
     <footer class="border-t-2 border-gray-800 mt-32 p-8">
         <div class="container mx-auto grid md:grid-cols-2">
             <div>
-                 <h3 class="font-anton text-5xl leading-tight">BE SEEN,<br>BE HEARD.</h3>
-                 <div class="flex space-x-6 text-2xl mt-6">
+                 <h3 class="font-anton text-5xl leading-tight text-white">BE SEEN,<br>BE HEARD.</h3>
+                 <div class="flex space-x-6 text-2xl mt-6 text-gray-400">
                     <a href="#" class="hover:accent-color"><i class="fab fa-instagram"></i></a>
                     <a href="#" class="hover:accent-color"><i class="fab fa-facebook"></i></a>
                     <a href="#" class="hover:accent-color"><i class="fab fa-tiktok"></i></a>
@@ -68,7 +69,7 @@
             </div>
             <div class="grid grid-cols-2 gap-8 mt-8 md:mt-0">
                 <div>
-                    <h4 class="font-bold text-lg mb-4">Explore</h4>
+                    <h4 class="font-bold text-lg mb-4 text-white">Explore</h4>
                     <ul>
                         <li class="mb-2"><a href="#whats-on" class="text-gray-400 hover:text-white">Events</a></li>
                         <li class="mb-2"><a href="#venues" class="text-gray-400 hover:text-white">Venues</a></li>
@@ -76,7 +77,7 @@
                     </ul>
                 </div>
                  <div>
-                    <h4 class="font-bold text-lg mb-4">About</h4>
+                    <h4 class="font-bold text-lg mb-4 text-white">About</h4>
                     <ul>
                         <li class="mb-2"><a href="/community.html" class="text-gray-400 hover:text-white">Community & FAQ</a></li>
                         <li class="mb-2"><a href="mailto:hello@brumoutloud.co.uk" class="text-gray-400 hover:text-white">Contact</a></li>
@@ -99,7 +100,7 @@
                         const eventCard = `
                             <a href="/event/${event.slug}" class="item-card card-bg block group">
                                 <div class="item-card-image-container">
-                                    <img src="${event.image || 'https://placehold.co/400x400/1a1a1a/f5efe6?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy">
+                                    <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy">
                                 </div>
                                 <div class="p-6">
                                     <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3>
@@ -126,7 +127,7 @@
                 venueGrid.innerHTML = '';
                 if (venues && venues.length > 0) {
                     venues.forEach(venue => {
-                        const placeholder = 'https://placehold.co/400x400/1a1a1a/f5efe6?text=Venue';
+                        const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
                         const mediumSrc = venue.photo?.medium || placeholder;
                         const venueCard = `
                             <a href="/venue/${venue.slug}" class="item-card card-bg block group">

@@ -15,14 +15,26 @@
   to = "/.netlify/functions/get-venue-details?slug=:splat"
   status = 200
 
+# Rule for the main EVENTS listing page
+[[redirects]]
+  from = "/events"
+  to = "/events.html"
+  status = 200
+
+# Rule for the main VENUES listing page
+[[redirects]]
+  from = "/all-venues"
+  to = "/all-venues.html"
+  status = 200
+
 # Rule for the COMMUNITY page
 [[redirects]]
   from = "/community"
   to = "/community.html"
   status = 200
 
-# Rule for the VENUES listing form page
+# Rule for the GET LISTED form page
 [[redirects]]
-  from = "/venues"
-  to = "/venues.html"
+  from = "/get-listed"
+  to = "/get-listed.html"
   status = 200

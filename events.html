@@ -10,14 +10,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
+        /* NEW: Updated and enhanced filter button styles */
         .filter-button {
-            @apply bg-transparent text-gray-300 border-2 border-gray-600 px-4 py-2 rounded-full cursor-pointer text-sm font-semibold uppercase tracking-wider transition-colors duration-200 whitespace-nowrap;
+            @apply bg-gray-900/50 text-gray-300 border-2 border-transparent px-4 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-200 whitespace-nowrap;
         }
         .filter-button:hover {
-            @apply bg-gray-700 text-white border-gray-500;
+            @apply bg-gray-800/70 text-white;
         }
         .filter-button.active {
-            @apply bg-accent-color-secondary text-gray-800 border-accent-color-secondary;
+            @apply bg-accent-color text-white border-transparent shadow-lg;
         }
     </style>
 </head>
@@ -44,22 +45,26 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
 
-            <!-- Filter Controls -->
-            <div id="filter-controls" class="card-bg p-6 mb-12">
-                <div class="mb-4">
-                    <h3 class="font-bold text-lg mb-3 accent-color-secondary">Filter by Date</h3>
-                    <div id="date-filters" class="flex flex-wrap gap-3">
-                        <button class="filter-button active" data-filter="all">All Upcoming</button>
-                        <button class="filter-button" data-filter="today">Today</button>
-                        <button class="filter-button" data-filter="this-weekend">This Weekend</button>
-                        <button class="filter-button" data-filter="this-week">This Week</button>
-                        <button class="filter-button" data-filter="next-week">Next Week</button>
+            <!-- NEW: Redesigned Filter Controls -->
+            <div id="filter-controls" class="card-bg p-8 mb-12">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Date Filter Column -->
+                    <div>
+                        <h3 class="font-anton text-2xl mb-4 accent-color-secondary tracking-wider">Filter by Date</h3>
+                        <div id="date-filters" class="flex flex-wrap gap-3">
+                            <button class="filter-button active" data-filter="all">All Upcoming</button>
+                            <button class="filter-button" data-filter="today">Today</button>
+                            <button class="filter-button" data-filter="this-weekend">This Weekend</button>
+                            <button class="filter-button" data-filter="this-week">This Week</button>
+                            <button class="filter-button" data-filter="next-week">Next Week</button>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <h3 class="font-bold text-lg mb-3 accent-color-secondary">Filter by Category</h3>
-                    <div id="category-filters" class="flex flex-wrap gap-3">
-                        <p class="text-gray-400">Loading categories...</p>
+                    <!-- Category Filter Column -->
+                    <div>
+                         <h3 class="font-anton text-2xl mb-4 accent-color-secondary tracking-wider">Filter by Category</h3>
+                        <div id="category-filters" class="flex flex-wrap gap-3">
+                            <p class="text-gray-400">Loading categories...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -124,14 +129,15 @@
                             endOfWeek.setDate(today.getDate() + (6 - today.getDay())); // Sunday
                             return eventDate >= today && eventDate <= endOfWeek;
                         case 'this-weekend':
+                            const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                             const friday = new Date(today);
-                            friday.setDate(today.getDate() + (5 - today.getDay()));
+                            friday.setDate(today.getDate() - dayOfWeek + 5);
                             const sunday = new Date(friday);
                             sunday.setDate(friday.getDate() + 2);
                             return eventDate >= friday && eventDate <= sunday;
                         case 'next-week':
                              const startOfNextWeek = new Date(today);
-                             startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()) + 1);
+                             startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()));
                              const endOfNextWeek = new Date(startOfNextWeek);
                              endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
                              return eventDate >= startOfNextWeek && eventDate <= endOfNextWeek;

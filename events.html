@@ -22,6 +22,9 @@
             transition: all 0.2s ease-in-out;
             white-space: nowrap;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         .filter-button:hover {
             background-color: rgba(60, 60, 60, 0.8);
@@ -32,16 +35,13 @@
             color: #B564F7; /* accent-color */
             border-color: #B564F7; /* accent-color */
         }
-        /* Custom scrollbar for the filter bar */
-        #filter-bar::-webkit-scrollbar {
-            height: 4px;
+        .popover {
+            @apply hidden absolute mt-2 w-72 rounded-xl shadow-2xl p-4 z-20;
+            background-color: #2a2a2a; /* card-bg */
+            border: 1px solid #3a3a3a;
         }
-        #filter-bar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        #filter-bar::-webkit-scrollbar-thumb {
-            background: #4a4a4a;
-            border-radius: 10px;
+        .popover-option {
+            @apply block w-full text-left px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-700;
         }
     </style>
 </head>
@@ -68,10 +68,32 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
 
-            <!-- NEW: Single-line, scrollable filter bar -->
-            <div id="filter-bar-container" class="mb-12">
-                <div id="filter-bar" class="flex items-center space-x-3 overflow-x-auto pb-4">
-                     <p class="text-gray-400">Loading filters...</p>
+            <!-- NEW: Filter bar with Popovers -->
+            <div id="filter-bar-container" class="mb-12 flex flex-wrap gap-3">
+                <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
+                <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
+                <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
+                
+                <!-- Custom Date Range Popover -->
+                <div class="relative" id="custom-date-popover-container">
+                    <button id="custom-date-btn" class="filter-button" data-filter-type="date" data-filter-value="custom">Custom Date</button>
+                    <div id="custom-date-popover" class="popover">
+                        <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
+                        <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3">
+                        <label for="date-to" class="block text-sm font-semibold mb-1 text-gray-400">To</label>
+                        <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md">
+                    </div>
+                </div>
+
+                <!-- Category Popover -->
+                 <div class="relative" id="category-popover-container">
+                    <button id="category-btn" class="filter-button">
+                        <span>All Categories</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="category-popover" class="popover max-h-80 overflow-y-auto">
+                        <!-- Category options will be inserted here by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -84,173 +106,171 @@
     
     <!-- Event Submission Modal (No changes here) -->
     <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" style="display: none;">
-        <div class="w-full max-w-2xl">
-             <form name="event-submission" class="card-bg p-8 md:p-12 space-y-6 relative" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
-                <button type="button" onclick="hideEventModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl">&times;</button>
-                <h3 class="font-anton text-4xl text-center heading-gradient mb-4">Submit an <span class="accent-color">Event</span></h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" id="event-name" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div><div><label for="venue" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="venue" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" id="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div><div><label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" id="start-time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div></div><div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div><div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div><div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div><div class="text-right pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
-            </form>
-        </div>
+        <div class="w-full max-w-2xl"><form name="event-submission" class="card-bg p-8 md:p-12 space-y-6 relative" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data"><button type="button" onclick="hideEventModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl">&times;</button><h3 class="font-anton text-4xl text-center heading-gradient mb-4">Submit an <span class="accent-color">Event</span></h3><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" id="event-name" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div><div><label for="venue" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="venue" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" id="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div><div><label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" id="start-time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div></div><div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div><div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div><div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div><div class="text-right pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div></form></div>
     </div>
 
     <script>
         // --- Global State ---
         let allEvents = [];
-        let activeDateFilter = 'all';
+        let activeDateFilter = { type: 'all', from: null, to: null };
         let activeCategoryFilter = 'all';
         
         // --- DOM Elements ---
         const eventGrid = document.getElementById('event-grid');
         const noResultsMessage = document.getElementById('no-results-message');
-        const filterBar = document.getElementById('filter-bar');
+        const filterBarContainer = document.getElementById('filter-bar-container');
+        const customDateBtn = document.getElementById('custom-date-btn');
+        const customDatePopover = document.getElementById('custom-date-popover');
+        const dateFromInput = document.getElementById('date-from');
+        const dateToInput = document.getElementById('date-to');
+        const categoryBtn = document.getElementById('category-btn');
+        const categoryPopover = document.getElementById('category-popover');
 
         // --- Modal Functions ---
         function showEventModal() { document.getElementById('event-modal').style.display = 'flex'; }
         function hideEventModal() { document.getElementById('event-modal').style.display = 'none'; }
         
-        // --- Date Helper Functions ---
-        const getToday = () => {
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-            return now;
-        };
+        // --- Date Helper ---
+        const getToday = () => { const now = new Date(); now.setHours(0, 0, 0, 0); return now; };
         
         // --- Filtering Logic ---
         function applyFilters() {
             let filteredEvents = [...allEvents];
+            const today = getToday();
 
             // 1. Apply Date Filter
-            const today = getToday();
-            if (activeDateFilter !== 'all') {
+            if (activeDateFilter.type !== 'all') {
                 filteredEvents = filteredEvents.filter(event => {
                     const eventDate = new Date(event.date);
                     eventDate.setHours(0, 0, 0, 0);
-                    switch (activeDateFilter) {
+                    switch (activeDateFilter.type) {
                         case 'today': return eventDate.getTime() === today.getTime();
-                        case 'this-week':
-                            const endOfWeek = new Date(today);
-                            endOfWeek.setDate(today.getDate() + (6 - today.getDay()));
-                            return eventDate >= today && eventDate <= endOfWeek;
                         case 'this-weekend':
-                            const dayOfWeek = today.getDay();
                             const friday = new Date(today);
-                            friday.setDate(today.getDate() - dayOfWeek + (dayOfWeek === 6 ? -1 : 5) ); // Adjust if today is saturday
+                            friday.setDate(today.getDate() - today.getDay() + 5);
                             const sunday = new Date(friday);
                             sunday.setDate(friday.getDate() + 2);
                             return eventDate >= friday && eventDate <= sunday;
-                        case 'next-week':
-                             const startOfNextWeek = new Date(today);
-                             startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()));
-                             const endOfNextWeek = new Date(startOfNextWeek);
-                             endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
-                             return eventDate >= startOfNextWeek && eventDate <= endOfNextWeek;
+                        case 'custom':
+                            const from = activeDateFilter.from ? new Date(activeDateFilter.from) : null;
+                            const to = activeDateFilter.to ? new Date(activeDateFilter.to) : null;
+                            if (from && to) return eventDate >= from && eventDate <= to;
+                            if (from) return eventDate >= from;
+                            if (to) return eventDate <= to;
+                            return true;
                     }
-                    return true;
+                    return false;
                 });
             }
 
             // 2. Apply Category Filter
             if (activeCategoryFilter !== 'all') {
-                filteredEvents = filteredEvents.filter(event => event.category && event.category.includes(activeCategoryFilter));
+                filteredEvents = filteredEvents.filter(e => e.category && e.category.includes(activeCategoryFilter));
             }
-
             renderEvents(filteredEvents);
         }
 
-        // --- Rendering Functions ---
+        // --- Rendering ---
         function renderEvents(events) {
             eventGrid.innerHTML = '';
-            if (events && events.length > 0) {
-                noResultsMessage.classList.add('hidden');
-                events.forEach(event => {
-                    const eventCard = `<a href="/event/${event.slug}" class="item-card card-bg block group"><div class="item-card-image-container"><img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy"></div><div class="p-6"><h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3><p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p><p class="text-gray-400">${event.venue}</p></div></a>`;
-                    eventGrid.insertAdjacentHTML('beforeend', eventCard);
-                });
-            } else {
-                noResultsMessage.classList.remove('hidden');
-            }
-        }
-
-        function renderFilters() {
-            filterBar.innerHTML = ''; // Clear loading message
-
-            // Add Date Filters
-            const dateFilters = [
-                { label: 'All Upcoming', value: 'all' }, { label: 'Today', value: 'today' },
-                { label: 'This Weekend', value: 'this-weekend' }, { label: 'This Week', value: 'this-week' },
-                { label: 'Next Week', value: 'next-week' }
-            ];
-            dateFilters.forEach(filter => {
-                const button = document.createElement('button');
-                button.className = 'filter-button';
-                button.dataset.filter = filter.value;
-                button.dataset.filterType = 'date';
-                button.textContent = filter.label;
-                if (filter.value === activeDateFilter) button.classList.add('active');
-                filterBar.appendChild(button);
-            });
-
-            // Add a visual divider
-            const divider = document.createElement('div');
-            divider.className = 'border-l border-gray-600 h-6 mx-2';
-            filterBar.appendChild(divider);
-
-            // Add Category Filters
-            const categories = [...new Set(allEvents.flatMap(event => event.category))].filter(Boolean);
-            const allCatButton = document.createElement('button');
-            allCatButton.className = 'filter-button active';
-            allCatButton.dataset.filter = 'all';
-            allCatButton.dataset.filterType = 'category';
-            allCatButton.textContent = 'All Categories';
-            filterBar.appendChild(allCatButton);
-
-            categories.sort().forEach(category => {
-                const button = document.createElement('button');
-                button.className = 'filter-button';
-                button.dataset.filter = category;
-                button.dataset.filterType = 'category';
-                button.textContent = category;
-                filterBar.appendChild(button);
+            noResultsMessage.classList.toggle('hidden', events.length > 0);
+            events.forEach(event => {
+                const eventCard = `<a href="/event/${event.slug}" class="item-card card-bg block group"><div class="item-card-image-container"><img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy"></div><div class="p-6"><h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3><p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p><p class="text-gray-400">${event.venue}</p></div></a>`;
+                eventGrid.insertAdjacentHTML('beforeend', eventCard);
             });
         }
         
+        function renderCategoryOptions() {
+            const categories = [...new Set(allEvents.flatMap(event => event.category))].filter(Boolean).sort();
+            categoryPopover.innerHTML = '';
+            
+            // Add "All Categories" option
+            const allButton = document.createElement('button');
+            allButton.className = 'popover-option';
+            allButton.textContent = 'All Categories';
+            allButton.dataset.filterValue = 'all';
+            categoryPopover.appendChild(allButton);
+
+            categories.forEach(cat => {
+                const button = document.createElement('button');
+                button.className = 'popover-option';
+                button.textContent = cat;
+                button.dataset.filterValue = cat;
+                categoryPopover.appendChild(button);
+            });
+        }
+        
+        // --- Popover & Filter Event Listeners ---
+        function setupEventListeners() {
+            // General click listener for filters
+            filterBarContainer.addEventListener('click', e => {
+                const button = e.target.closest('.filter-button');
+                if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn') return;
+                
+                document.querySelectorAll('#filter-bar-container .filter-button').forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+                
+                activeDateFilter.type = button.dataset.filterValue;
+                applyFilters();
+            });
+
+            // Custom Date popover toggle
+            customDateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                categoryPopover.classList.add('hidden');
+                customDatePopover.classList.toggle('hidden');
+            });
+            
+            // Category popover toggle
+            categoryBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                customDatePopover.classList.add('hidden');
+                categoryPopover.classList.toggle('hidden');
+            });
+
+            // Apply custom date filter when inputs change
+            [dateFromInput, dateToInput].forEach(input => {
+                input.addEventListener('change', () => {
+                    activeDateFilter.type = 'custom';
+                    activeDateFilter.from = dateFromInput.value;
+                    activeDateFilter.to = dateToInput.value;
+                    document.querySelectorAll('#filter-bar-container .filter-button').forEach(b => b.classList.remove('active'));
+                    customDateBtn.classList.add('active');
+                    applyFilters();
+                });
+            });
+            
+            // Apply category filter on selection
+            categoryPopover.addEventListener('click', e => {
+                const button = e.target.closest('.popover-option');
+                if(!button) return;
+                activeCategoryFilter = button.dataset.filterValue;
+                categoryBtn.querySelector('span').textContent = button.textContent;
+                categoryPopover.classList.add('hidden');
+                applyFilters();
+            });
+            
+            // Close popovers if clicking outside
+            window.addEventListener('click', () => {
+                customDatePopover.classList.add('hidden');
+                categoryPopover.classList.add('hidden');
+            });
+        }
+
         // --- Initial Data Fetch ---
         async function initializePage() {
             try {
                 const eventsResponse = await fetch('/.netlify/functions/get-events');
                 allEvents = await eventsResponse.json();
                 renderEvents(allEvents);
-                renderFilters();
+                renderCategoryOptions();
+                setupEventListeners();
             } catch (error) {
                 console.error("Error fetching events:", error);
                 eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
             }
         }
-
-        // --- Event Listeners ---
-        filterBar.addEventListener('click', (e) => {
-            const button = e.target.closest('.filter-button');
-            if (!button) return;
-
-            const filterType = button.dataset.filterType;
-            const filterValue = button.dataset.filter;
-
-            if (filterType === 'date') {
-                activeDateFilter = filterValue;
-            } else if (filterType === 'category') {
-                activeCategoryFilter = filterValue;
-            }
-
-            // Update active classes for the clicked filter's type
-            filterBar.querySelectorAll(`.filter-button[data-filter-type="${filterType}"]`).forEach(btn => {
-                btn.classList.remove('active');
-            });
-            button.classList.add('active');
-            
-            applyFilters();
-        });
         
-        // --- Run on page load ---
         document.addEventListener('DOMContentLoaded', initializePage);
     </script>
 </body>

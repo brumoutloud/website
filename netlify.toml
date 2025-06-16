@@ -9,8 +9,20 @@
   to = "/.netlify/functions/get-event-details?slug=:splat"
   status = 200
 
-# NEW Rule for individual VENUE pages
+# Rule for individual VENUE pages
 [[redirects]]
   from = "/venue/*"
   to = "/.netlify/functions/get-venue-details?slug=:splat"
+  status = 200
+
+# Rule for the COMMUNITY page
+[[redirects]]
+  from = "/community"
+  to = "/community.html"
+  status = 200
+
+# Rule for the VENUES listing form page
+[[redirects]]
+  from = "/venues"
+  to = "/venues.html"
   status = 200

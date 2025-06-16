@@ -1,6 +1,6 @@
-// v13 - Adds promo image handling and unique slugs for recurring events.
 const Airtable = require('airtable');
-const parser = require('lambda-multipart-parser'); // Changed from querystring
+const parser = require('lambda-multipart-parser');
+const fetch = require('node-fetch');
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
@@ -16,29 +16,74 @@ async function findVenueRecord(venueName) {
     }
 }
 
-// Helper function to generate a URL-friendly slug
 function generateSlug(text) {
-    return text
-        .toString()
-        .toLowerCase()
-        .trim()
+    return text.toString().toLowerCase().trim()
         .replace(/\s+/g, '-')      // Replace spaces with -
         .replace(/[^\w-]+/g, '')   // Remove all non-word chars
         .replace(/--+/g, '-');     // Replace multiple - with single -
 }
 
+async function getDatesFromAI(eventName, startDate, recurringInfo) {
+    // Construct the prompt for the AI
+    const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Generate a list of all future dates for this event for the next 3 months. Include the original start date. The dates must be a comma-separated list of YYYY-MM-DD strings.`;
+    
+    // Set up the request payload for the Gemini API
+    const payload = { 
+        contents: [{ 
+            role: "user", 
+            parts: [{ text: prompt }] 
+        }] 
+    };
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    // If there's no API key, we can't proceed, so just return the single start date
+    if (!apiKey) {
+        console.warn("GEMINI_API_KEY is not set. Falling back to single date.");
+        return [startDate];
+    }
+    
+    try {
+        // Call the Gemini API
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("AI API response was not OK:", response.status, errorBody);
+            return [startDate]; // Fallback to single date on API error
+        }
+
+        const result = await response.json();
+        
+        // Safely parse the response from the AI
+        const textResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textResponse) {
+            // Clean up the response and split it into an array of dates
+            return textResponse.trim().split(',').map(d => d.trim());
+        }
+        
+        // If the response is not as expected, fall back to the single date
+        return [startDate];
+
+    } catch (error) {
+        console.error("Error calling AI:", error);
+        return [startDate]; // Fallback to single date on network or other errors
+    }
+}
+
 exports.handler = async function (event, context) {
     let submission = {};
     try {
-        // Use lambda-multipart-parser to handle multipart form data (including files)
         const result = await parser.parse(event);
         submission = result;
     } catch (e) {
         console.error("Error parsing form data:", e);
         return { statusCode: 400, body: "Error processing form data." };
     }
-
-    console.log("Received submission:", submission);
 
     try {
         const venueRecord = await findVenueRecord(submission.venue);
@@ -47,29 +92,17 @@ exports.handler = async function (event, context) {
         let datesToCreate = [];
         const recurringInfoText = submission['recurring-info'] || null;
 
+        // If the user has provided recurring info, call the AI to get all dates
         if (recurringInfoText && recurringInfoText.trim() !== '') {
             datesToCreate = await getDatesFromAI(submission['event-name'], submission.date, recurringInfoText);
         } else {
+            // Otherwise, just use the single date provided
             datesToCreate.push(submission.date);
         }
 
-        let promoImageAttachment = null;
-        if (submission.files && submission.files.length > 0) {
-            const promoFile = submission.files.find(f => f.fieldname === 'promo-image');
-            if (promoFile && promoFile.url) { // Netlify might provide a temporary URL here
-                promoImageAttachment = [{ url: promoFile.url, filename: promoFile.filename }];
-                console.log("Promo image file found with URL:", promoFile.url);
-            } else if (promoFile) {
-                // If no URL is provided by parser directly, it means the file is raw data.
-                // For Airtable Attachment field, a public URL is usually required.
-                // This part would need a separate upload step to a service like Cloudinary.
-                console.warn("Promo image file found but no direct URL from parser. Skipping attachment for now.");
-            }
-        }
-
+        // Prepare the records for Airtable
         const recordsToCreate = datesToCreate.map((date, index) => {
             const eventName = submission['event-name'];
-            // Generate a unique slug by appending the date to the event name slug
             const uniqueSlug = generateSlug(`${eventName}-${date}`);
 
             const fields = {
@@ -77,65 +110,34 @@ exports.handler = async function (event, context) {
                 "Description": submission.description,
                 "Date": `${date}T${submission['start-time']}:00.000Z`,
                 "Link": submission.link,
-                "Submitter Email": submission.email,
                 "Status": "Pending Review",
-                "VenueText": submission.venue, // Store original submitted text
-                "Slug": uniqueSlug, // Assign the unique slug
+                "VenueText": submission.venue,
+                "Slug": uniqueSlug,
             };
             if (venueLinkId) {
-                fields["Venue"] = venueLinkId; // Link to the found venue record
+                fields["Venue"] = venueLinkId;
             }
-            if (index === 0 && recurringInfoText) { // Only add recurring info to the first instance
+            // Only add the recurring info text to the first event in the series
+            if (index === 0 && recurringInfoText) {
                 fields["Recurring Info"] = recurringInfoText;
-            }
-            if (promoImageAttachment) {
-                fields["Promo Image"] = promoImageAttachment;
             }
             return { fields };
         });
 
+        // Airtable's API can only create 10 records at a time, so we process in chunks
         const chunkSize = 10;
         for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
             const chunk = recordsToCreate.slice(i, i + chunkSize);
             await base('Events').create(chunk, { typecast: true });
-            console.log(`Successfully created chunk ${Math.floor(i / chunkSize) + 1} with ${chunk.length} record(s).`);
         }
 
-        console.log(`Successfully created ${recordsToCreate.length} record(s) in total.`);
         return {
             statusCode: 200,
             headers: { 'Content-Type': 'text/html' },
-            body: `<!DOCTYPE html><html><head><title>Success</title></head><body><h1>Thank you!</h1><p>Your event has been submitted.</p><a href="/">Back to site</a></body></html>`
+            body: `<!DOCTYPE html><html><head><title>Success</title><meta http-equiv="refresh" content="3;url=/events.html"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;"><h1>Thank you!</h1><p>Your event has been submitted for review.</p><p>You will be redirected shortly.</p></body></html>`
         };
     } catch (error) {
         console.error("An error occurred during event submission:", error);
-        return { statusCode: 500, body: `Error processing submission: ${error.message || 'Unknown error.'}` };
+        return { statusCode: 500, body: `Error processing submission.` };
     }
 };
-
-async function getDatesFromAI(eventName, startDate, recurringInfo) {
-    const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Generate a list of all future dates for this event. Include the original start date. The dates must be a comma-separated list of YYYY-MM-DD strings.`;
-    const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return [startDate]; 
-    try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("AI API response not OK:", response.status, errorBody);
-            return [startDate];
-        }
-        const result = await response.json();
-        if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
-            return result.candidates[0].content.parts[0].text.trim().split(',').map(d => d.trim());
-        }
-        return [startDate];
-    } catch (error) {
-        console.error("Error calling AI:", error);
-        return [startDate];
-    }
-}

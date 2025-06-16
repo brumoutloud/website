@@ -18,6 +18,22 @@ body {
 .border-accent-color { border-color: #B564F7; }
 
 .accent-color-secondary { color: #FADCD9; } /* Peach */
+/* FIX: Added a background-color class for the secondary color */
+.bg-accent-color-secondary { background-color: #FADCD9; }
+
+/* FIX: Added a dedicated class for the main CTA button in the navbar */
+.nav-cta {
+    background-color: #FADCD9; /* Peach background */
+    color: #333333; /* Dark text */
+    font-weight: bold;
+    padding: 0.75rem 1.5rem; /* py-3 px-6 */
+    border-radius: 0.5rem; /* rounded-lg */
+    transition: opacity 0.3s ease;
+}
+.nav-cta:hover {
+    opacity: 0.9;
+}
+
 
 /* Card/section background from original site */
 .card-bg {

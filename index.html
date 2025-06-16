@@ -9,6 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
+    <style>
+        .feature-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+    </style>
 </head>
 <body class="antialiased">
 
@@ -16,19 +25,17 @@
         <nav class="container mx-auto flex justify-between items-center">
             <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
             <div class="hidden md:flex items-center space-x-8 font-semibold">
-                <a href="#whats-on" class="nav-link text-gray-300 hover:accent-color transition-colors">Events</a>
-                <a href="#venues" class="nav-link text-gray-300 hover:accent-color transition-colors">Venues</a>
+                <a href="/events.html" class="text-gray-300 hover:accent-color transition-colors">Events</a>
+                <a href="/all-venues.html" class="text-gray-300 hover:accent-color transition-colors">Venues</a>
                 <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
             </div>
-            <!-- Using original peach button style -->
-            <a href="/venues.html" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+            <a href="/get-listed.html" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
                 GET LISTED
             </a>
         </nav>
     </header>
 
     <main class="container mx-auto px-8 py-16">
-
         <section class="text-center mb-32">
             <h1 class="font-anton text-7xl md:text-9xl lg:text-[10rem] leading-none tracking-wider heading-gradient">
                 OUR CITY. <br><span class="accent-color">OUR</span> SCENE.
@@ -36,24 +43,21 @@
             <p class="mt-4 text-xl font-semibold tracking-widest text-gray-300">YOUR GUIDE TO LGBTQ+ BIRMINGHAM</p>
         </section>
 
-        <section id="whats-on">
-            <div class="flex items-center gap-6 mb-8">
-                <div class="spark-icon accent-color">✦</div>
-                <h2 class="font-anton text-4xl md:text-6xl text-white">WHAT'S ON</h2>
-            </div>
-            <div id="event-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <p class="col-span-full text-center text-gray-400">Loading events...</p>
-            </div>
-        </section>
-
-        <section id="venues" class="mt-32">
-             <div class="flex items-center gap-6 mb-8">
-                <div class="spark-icon accent-color-secondary">✦</div>
-                <h2 class="font-anton text-4xl md:text-6xl text-white">VENUES</h2>
-            </div>
-            <div id="venue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <p class="col-span-full text-center text-gray-400">Loading venues...</p>
-            </div>
+        <section class="grid md:grid-cols-2 gap-8">
+            <!-- Link to Events Page -->
+            <a href="/events.html" class="feature-card card-bg block group p-8 md:p-12 text-center">
+                <div class="spark-icon accent-color text-5xl mb-4">✦</div>
+                <h2 class="font-anton text-5xl md:text-6xl text-white mb-4 group-hover:heading-gradient">WHAT'S ON</h2>
+                <p class="text-lg text-gray-400 mb-6">Explore all the latest events, from club nights to theatre.</p>
+                <span class="font-bold text-accent-color text-lg">VIEW EVENTS &rarr;</span>
+            </a>
+            <!-- Link to Venues Page -->
+            <a href="/all-venues.html" class="feature-card card-bg block group p-8 md:p-12 text-center">
+                 <div class="spark-icon accent-color-secondary text-5xl mb-4">✦</div>
+                 <h2 class="font-anton text-5xl md:text-6xl text-white mb-4 group-hover:heading-gradient">THE VENUES</h2>
+                <p class="text-lg text-gray-400 mb-6">Discover the best LGBTQ+ friendly spaces in Birmingham.</p>
+                <span class="font-bold text-accent-color-secondary text-lg">BROWSE VENUES &rarr;</span>
+            </a>
         </section>
     </main>
 
@@ -71,9 +75,9 @@
                 <div>
                     <h4 class="font-bold text-lg mb-4 text-white">Explore</h4>
                     <ul>
-                        <li class="mb-2"><a href="#whats-on" class="text-gray-400 hover:text-white">Events</a></li>
-                        <li class="mb-2"><a href="#venues" class="text-gray-400 hover:text-white">Venues</a></li>
-                        <li class="mb-2"><a href="/venues.html" class="text-gray-400 hover:text-white">Submit Content</a></li>
+                        <li class="mb-2"><a href="/events.html" class="text-gray-400 hover:text-white">Events</a></li>
+                        <li class="mb-2"><a href="/all-venues.html" class="text-gray-400 hover:text-white">Venues</a></li>
+                        <li class="mb-2"><a href="/get-listed.html" class="text-gray-400 hover:text-white">Submit Content</a></li>
                     </ul>
                 </div>
                  <div>
@@ -86,72 +90,5 @@
             </div>
         </div>
     </footer>
-    
-    <script>
-        async function renderDynamicContent() {
-            // Fetch and render events
-            try {
-                const eventsResponse = await fetch('/.netlify/functions/get-events');
-                const events = await eventsResponse.json();
-                const eventGrid = document.getElementById('event-grid');
-                eventGrid.innerHTML = ''; 
-                if (events && events.length > 0) {
-                    events.forEach(event => {
-                        const eventCard = `
-                            <a href="/event/${event.slug}" class="item-card card-bg block group">
-                                <div class="item-card-image-container">
-                                    <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy">
-                                </div>
-                                <div class="p-6">
-                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3>
-                                    <p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
-                                    <p class="text-gray-400">${event.venue}</p>
-                                </div>
-                            </a>
-                        `;
-                        eventGrid.insertAdjacentHTML('beforeend', eventCard);
-                    });
-                } else {
-                    eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found.</p>';
-                }
-            } catch (error) {
-                console.error("Error fetching events:", error);
-                document.getElementById('event-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
-            }
-
-            // Fetch and render venues
-            try {
-                const venuesResponse = await fetch('/.netlify/functions/get-venues');
-                const venues = await venuesResponse.json();
-                const venueGrid = document.getElementById('venue-grid');
-                venueGrid.innerHTML = '';
-                if (venues && venues.length > 0) {
-                    venues.forEach(venue => {
-                        const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
-                        const mediumSrc = venue.photo?.medium || placeholder;
-                        const venueCard = `
-                            <a href="/venue/${venue.slug}" class="item-card card-bg block group">
-                                <div class="item-card-image-container">
-                                    <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
-                                </div>
-                                <div class="p-6">
-                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color-secondary">${venue.name}</h3>
-                                    <p class="text-gray-400 h-12 overflow-hidden">${venue.description}</p>
-                                </div>
-                            </a>
-                        `;
-                        venueGrid.insertAdjacentHTML('beforeend', venueCard);
-                    });
-                } else {
-                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
-                }
-            } catch (error) {
-                console.error("Error fetching venues:", error);
-                document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues.</p>';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', renderDynamicContent);
-    </script>
 </body>
 </html>

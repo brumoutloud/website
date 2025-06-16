@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
-        /* FIX: Removed @apply and used standard CSS for compatibility with CDN */
         .filter-button {
             background-color: rgba(42, 42, 42, 0.8);
             color: #EAEAEA;
@@ -22,6 +21,7 @@
             font-weight: 600;
             transition: all 0.2s ease-in-out;
             white-space: nowrap;
+            flex-shrink: 0;
         }
         .filter-button:hover {
             background-color: rgba(60, 60, 60, 0.8);
@@ -31,6 +31,17 @@
             background-color: transparent;
             color: #B564F7; /* accent-color */
             border-color: #B564F7; /* accent-color */
+        }
+        /* Custom scrollbar for the filter bar */
+        #filter-bar::-webkit-scrollbar {
+            height: 4px;
+        }
+        #filter-bar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #filter-bar::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+            border-radius: 10px;
         }
     </style>
 </head>
@@ -44,7 +55,6 @@
                 <a href="/all-venues.html" class="nav-link text-gray-300 hover:accent-color transition-colors">Venues</a>
                 <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
             </div>
-            <!-- FIX: Applied the new .nav-cta class for consistent styling -->
             <button onclick="showEventModal()" class="nav-cta">
                 SUBMIT EVENT
             </button>
@@ -58,27 +68,10 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
 
-            <!-- Redesigned Filter Controls -->
-            <div id="filter-controls" class="card-bg p-8 mb-12">
-                <div class="grid md:grid-cols-2 gap-8">
-                    <!-- Date Filter Column -->
-                    <div>
-                        <h3 class="font-anton text-2xl mb-4 accent-color-secondary tracking-wider">Filter by Date</h3>
-                        <div id="date-filters" class="flex flex-wrap gap-3">
-                            <button class="filter-button active" data-filter="all">All Upcoming</button>
-                            <button class="filter-button" data-filter="today">Today</button>
-                            <button class="filter-button" data-filter="this-weekend">This Weekend</button>
-                            <button class="filter-button" data-filter="this-week">This Week</button>
-                            <button class="filter-button" data-filter="next-week">Next Week</button>
-                        </div>
-                    </div>
-                    <!-- Category Filter Column -->
-                    <div>
-                         <h3 class="font-anton text-2xl mb-4 accent-color-secondary tracking-wider">Filter by Category</h3>
-                        <div id="category-filters" class="flex flex-wrap gap-3">
-                            <p class="text-gray-400">Loading categories...</p>
-                        </div>
-                    </div>
+            <!-- NEW: Single-line, scrollable filter bar -->
+            <div id="filter-bar-container" class="mb-12">
+                <div id="filter-bar" class="flex items-center space-x-3 overflow-x-auto pb-4">
+                     <p class="text-gray-400">Loading filters...</p>
                 </div>
             </div>
 
@@ -109,8 +102,7 @@
         // --- DOM Elements ---
         const eventGrid = document.getElementById('event-grid');
         const noResultsMessage = document.getElementById('no-results-message');
-        const dateFiltersContainer = document.getElementById('date-filters');
-        const categoryFiltersContainer = document.getElementById('category-filters');
+        const filterBar = document.getElementById('filter-bar');
 
         // --- Modal Functions ---
         function showEventModal() { document.getElementById('event-modal').style.display = 'flex'; }
@@ -133,18 +125,16 @@
                 filteredEvents = filteredEvents.filter(event => {
                     const eventDate = new Date(event.date);
                     eventDate.setHours(0, 0, 0, 0);
-
                     switch (activeDateFilter) {
-                        case 'today':
-                            return eventDate.getTime() === today.getTime();
+                        case 'today': return eventDate.getTime() === today.getTime();
                         case 'this-week':
                             const endOfWeek = new Date(today);
-                            endOfWeek.setDate(today.getDate() + (6 - today.getDay())); // Sunday
+                            endOfWeek.setDate(today.getDate() + (6 - today.getDay()));
                             return eventDate >= today && eventDate <= endOfWeek;
                         case 'this-weekend':
-                            const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+                            const dayOfWeek = today.getDay();
                             const friday = new Date(today);
-                            friday.setDate(today.getDate() - dayOfWeek + 5);
+                            friday.setDate(today.getDate() - dayOfWeek + (dayOfWeek === 6 ? -1 : 5) ); // Adjust if today is saturday
                             const sunday = new Date(friday);
                             sunday.setDate(friday.getDate() + 2);
                             return eventDate >= friday && eventDate <= sunday;
@@ -181,14 +171,46 @@
             }
         }
 
-        function renderCategoryFilters() {
-            const categories = [...new Set(allEvents.flatMap(event => event.category))];
-            categoryFiltersContainer.innerHTML = '<button class="filter-button active" data-filter="all">All Categories</button>';
+        function renderFilters() {
+            filterBar.innerHTML = ''; // Clear loading message
+
+            // Add Date Filters
+            const dateFilters = [
+                { label: 'All Upcoming', value: 'all' }, { label: 'Today', value: 'today' },
+                { label: 'This Weekend', value: 'this-weekend' }, { label: 'This Week', value: 'this-week' },
+                { label: 'Next Week', value: 'next-week' }
+            ];
+            dateFilters.forEach(filter => {
+                const button = document.createElement('button');
+                button.className = 'filter-button';
+                button.dataset.filter = filter.value;
+                button.dataset.filterType = 'date';
+                button.textContent = filter.label;
+                if (filter.value === activeDateFilter) button.classList.add('active');
+                filterBar.appendChild(button);
+            });
+
+            // Add a visual divider
+            const divider = document.createElement('div');
+            divider.className = 'border-l border-gray-600 h-6 mx-2';
+            filterBar.appendChild(divider);
+
+            // Add Category Filters
+            const categories = [...new Set(allEvents.flatMap(event => event.category))].filter(Boolean);
+            const allCatButton = document.createElement('button');
+            allCatButton.className = 'filter-button active';
+            allCatButton.dataset.filter = 'all';
+            allCatButton.dataset.filterType = 'category';
+            allCatButton.textContent = 'All Categories';
+            filterBar.appendChild(allCatButton);
+
             categories.sort().forEach(category => {
-                if(category) {
-                     const button = `<button class="filter-button" data-filter="${category}">${category}</button>`;
-                    categoryFiltersContainer.insertAdjacentHTML('beforeend', button);
-                }
+                const button = document.createElement('button');
+                button.className = 'filter-button';
+                button.dataset.filter = category;
+                button.dataset.filterType = 'category';
+                button.textContent = category;
+                filterBar.appendChild(button);
             });
         }
         
@@ -198,7 +220,7 @@
                 const eventsResponse = await fetch('/.netlify/functions/get-events');
                 allEvents = await eventsResponse.json();
                 renderEvents(allEvents);
-                renderCategoryFilters();
+                renderFilters();
             } catch (error) {
                 console.error("Error fetching events:", error);
                 eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
@@ -206,22 +228,26 @@
         }
 
         // --- Event Listeners ---
-        dateFiltersContainer.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                dateFiltersContainer.querySelector('.active').classList.remove('active');
-                e.target.classList.add('active');
-                activeDateFilter = e.target.dataset.filter;
-                applyFilters();
-            }
-        });
+        filterBar.addEventListener('click', (e) => {
+            const button = e.target.closest('.filter-button');
+            if (!button) return;
 
-        categoryFiltersContainer.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                categoryFiltersContainer.querySelector('.active').classList.remove('active');
-                e.target.classList.add('active');
-                activeCategoryFilter = e.target.dataset.filter;
-                applyFilters();
+            const filterType = button.dataset.filterType;
+            const filterValue = button.dataset.filter;
+
+            if (filterType === 'date') {
+                activeDateFilter = filterValue;
+            } else if (filterType === 'category') {
+                activeCategoryFilter = filterValue;
             }
+
+            // Update active classes for the clicked filter's type
+            filterBar.querySelectorAll(`.filter-button[data-filter-type="${filterType}"]`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+            
+            applyFilters();
         });
         
         // --- Run on page load ---

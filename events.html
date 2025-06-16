@@ -10,15 +10,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
-        /* NEW: Updated and enhanced filter button styles */
+        /* NEW: Updated filter button styles for a "pill" shape */
         .filter-button {
-            @apply bg-gray-900/50 text-gray-300 border-2 border-transparent px-4 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-200 whitespace-nowrap;
+            @apply bg-gray-900/50 text-gray-300 border-2 border-transparent px-4 py-2 rounded-full cursor-pointer text-sm font-semibold transition-colors duration-200 whitespace-nowrap;
         }
         .filter-button:hover {
             @apply bg-gray-800/70 text-white;
         }
+        /* NEW: Active filter is now a pill outline */
         .filter-button.active {
-            @apply bg-accent-color text-white border-transparent shadow-lg;
+            @apply bg-transparent text-accent-color border-accent-color;
         }
     </style>
 </head>
@@ -45,7 +46,7 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
 
-            <!-- NEW: Redesigned Filter Controls -->
+            <!-- Redesigned Filter Controls -->
             <div id="filter-controls" class="card-bg p-8 mb-12">
                 <div class="grid md:grid-cols-2 gap-8">
                     <!-- Date Filter Column -->

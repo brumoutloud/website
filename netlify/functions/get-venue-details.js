@@ -23,7 +23,7 @@ exports.handler = async function (event, context) {
 
         const sortedEvents = eventRecords.map(rec => rec.fields);
 
-        const imageUrl = venue.Photo ? venue.Photo[0].url : 'https://placehold.co/1600x600/1a1a1a/f5efe6?text=Venue';
+        const imageUrl = venue.Photo ? venue.Photo[0].url : 'https://placehold.co/1600x600/1e1e1e/EAEAEA?text=Venue';
         
         const html = `
             <!DOCTYPE html>
@@ -40,8 +40,8 @@ exports.handler = async function (event, context) {
             <body class="antialiased">
                 <header class="p-8">
                     <nav class="container mx-auto flex justify-between items-center">
-                        <a href="/" class="font-anton text-2xl tracking-widest">BRUM OUT LOUD</a>
-                        <a href="/" class="bg-accent-color text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">BACK TO SITE</a>
+                        <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+                        <a href="/" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">BACK TO SITE</a>
                     </nav>
                 </header>
                 <main class="container mx-auto px-8 py-16">
@@ -56,25 +56,25 @@ exports.handler = async function (event, context) {
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-16">
                         <div class="lg:col-span-1 space-y-8">
                             <div>
-                                <h3 class="font-bold text-lg accent-color mb-2">The Vibe</h3>
+                                <h3 class="font-bold text-lg accent-color-secondary mb-2">The Vibe</h3>
                                 <p class="text-gray-300 text-lg">${venue.Description || 'Info coming soon.'}</p>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg accent-color mb-2">Address</h3>
+                                <h3 class="font-bold text-lg accent-color-secondary mb-2">Address</h3>
                                 <p class="text-gray-300 text-lg">${venue.Address || 'N/A'}</p>
                             </div>
                             <div>
-                                <h3 class="font-bold text-lg accent-color mb-2">Follow Them</h3>
-                                <div class="flex space-x-6 text-2xl">
-                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="text-gray-400 hover:text-white"><i class="fas fa-globe"></i></a>` : ''}
-                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>` : ''}
-                                    ${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-facebook"></i></a>` : ''}
+                                <h3 class="font-bold text-lg accent-color-secondary mb-2">Follow Them</h3>
+                                <div class="flex space-x-6 text-2xl text-gray-400">
+                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="hover:text-white"><i class="fas fa-globe"></i></a>` : ''}
+                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="hover:text-white"><i class="fab fa-instagram"></i></a>` : ''}
+                                    ${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" class="hover:text-white"><i class="fab fa-facebook"></i></a>` : ''}
                                 </div>
                             </div>
                         </div>
 
                         <div class="lg:col-span-2">
-                             <h2 class="font-anton text-4xl mb-8"><span class="accent-color-secondary">What's On</span> at ${venue.Name}</h2>
+                             <h2 class="font-anton text-4xl mb-8"><span class="accent-color">What's On</span> at ${venue.Name}</h2>
                              <div class="space-y-4">
                                 ${sortedEvents.length > 0 ? sortedEvents.map(event => `
                                     <a href="/event/${event.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
@@ -86,7 +86,7 @@ exports.handler = async function (event, context) {
                                             <h4 class="font-bold text-white text-xl">${event['Event Name']}</h4>
                                             <p class="text-sm text-gray-400">${new Date(event.Date).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
                                         </div>
-                                        <div class="text-accent-color-secondary"><i class="fas fa-arrow-right"></i></div>
+                                        <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
                                     </a>
                                 `).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>'}
                              </div>

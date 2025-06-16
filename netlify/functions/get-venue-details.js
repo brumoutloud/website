@@ -1,10 +1,5 @@
-// v10 - Adds social media links to the venue detail page.
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
-
-async function fetchRecords(tableName, options) {
-    return await base(tableName).select(options).all();
-}
 
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
@@ -14,110 +9,86 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        // --- Get the Venue's Details ---
-        const venueRecords = await fetchRecords('Venues', {
-            maxRecords: 1,
-            filterByFormula: `{Slug} = "${slug}"`,
-        });
+        const venueRecords = await base('Venues').select({ maxRecords: 1, filterByFormula: `{Slug} = "${slug}"` }).all();
 
         if (!venueRecords || venueRecords.length === 0) {
             return { statusCode: 404, body: 'Venue not found.' };
         }
         const venue = venueRecords[0].fields;
         
-        // --- Get All Upcoming Events for this Venue ---
-        const eventRecords = await fetchRecords('Events', {
+        const eventRecords = await base('Events').select({
             filterByFormula: `AND({Venue Name} = "${venue.Name}", IS_AFTER({Date}, TODAY()))`,
             sort: [{ field: 'Date', direction: 'asc' }],
-        });
+        }).all();
 
-        const sortedEvents = eventRecords.map(rec => rec.fields).sort((a, b) => {
-            const aIsRecurring = a['Recurring Info'] ? 0 : 1;
-            const bIsRecurring = b['Recurring Info'] ? 0 : 1;
-            if (aIsRecurring !== bIsRecurring) return aIsRecurring - bIsRecurring;
-            return new Date(a.Date) - new Date(b.Date);
-        });
+        const sortedEvents = eventRecords.map(rec => rec.fields);
+
+        const imageUrl = venue.Photo ? venue.Photo[0].url : 'https://placehold.co/1600x600/1a1a1a/f5efe6?text=Venue';
         
-        // --- Generate the HTML Page ---
         const html = `
             <!DOCTYPE html>
-            <html lang="en" class="dark">
+            <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>${venue.Name} | Brum Out Loud</title>
                 <script src="https://cdn.tailwindcss.com"></script>
-                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" xintegrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-                <style> body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; } </style>
+                <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+                <link rel="stylesheet" href="/css/main.css">
             </head>
             <body class="antialiased">
-                <header class="bg-[#1e1e1e] shadow-md">
-                  <nav class="container mx-auto px-4 lg:px-0 py-4 flex justify-between items-center">
-                    <a href="/" class="text-3xl font-bold text-white">BrumOutLoud</a>
-                    <a href="/" class="bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Back to Events</a>
-                  </nav>
+                <header class="p-8">
+                    <nav class="container mx-auto flex justify-between items-center">
+                        <a href="/" class="font-anton text-2xl tracking-widest">BRUM OUT LOUD</a>
+                        <a href="/" class="bg-accent-color text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">BACK TO SITE</a>
+                    </nav>
                 </header>
-                <main class="container mx-auto p-4 lg:p-8">
-                    <!-- Hero Section -->
-                    <div class="relative rounded-2xl overflow-hidden mb-8">
-                        <img src="${venue.Photo ? venue.Photo[0].url : 'https://placehold.co/1600x600/1e1e1e/EAEAEA?text=Venue'}" alt="${venue.Name}" class="w-full h-96 object-cover">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                        <h1 class="absolute bottom-8 left-8 text-5xl lg:text-7xl font-extrabold text-white">${venue.Name}</h1>
+                <main class="container mx-auto px-8 py-16">
+                    <div class="relative rounded-2xl overflow-hidden mb-16 h-96 card-bg">
+                        <img src="${imageUrl}" alt="${venue.Name}" class="w-full h-full object-cover opacity-50">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                        <div class="absolute bottom-8 left-8">
+                            <h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none">${venue.Name}</h1>
+                        </div>
                     </div>
 
-                    <!-- Details & Events Grid -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <!-- Left Column: Details -->
-                        <div class="lg:col-span-1 space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-16">
+                        <div class="lg:col-span-1 space-y-8">
                             <div>
-                                <h3 class="font-bold text-[#B564F7] text-lg mb-2">The Vibe</h3>
-                                <p class="text-gray-300">${venue.Description || 'Info coming soon.'}</p>
+                                <h3 class="font-bold text-lg accent-color mb-2">The Vibe</h3>
+                                <p class="text-gray-300 text-lg">${venue.Description || 'Info coming soon.'}</p>
                             </div>
                             <div>
-                                <h3 class="font-bold text-[#B564F7] text-lg mb-2">Opening Hours</h3>
-                                <p class="text-gray-300 whitespace-pre-line">${venue['Opening Hours'] || 'Check website for details.'}</p>
+                                <h3 class="font-bold text-lg accent-color mb-2">Address</h3>
+                                <p class="text-gray-300 text-lg">${venue.Address || 'N/A'}</p>
                             </div>
                             <div>
-                                <h3 class="font-bold text-[#B564F7] text-lg mb-2">Address</h3>
-                                <p class="text-gray-300">${venue.Address || 'N/A'}</p>
-                            </div>
-                             <div>
-                                <h3 class="font-bold text-[#B564F7] text-lg mb-2">Accessibility</h3>
-                                <p class="text-gray-300 whitespace-pre-line">${venue.Accessibility || 'Info not provided.'}</p>
-                            </div>
-                             ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="block w-full text-center bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-500 transition-opacity">Visit Website</a>` : ''}
-                        
-                            <!-- Social Links Section -->
-                            <div class="border-t border-gray-700 pt-6">
-                                <h3 class="font-bold text-[#B564F7] text-lg mb-4 text-center">Follow Them</h3>
-                                <div class="flex justify-center space-x-6">
-                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-instagram fa-2x"></i></a>` : ''}
-                                    ${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-facebook fa-2x"></i></a>` : ''}
-                                    ${venue.TikTok ? `<a href="${venue.TikTok}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-tiktok fa-2x"></i></a>` : ''}
-                                    ${venue['X (Twitter)'] ? `<a href="${venue['X (Twitter)']}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-twitter fa-2x"></i></a>` : ''}
+                                <h3 class="font-bold text-lg accent-color mb-2">Follow Them</h3>
+                                <div class="flex space-x-6 text-2xl">
+                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="text-gray-400 hover:text-white"><i class="fas fa-globe"></i></a>` : ''}
+                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>` : ''}
+                                    ${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" class="text-gray-400 hover:text-white"><i class="fab fa-facebook"></i></a>` : ''}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Right Column: Upcoming Events -->
                         <div class="lg:col-span-2">
-                             <h2 class="text-3xl font-bold text-white mb-4">What's On at ${venue.Name}</h2>
+                             <h2 class="font-anton text-4xl mb-8"><span class="accent-color-secondary">What's On</span> at ${venue.Name}</h2>
                              <div class="space-y-4">
                                 ${sortedEvents.length > 0 ? sortedEvents.map(event => `
-                                    <div class="bg-[#1e1e1e] p-4 rounded-lg flex items-center space-x-4">
+                                    <a href="/event/${event.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
                                         <div class="text-center w-20 flex-shrink-0">
-                                            <p class="text-xl font-bold text-white">${new Date(event.Date).toLocaleDateString('en-GB', { day: 'numeric' })}</p>
-                                            <p class="text-md text-gray-400">${new Date(event.Date).toLocaleDateString('en-GB', { month: 'short' })}</p>
+                                            <p class="text-2xl font-bold text-white">${new Date(event.Date).toLocaleDateString('en-GB', { day: 'numeric' })}</p>
+                                            <p class="text-lg text-gray-400">${new Date(event.Date).toLocaleDateString('en-GB', { month: 'short' })}</p>
                                         </div>
                                         <div class="flex-grow">
-                                            <h4 class="font-bold text-white">${event['Event Name']}</h4>
+                                            <h4 class="font-bold text-white text-xl">${event['Event Name']}</h4>
                                             <p class="text-sm text-gray-400">${new Date(event.Date).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
-                                            ${event['Recurring Info'] ? `<span class="mt-1 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${event['Recurring Info']}</span>` : ''}
                                         </div>
-                                        <a href="/event/${event.Slug}" class="bg-[#FADCD9] text-[#333333] px-4 py-2 rounded-lg font-semibold text-sm">View</a>
-                                    </div>
-                                `).join('') : '<p class="text-gray-400">No upcoming events scheduled.</p>'}
+                                        <div class="text-accent-color-secondary"><i class="fas fa-arrow-right"></i></div>
+                                    </a>
+                                `).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>'}
                              </div>
                         </div>
                     </div>
@@ -128,6 +99,6 @@ exports.handler = async function (event, context) {
         return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
     } catch (error) {
         console.error(error);
-        return { statusCode: 500, body: 'Server error while building venue page.' };
+        return { statusCode: 500, body: 'Server error building venue page.' };
     }
 };

@@ -10,16 +10,27 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
-        /* NEW: Updated filter button styles for a "pill" shape */
+        /* FIX: Removed @apply and used standard CSS for compatibility with CDN */
         .filter-button {
-            @apply bg-gray-900/50 text-gray-300 border-2 border-transparent px-4 py-2 rounded-full cursor-pointer text-sm font-semibold transition-colors duration-200 whitespace-nowrap;
+            background-color: rgba(42, 42, 42, 0.8);
+            color: #EAEAEA;
+            border: 2px solid transparent;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            white-space: nowrap;
         }
         .filter-button:hover {
-            @apply bg-gray-800/70 text-white;
+            background-color: rgba(60, 60, 60, 0.8);
+            color: white;
         }
-        /* NEW: Active filter is now a pill outline */
         .filter-button.active {
-            @apply bg-transparent text-accent-color border-accent-color;
+            background-color: transparent;
+            color: #B564F7; /* accent-color */
+            border-color: #B564F7; /* accent-color */
         }
     </style>
 </head>
@@ -33,7 +44,8 @@
                 <a href="/all-venues.html" class="nav-link text-gray-300 hover:accent-color transition-colors">Venues</a>
                 <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
             </div>
-            <button onclick="showEventModal()" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+            <!-- FIX: Applied the new .nav-cta class for consistent styling -->
+            <button onclick="showEventModal()" class="nav-cta">
                 SUBMIT EVENT
             </button>
         </nav>

@@ -62,6 +62,8 @@ exports.handler = async function (event, context) {
     const photoFile = submission.files.find(f => f.fieldname === 'photo');
     const uploadedImageUrls = await uploadImage(photoFile);
 
+    // **FIX:** The record object now includes all fields from the form,
+    // and we will add the optional ones only if they exist.
     const record = {
         "Name": submission['venue-name'],
         "Description": submission.description,
@@ -69,6 +71,14 @@ exports.handler = async function (event, context) {
         "Contact Email": submission['contact-email'],
         "Status": "Pending Review",
     };
+
+    // Safely add optional fields to the record if they were submitted
+    if (submission['opening-hours']) record['Opening Hours'] = submission['opening-hours'];
+    if (submission.accessibility) record['Accessibility'] = submission.accessibility;
+    if (submission.website) record.Website = submission.website;
+    if (submission.instagram) record.Instagram = submission.instagram;
+    if (submission.facebook) record.Facebook = submission.facebook;
+    if (submission.tiktok) record.TikTok = submission.tiktok;
 
     // Add the optimized image URLs to the record if they exist
     if (uploadedImageUrls) {

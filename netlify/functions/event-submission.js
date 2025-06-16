@@ -16,6 +16,8 @@ async function findVenueRecord(venueName) {
     }
 }
 
+// This function is no longer needed to generate the slug in the code,
+// but we'll keep it in case you change the Airtable field type in the future.
 function generateSlug(text) {
     return text.toString().toLowerCase().trim()
         .replace(/\s+/g, '-')      // Replace spaces with -
@@ -103,8 +105,8 @@ exports.handler = async function (event, context) {
         // Prepare the records for Airtable
         const recordsToCreate = datesToCreate.map((date, index) => {
             const eventName = submission['event-name'];
-            const uniqueSlug = generateSlug(`${eventName}-${date}`);
-
+            
+            // **FIX:** Removed the "Slug" field from this object.
             const fields = {
                 "Event Name": eventName,
                 "Description": submission.description,
@@ -112,7 +114,6 @@ exports.handler = async function (event, context) {
                 "Link": submission.link,
                 "Status": "Pending Review",
                 "VenueText": submission.venue,
-                "Slug": uniqueSlug,
             };
             if (venueLinkId) {
                 fields["Venue"] = venueLinkId;
@@ -138,6 +139,11 @@ exports.handler = async function (event, context) {
         };
     } catch (error) {
         console.error("An error occurred during event submission:", error);
-        return { statusCode: 500, body: `Error processing submission.` };
+        // Provide a more specific error message back to the browser if possible
+        const errorMessage = error.message || "Unknown error.";
+        return { 
+            statusCode: 500, 
+            body: `<html><body><h1>Error</h1><p>There was an error processing your submission: ${errorMessage}</p></body></html>`
+        };
     }
 };

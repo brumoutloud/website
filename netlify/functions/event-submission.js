@@ -14,11 +14,6 @@ cloudinary.config({
 
 // --- Helper Functions ---
 
-/**
- * FIX #3: Venue lookup is now more flexible.
- * It now searches for the submitted text within the venue's name OR its aliases.
- * This allows an input like "Village" to match a venue named "The Village Inn".
- */
 async function findVenueRecord(venueName) {
     if (!venueName) return null;
     const sanatizedVenueName = venueName.toLowerCase().replace(/"/g, '\\"');
@@ -33,12 +28,15 @@ async function findVenueRecord(venueName) {
 }
 
 /**
- * FIX #1: This function handles uploading an image file to Cloudinary.
+ * FIX #1 (REVISED): This function now handles uploading an image file to Cloudinary
+ * by converting its content to a base64 string, which is much more reliable.
  */
 async function uploadImage(file) {
     if (!file) return null;
     try {
-        const result = await cloudinary.uploader.upload(file.path, {
+        const base64String = file.content.toString('base64');
+        const dataUri = `data:${file.contentType};base64,${base64String}`;
+        const result = await cloudinary.uploader.upload(dataUri, {
             folder: 'brumoutloud_events',
         });
         return { url: result.secure_url };
@@ -100,7 +98,6 @@ exports.handler = async function (event, context) {
         const venueRecord = await findVenueRecord(submission.venue);
         const venueLinkId = venueRecord ? [venueRecord.id] : null;
 
-        // FIX #1: Handle the promo image upload
         const promoImageFile = submission.files.find(f => f.fieldname === 'promo-image');
         const uploadedImage = await uploadImage(promoImageFile);
 
@@ -120,10 +117,11 @@ exports.handler = async function (event, context) {
                 "Event Name": eventName,
                 "Description": submission.description,
                 /**
-                 * FIX #2: The date and time are now combined directly.
-                 * Airtable's typecasting will correctly handle this format without UTC issues.
+                 * FIX #2 (REVISED): Forcing a full ISO 8601 string with a Z (for UTC).
+                 * This is the most reliable way to ensure Airtable parses the time correctly.
+                 * The time will be displayed in the user's local time on the front-end.
                  */
-                "Date": `${date}T${submission['start-time']}`,
+                "Date": `${date}T${submission['start-time']}:00.000Z`,
                 "Link": submission.link,
                 "Status": "Pending Review",
                 "VenueText": submission.venue,
@@ -135,7 +133,6 @@ exports.handler = async function (event, context) {
             if (index === 0 && recurringInfoText) {
                 fields["Recurring Info"] = recurringInfoText;
             }
-            // FIX #1: Add the image URL to the record if it exists
             if (uploadedImage) {
                 fields["Promo Image"] = [{ url: uploadedImage.url }];
             }

@@ -1,0 +1,72 @@
+/* Custom Styles for BrumOutLoud */
+body {
+    /* Subtle, dark background image of the Birmingham skyline */
+    background-image: linear-gradient(rgba(26, 26, 26, 0.95), rgba(26, 26, 26, 1)), url('https://images.unsplash.com/photo-1597531737293-94778b873523?q=80&w=2070&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center top;
+    background-attachment: fixed;
+    background-color: #1a1a1a;
+    color: #F5EFE6; /* Creamy off-white */
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Custom font for bold, impactful headlines */
+.font-anton {
+    font-family: 'Anton', sans-serif;
+    letter-spacing: 0.05em;
+}
+
+/* Accent colors for a more queer, vibrant feel */
+.accent-color { color: #FF007A; } /* Vibrant Pink/Magenta */
+.bg-accent-color { background-color: #FF007A; }
+.border-accent-color { border-color: #FF007A; }
+
+.accent-color-secondary { color: #00F2E2; } /* Vibrant Cyan/Teal */
+
+/* Card/section background */
+.card-bg {
+    background-color: rgba(42, 42, 42, 0.9); /* Slightly transparent to let bg show through */
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+/* Large text gradient effect */
+.heading-gradient {
+    background: linear-gradient(180deg, #FFFFFF 50%, #d1c7b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+}
+
+/* Custom spark icon shape */
+.spark-icon {
+    font-size: 2rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+/* Event/Venue Card Styles */
+.item-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.item-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+}
+.item-card-image-container {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+}
+.item-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+.item-card:hover .item-card-image {
+    transform: scale(1.05);
+}
+

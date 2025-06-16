@@ -1,275 +1,156 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brum Out Loud - Your Guide to LGBTQ+ Birmingham</title>
-    <meta name="description" content="The essential guide to Birmingham's vibrant LGBTQ+ scene. Discover what's on, the best venues, community news, and more.">
+    <title>BrumOutLoud - Your Guide to LGBTQ+ Birmingham</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" xintegrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-    <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; }
-        .font-roboto-mono { font-family: 'Roboto Mono', monospace; }
-        .card-thumbnail { aspect-ratio: 1 / 1; height: 0; padding-top: 100%; border-radius: 20px; overflow: hidden; position: relative; }
-        .card-thumbnail img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease, object-fit 0.3s ease; }
-        .card:hover .card-thumbnail img { transform: scale(0.95); object-fit: contain; }
-        .nav-link { @apply px-4 py-2 rounded-lg transition-colors duration-200 text-gray-300 hover:text-white hover:bg-gray-700; }
-        .nav-link.active { @apply bg-gray-700 text-white font-semibold; }
-        
-        .filter-button {
-            @apply bg-transparent text-[#FADCD9] border-2 border-[#FADCD9] px-4 py-2 rounded-full cursor-pointer text-sm font-semibold uppercase tracking-wider transition-colors duration-200;
-        }
-        .filter-button:hover, .filter-button.active {
-            @apply bg-[#FADCD9] text-[#333333];
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
 </head>
 <body class="antialiased">
 
-    <header class="bg-[#1e1e1e] shadow-md sticky top-0 z-40">
-        <nav class="container mx-auto px-4 lg:px-0 py-4 flex justify-between items-center">
-            <a href="/" class="text-3xl font-bold text-white">BrumOutLoud</a>
-            <div class="hidden lg:flex items-center space-x-2">
-                <a href="#whats-on" class="nav-link active">What's On</a>
-                <a href="#venues" class="nav-link">Venues</a>
-                <a href="/community.html" class="nav-link">Community</a>
-                <a href="/venues.html" class="nav-link">Get Listed</a>
+    <header class="p-8">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="font-anton text-2xl tracking-widest">BRUM OUT LOUD</a>
+            <div class="hidden md:flex items-center space-x-8 font-semibold">
+                <a href="#whats-on" class="nav-link hover:accent-color transition-colors">Events</a>
+                <a href="#venues" class="nav-link hover:accent-color transition-colors">Venues</a>
+                <a href="/community.html" class="hover:accent-color transition-colors">Community</a>
             </div>
-            <div class="hidden lg:flex items-center space-x-4">
-                 <button onclick="showEventModal()" class="bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
-            </div>
-            <div class="lg:hidden">
-                <button id="menu-btn" class="text-white focus:outline-none text-2xl">
-                    <i class="fas fa-bars"></i>
-                </button>
-            </div>
+            <a href="/venues.html" class="bg-accent-color text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+                GET LISTED
+            </a>
         </nav>
-        <div id="mobile-menu" class="hidden lg:hidden px-4 pb-4 space-y-2">
-             <a href="#whats-on" class="nav-link active block text-center">What's On</a>
-             <a href="#venues" class="nav-link block text-center">Venues</a>
-             <a href="/community.html" class="nav-link block text-center">Community</a>
-             <a href="/venues.html" class="nav-link block text-center">Get Listed</a>
-             <button onclick="showEventModal()" class="w-full mt-2 bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
-        </div>
     </header>
 
-    <main id="app" class="container mx-auto p-4 lg:p-8">
-        <section id="whats-on" class="page">
-            <h1 class="text-4xl font-extrabold mb-4 text-center">What's On</h1>
-            <p class="text-center text-gray-400 mb-8">Your guide to the best LGBTQ+ events across Birmingham.</p>
-            <div id="event-filters" class="flex flex-wrap justify-center gap-2 mb-8">
-                <!-- Filter buttons will be inserted here by JavaScript -->
+    <main class="container mx-auto px-8 py-16">
+
+        <section class="text-center mb-32">
+            <h1 class="font-anton text-7xl md:text-9xl lg:text-[10rem] leading-none tracking-wider heading-gradient">
+                OUR CITY. <br><span class="accent-color">OUR</span> SCENE.
+            </h1>
+            <p class="mt-4 text-xl font-semibold tracking-widest">YOUR GUIDE TO LGBTQ+ BIRMINGHAM</p>
+        </section>
+
+        <section id="whats-on">
+            <div class="flex items-center gap-6 mb-8">
+                <div class="spark-icon accent-color">✦</div>
+                <h2 class="font-anton text-4xl md:text-6xl">WHAT'S ON</h2>
             </div>
-            <div id="event-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div id="event-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading events...</p>
             </div>
         </section>
 
-        <section id="venues" class="page hidden mt-16">
-             <h1 class="text-4xl font-extrabold mb-4 text-center">Venues</h1>
-             <p class="text-center text-gray-400 mb-8">Discover the best LGBTQ+ friendly bars, clubs, and spaces in Birmingham.</p>
-             <div id="venue-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <section id="venues" class="mt-32">
+             <div class="flex items-center gap-6 mb-8">
+                <div class="spark-icon accent-color-secondary">✦</div>
+                <h2 class="font-anton text-4xl md:text-6xl">VENUES</h2>
+            </div>
+            <div id="venue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading venues...</p>
             </div>
         </section>
     </main>
-    
-    <footer class="bg-[#1e1e1e] mt-12 py-8 border-t border-gray-700">
-        <div class="container mx-auto text-center text-gray-400">
-            <p>&copy; 2024 BrumOutLoud. A community project built by the community, for the community.</p>
-            <div class="mt-4 flex justify-center space-x-6">
-                <a href="/community.html" class="hover:text-white">About & FAQ</a>
-                <a href="/venues.html" class="hover:text-white">Get Your Venue Listed</a>
+
+    <footer class="border-t-2 border-gray-800 mt-32 p-8">
+        <div class="container mx-auto grid md:grid-cols-2">
+            <div>
+                 <h3 class="font-anton text-5xl leading-tight">BE SEEN,<br>BE HEARD.</h3>
+                 <div class="flex space-x-6 text-2xl mt-6">
+                    <a href="#" class="hover:accent-color"><i class="fab fa-instagram"></i></a>
+                    <a href="#" class="hover:accent-color"><i class="fab fa-facebook"></i></a>
+                    <a href="#" class="hover:accent-color"><i class="fab fa-tiktok"></i></a>
+                 </div>
             </div>
-            <p class="mt-4">Got a question or suggestion? <a href="mailto:hello@brumoutloud.co.uk" class="hover:text-white underline">hello@brumoutloud.co.uk</a></p>
+            <div class="grid grid-cols-2 gap-8 mt-8 md:mt-0">
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Explore</h4>
+                    <ul>
+                        <li class="mb-2"><a href="#whats-on" class="text-gray-400 hover:text-white">Events</a></li>
+                        <li class="mb-2"><a href="#venues" class="text-gray-400 hover:text-white">Venues</a></li>
+                        <li class="mb-2"><a href="/venues.html" class="text-gray-400 hover:text-white">Submit Content</a></li>
+                    </ul>
+                </div>
+                 <div>
+                    <h4 class="font-bold text-lg mb-4">About</h4>
+                    <ul>
+                        <li class="mb-2"><a href="/community.html" class="text-gray-400 hover:text-white">Community & FAQ</a></li>
+                        <li class="mb-2"><a href="mailto:hello@brumoutloud.co.uk" class="text-gray-400 hover:text-white">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </footer>
     
-    <div id="event-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50" style="display: none;">
-        <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9] max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-3xl font-bold">Submit an Event</h3>
-                <button onclick="hideEventModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
-            </div>
-            <form name="event-submission" class="space-y-4" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
-                <input type="text" name="event-name" placeholder="Event Name" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                <textarea name="description" placeholder="Event Description" rows="4" class="w-full p-3 bg-white border-gray-300 rounded-lg" required></textarea>
-                <input type="text" name="venue" placeholder="Venue Name" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                <input type="date" name="date" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                <input type="time" name="start-time" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                
-                <div>
-                    <label for="promo-image" class="block text-sm font-semibold mb-2 text-gray-700">Promo Image (Optional)</label>
-                    <input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500" accept="image/png, image/jpeg, image/webp">
-                </div>
-
-                <input type="url" name="link" placeholder="Ticket/Info Link (Optional)" class="w-full p-3 bg-white border-gray-300 rounded-lg">
-                <textarea name="recurring-info" placeholder="Recurring Info (e.g., 'Every Thursday', 'First Monday of month')" rows="2" class="w-full p-3 bg-white border-gray-300 rounded-lg"></textarea>
-                <input type="email" name="email" placeholder="Your Contact Email" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                <div class="text-right">
-                    <button type="submit" class="bg-[#B564F7] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">Submit Event</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
     <script>
-        // --- GLOBAL STATE ---
-        let allEvents = [];
-        let allVenues = [];
-
-        // --- MODAL FUNCTIONS ---
-        function showEventModal() { document.getElementById('event-modal').style.display = 'flex'; }
-        function hideEventModal() { document.getElementById('event-modal').style.display = 'none'; }
-
-        // --- MOBILE MENU ---
-        document.getElementById('menu-btn').addEventListener('click', function() {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
-        });
-
-        // --- PAGE NAVIGATION ---
-        function setupNavigation() {
-            const navLinks = document.querySelectorAll('.nav-link');
-            navLinks.forEach(link => {
-                if (link.getAttribute('href').startsWith('#')) {
-                    link.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        const targetId = this.getAttribute('href').substring(1);
-                        document.querySelectorAll('.page').forEach(page => page.classList.add('hidden', 'mt-16'));
-                        document.getElementById(targetId).classList.remove('hidden', 'mt-16');
-                        
-                        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                        // Make all links pointing to this section active
-                        document.querySelectorAll(`.nav-link[href="${this.getAttribute('href')}"]`).forEach(activeLink => activeLink.classList.add('active'));
-
-                        document.getElementById('mobile-menu').classList.add('hidden');
-                    });
-                }
-            });
-        }
-        
-        // --- DATA FETCHING ---
-        async function fetchEvents() {
+        async function renderDynamicContent() {
+            // Fetch and render events
             try {
-                const response = await fetch('/.netlify/functions/get-events');
-                allEvents = await response.json();
-                renderEvents(allEvents);
-                setupFilters();
+                const eventsResponse = await fetch('/.netlify/functions/get-events');
+                const events = await eventsResponse.json();
+                const eventGrid = document.getElementById('event-grid');
+                eventGrid.innerHTML = ''; 
+                if (events && events.length > 0) {
+                    events.forEach(event => {
+                        const eventCard = `
+                            <a href="/event/${event.slug}" class="item-card card-bg block group">
+                                <div class="item-card-image-container">
+                                    <img src="${event.image || 'https://placehold.co/400x400/1a1a1a/f5efe6?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy">
+                                </div>
+                                <div class="p-6">
+                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3>
+                                    <p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
+                                    <p class="text-gray-400">${event.venue}</p>
+                                </div>
+                            </a>
+                        `;
+                        eventGrid.insertAdjacentHTML('beforeend', eventCard);
+                    });
+                } else {
+                    eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found.</p>';
+                }
             } catch (error) {
                 console.error("Error fetching events:", error);
-                document.getElementById('event-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events. Please try again later.</p>';
+                document.getElementById('event-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
             }
-        }
 
-        async function fetchVenues() {
-             try {
+            // Fetch and render venues
+            try {
                 const venuesResponse = await fetch('/.netlify/functions/get-venues');
-                allVenues = await venuesResponse.json();
-                renderVenues(allVenues);
-            } catch (error) {
-                console.error("Error fetching venues on client-side:", error);
-                document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues. Please try again later.</p>';
-            }
-        }
-        
-        // --- RENDERING FUNCTIONS ---
-        function renderEvents(eventsToRender) {
-            const eventGrid = document.getElementById('event-grid');
-            eventGrid.innerHTML = '';
-            if (eventsToRender && eventsToRender.length > 0) {
-                eventsToRender.forEach(event => {
-                    const eventCard = `
-                        <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card" data-category="${event.category || 'general'}">
-                            <div class="card-thumbnail w-full mb-4">
-                                <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="rounded-xl" loading="lazy" width="400" height="400">
-                            </div>
-                            <h3 class="text-2xl font-bold text-white mb-2">${event.name}</h3>
-                            <p class="text-gray-400 mb-2">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
-                            <p class="text-gray-400 mb-4">${event.venue}</p>
-                            <a href="/event/${event.slug}" class="bg-[#B564F7] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">View Details</a>
-                        </div>
-                    `;
-                    eventGrid.insertAdjacentHTML('beforeend', eventCard);
-                });
-            } else {
-                eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found for this filter.</p>';
-            }
-        }
-        
-        function renderVenues(venuesToRender) {
-            const venueGrid = document.getElementById('venue-grid');
-            venueGrid.innerHTML = '';
-
-            if (venuesToRender && venuesToRender.length > 0) {
-                venuesToRender.forEach(venue => {
-                    const descriptionText = venue.description || 'No description provided.'; 
-                    const truncatedDescription = descriptionText.length > 70 ? descriptionText.substring(0, 70) + '...' : descriptionText;
-                    const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
-                    const mediumSrc = venue.photo?.medium || placeholder;
-                    const thumbSrc = venue.photo?.thumbnail || mediumSrc;
-                    const srcset = venue.photo ? `${thumbSrc} 200w, ${mediumSrc} 400w` : '';
-
-                    const venueCard = `
-                        <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card">
-                            <div class="card-thumbnail w-full mb-4">
-                                <img src="${mediumSrc}" srcset="${srcset}" sizes="(max-width: 768px) 100vw, (max-width: 1024px) 33vw, 400px" alt="${venue.name}" class="rounded-xl" loading="lazy" width="400" height="400">
-                            </div>
-                            <h3 class="text-2xl font-bold text-white mb-2">${venue.name}</h3>
-                            <p class="text-gray-400 mb-4">${truncatedDescription}</p>
-                            <a href="/venue/${venue.slug}" class="bg-[#B564F7] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">View Details</a>
-                        </div>
-                    `;
-                    venueGrid.insertAdjacentHTML('beforeend', venueCard);
-                });
-            } else {
-                venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
-            }
-        }
-        
-        // --- FILTERING LOGIC ---
-        function setupFilters() {
-            const filtersContainer = document.getElementById('event-filters');
-            // Extract unique categories from events
-            const categories = [...new Set(allEvents.map(event => event.category).flat().filter(Boolean))];
-            
-            filtersContainer.innerHTML = '<button class="filter-button active" data-filter="all">All</button>';
-            categories.forEach(category => {
-                const button = `<button class="filter-button" data-filter="${category}">${category}</button>`;
-                filtersContainer.insertAdjacentHTML('beforeend', button);
-            });
-            
-            // Add event listeners to filter buttons
-            filtersContainer.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
-                    const filter = e.target.dataset.filter;
-                    
-                    // Update active button style
-                    filtersContainer.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    
-                    // Filter and render events
-                    if (filter === 'all') {
-                        renderEvents(allEvents);
-                    } else {
-                        const filteredEvents = allEvents.filter(event => event.category && event.category.includes(filter));
-                        renderEvents(filteredEvents);
-                    }
+                const venues = await venuesResponse.json();
+                const venueGrid = document.getElementById('venue-grid');
+                venueGrid.innerHTML = '';
+                if (venues && venues.length > 0) {
+                    venues.forEach(venue => {
+                        const placeholder = 'https://placehold.co/400x400/1a1a1a/f5efe6?text=Venue';
+                        const mediumSrc = venue.photo?.medium || placeholder;
+                        const venueCard = `
+                            <a href="/venue/${venue.slug}" class="item-card card-bg block group">
+                                <div class="item-card-image-container">
+                                    <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
+                                </div>
+                                <div class="p-6">
+                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color-secondary">${venue.name}</h3>
+                                    <p class="text-gray-400 h-12 overflow-hidden">${venue.description}</p>
+                                </div>
+                            </a>
+                        `;
+                        venueGrid.insertAdjacentHTML('beforeend', venueCard);
+                    });
+                } else {
+                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
                 }
-            });
+            } catch (error) {
+                console.error("Error fetching venues:", error);
+                document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues.</p>';
+            }
         }
 
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            setupNavigation();
-            fetchEvents();
-            fetchVenues();
-        });
+        document.addEventListener('DOMContentLoaded', renderDynamicContent);
     </script>
 </body>
 </html>

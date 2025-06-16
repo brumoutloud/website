@@ -22,49 +22,12 @@
         .nav-link { @apply px-4 py-2 rounded-lg transition-colors duration-200 text-gray-300 hover:text-white hover:bg-gray-700; }
         .nav-link.active { @apply bg-gray-700 text-white font-semibold; }
         
-        :root {
-         --brand-peach: #FADCD9;
-         --brand-peach-light: #fff7f5;
-         --brand-dark-text: #333333;
-         --brand-light-text: #5f5f5f; 
-         --brand-border-color: #e0e0e0; 
-         --filter-button-border: var(--brand-peach); 
-         --filter-text-color-default-popover: var(--brand-dark-text);
-         --filter-button-active-or-has-selection-bg: var(--brand-peach); 
-         --filter-button-active-or-has-selection-text: var(--brand-dark-text);
-         --filter-button-active-or-has-selection-border: var(--brand-peach); 
-         --filter-popover-bg: var(--brand-peach-light); 
-         --filter-popover-shadow: 0 5px 15px rgba(0,0,0,0.15);
-         --filter-text-color-selected-popover: #333333 !important; 
-         --filter-divider-color: #e7d8d5;
+        .filter-button {
+            @apply bg-transparent text-[#FADCD9] border-2 border-[#FADCD9] px-4 py-2 rounded-full cursor-pointer text-sm font-semibold uppercase tracking-wider transition-colors duration-200;
         }
-        #event-filters-slick-container { margin-bottom: 25px; padding: 10px 0; }
-        .filter-bar-slick { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; position: relative; }
-        .filter-group-slick { position: relative; }
-        .filter-trigger-button-slick { background-color: transparent; color: #FADCD9; border: 2px solid #FADCD9; padding: 8px 18px; border-radius: 50px; cursor: pointer; font-size: 0.85em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; transition: background-color 0.2s, color 0.2s, border-color 0.2s; display: flex; align-items: center; text-align: center; min-height: 38px; box-sizing: border-box; }
-        .filter-trigger-button-slick:hover { background-color: #FADCD9; color: #333333; border-color: #FADCD9; }
-        .filter-trigger-button-slick.active, .filter-trigger-button-slick.has-selection { background-color: var(--filter-button-active-or-has-selection-bg); color: var(--filter-button-active-or-has-selection-text); border-color: var(--filter-button-active-or-has-selection-border); }
-        .filter-arrow { margin-left: 8px; font-size: 0.8em; transition: transform 0.2s ease-in-out; }
-        .filter-trigger-button-slick.active .filter-arrow { transform: rotate(180deg); }
-        .filter-popover-slick { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background-color: var(--filter-popover-bg); border: 1px solid var(--filter-button-border); border-radius: 10px; box-shadow: var(--filter-popover-shadow); padding: 15px; z-index: 100; min-width: 220px; display: none; flex-direction: column; gap: 8px; }
-        .popover-option-slick { background: none; border: none; padding: 10px 12px; text-align: left; width: 100%; cursor: pointer; font-size: 0.95em; color: var(--filter-text-color-default-popover); border-radius: 6px; transition: background-color 0.15s, color 0.15s; }
-        .popover-option-slick:hover { background-color: rgba(250, 220, 217, 0.5); }
-        .popover-option-slick.selected { background-color: var(--filter-button-active-or-has-selection-bg) !important; color: var(--filter-text-color-selected-popover) !important; font-weight: 600; }
-        .popover-divider-slick { height: 1px; background-color: var(--filter-divider-color, #e7d8d5); margin: 10px 0; }
-        .custom-date-inputs-slick { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-        .custom-date-inputs-slick input[type="date"] { padding: 10px; border: 1px solid var(--filter-button-border); border-radius: 6px; font-size: 0.9em; color: var(--filter-text-color-default-popover); background-color: #fff; }
-        .checkbox-popover-slick { min-width: 250px; }
-        .checkbox-list-slick { max-height: 200px; overflow-y: auto; padding-right: 5px; }
-        .checkbox-list-slick .checkbox-item-slick { display: block; margin-bottom: 6px; }
-        .checkbox-list-slick .checkbox-item-slick label { font-size: 0.9em; color: var(--filter-text-color-default-popover); cursor: pointer; display: flex; align-items: center; position: relative; padding-left: 0; }
-        .checkbox-list-slick .checkbox-item-slick input[type="checkbox"] { appearance: none; -webkit-appearance: none; -moz-appearance: none; width: 16px; height: 16px; border: 2px solid var(--filter-button-border); border-radius: 4px; margin-right: 8px; cursor: pointer; position: relative; outline: none; vertical-align: middle; flex-shrink: 0; }
-        .checkbox-list-slick .checkbox-item-slick input[type="checkbox"]:checked { background-color: var(--filter-button-text, #FADCD9); border-color: var(--filter-button-text, #FADCD9); }
-        .checkbox-list-slick .checkbox-item-slick input[type="checkbox"]:checked::after { content: ''; display: block; width: 4px; height: 8px; border: solid var(--filter-button-active-or-has-selection-text); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-50%, -50%); position: absolute; left: 50%; top: 45%; }
-        .clear-filters-button-slick { background-color: transparent; color: #FADCD9; border: 2px solid #FADCD9; padding: 8px 18px; border-radius: 50px; cursor: pointer; font-size: 0.8em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
-        .clear-filters-button-slick:hover { background-color: #FADCD9; color: #333333; border-color: #FADCD9; }
-        .filter-message-slick { color: #aaa; font-size: 0.9em; margin-top: 15px; font-style: italic; text-align: center; width: 100%; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
-        @media (max-width: 768px) { .filter-bar-slick { flex-direction: column; align-items: stretch; } .filter-trigger-button-slick, .clear-filters-button-slick { width: 100%; justify-content: center; max-width: 320px; margin-left: auto; margin-right: auto; } .filter-trigger-button-slick .filter-arrow { margin-left: auto; } .filter-popover-slick { left: 0; transform: translateX(0); width: 100%; max-width: calc(100% - 20px); box-sizing: border-box; margin-left: 10px; margin-right: 10px; } }
+        .filter-button:hover, .filter-button.active {
+            @apply bg-[#FADCD9] text-[#333333];
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -75,7 +38,8 @@
             <div class="hidden lg:flex items-center space-x-2">
                 <a href="#whats-on" class="nav-link active">What's On</a>
                 <a href="#venues" class="nav-link">Venues</a>
-                <a href="#community" class="nav-link">Community</a>
+                <a href="/community.html" class="nav-link">Community</a>
+                <a href="/venues.html" class="nav-link">Get Listed</a>
             </div>
             <div class="hidden lg:flex items-center space-x-4">
                  <button onclick="showEventModal()" class="bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
@@ -89,7 +53,8 @@
         <div id="mobile-menu" class="hidden lg:hidden px-4 pb-4 space-y-2">
              <a href="#whats-on" class="nav-link active block text-center">What's On</a>
              <a href="#venues" class="nav-link block text-center">Venues</a>
-             <a href="#community" class="nav-link block text-center">Community</a>
+             <a href="/community.html" class="nav-link block text-center">Community</a>
+             <a href="/venues.html" class="nav-link block text-center">Get Listed</a>
              <button onclick="showEventModal()" class="w-full mt-2 bg-[#FADCD9] text-[#333333] px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">Submit Event</button>
         </div>
     </header>
@@ -98,13 +63,15 @@
         <section id="whats-on" class="page">
             <h1 class="text-4xl font-extrabold mb-4 text-center">What's On</h1>
             <p class="text-center text-gray-400 mb-8">Your guide to the best LGBTQ+ events across Birmingham.</p>
-            <div id="event-filters-slick-container"></div>
+            <div id="event-filters" class="flex flex-wrap justify-center gap-2 mb-8">
+                <!-- Filter buttons will be inserted here by JavaScript -->
+            </div>
             <div id="event-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <p class="col-span-full text-center text-gray-400">Loading events...</p>
             </div>
         </section>
 
-        <section id="venues" class="page hidden">
+        <section id="venues" class="page hidden mt-16">
              <h1 class="text-4xl font-extrabold mb-4 text-center">Venues</h1>
              <p class="text-center text-gray-400 mb-8">Discover the best LGBTQ+ friendly bars, clubs, and spaces in Birmingham.</p>
              <div id="venue-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -112,6 +79,17 @@
             </div>
         </section>
     </main>
+    
+    <footer class="bg-[#1e1e1e] mt-12 py-8 border-t border-gray-700">
+        <div class="container mx-auto text-center text-gray-400">
+            <p>&copy; 2024 BrumOutLoud. A community project built by the community, for the community.</p>
+            <div class="mt-4 flex justify-center space-x-6">
+                <a href="/community.html" class="hover:text-white">About & FAQ</a>
+                <a href="/venues.html" class="hover:text-white">Get Your Venue Listed</a>
+            </div>
+            <p class="mt-4">Got a question or suggestion? <a href="mailto:hello@brumoutloud.co.uk" class="hover:text-white underline">hello@brumoutloud.co.uk</a></p>
+        </div>
+    </footer>
     
     <div id="event-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50" style="display: none;">
         <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9] max-h-[90vh] overflow-y-auto">
@@ -140,134 +118,157 @@
             </form>
         </div>
     </div>
-
-    <div id="venue-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50" style="display: none;">
-        <div class="bg-[#fff7f5] text-[#333333] rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all border-2 border-[#FADCD9] max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-3xl font-bold">Submit a Venue</h3>
-                <button onclick="hideVenueModal()" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal">&times;</button>
-            </div>
-            <form name="venue-submission" class="space-y-4" method="POST" action="/.netlify/functions/venue-submission" enctype="multipart/form-data">
-                <input type="text" name="venue-name" placeholder="Venue Name" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                <textarea name="description" placeholder="Short Description (The Vibe)" rows="3" class="w-full p-3 bg-white border-gray-300 rounded-lg" required></textarea>
-                <input type="text" name="address" placeholder="Address" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                <input type="file" id="modal-photo" name="photo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500" accept="image/png, image/jpeg, image/webp">
-                <textarea name="opening-hours" placeholder="Opening Hours (e.g., Mon-Thu: 5pm-12am)" rows="3" class="w-full p-3 bg-white border-gray-300 rounded-lg"></textarea>
-                <textarea name="accessibility" placeholder="Accessibility Information" rows="3" class="w-full p-3 bg-white border-gray-300 rounded-lg"></textarea>
-                <input type="url" name="website" placeholder="Website URL (Optional)" class="w-full p-3 bg-white border-gray-300 rounded-lg">
-                <input type="url" name="instagram" placeholder="Instagram URL (Optional)" class="w-full p-3 bg-white border-gray-300 rounded-lg">
-                <input type="url" name="facebook" placeholder="Facebook URL (Optional)" class="w-full p-3 bg-white border-gray-300 rounded-lg">
-                <input type="url" name="tiktok" placeholder="TikTok URL (Optional)" class="w-full p-3 bg-white border-gray-300 rounded-lg">
-                <input type="url" name="X (Twitter)" placeholder="X (Twitter) URL (Optional)" class="w-full p-3 bg-white border-gray-300 rounded-lg">
-                <input type="email" name="contact-email" placeholder="Your Contact Email (for verification)" class="w-full p-3 bg-white border-gray-300 rounded-lg" required>
-                <div class="text-right">
-                    <button type="submit" class="bg-[#B564F7] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">Submit Venue</button>
-                </div>
-            </form>
-        </div>
-    </div>
     
     <script>
-        // Modal functions
+        // --- GLOBAL STATE ---
+        let allEvents = [];
+        let allVenues = [];
+
+        // --- MODAL FUNCTIONS ---
         function showEventModal() { document.getElementById('event-modal').style.display = 'flex'; }
         function hideEventModal() { document.getElementById('event-modal').style.display = 'none'; }
-        function showVenueModal() { document.getElementById('venue-modal').style.display = 'flex'; }
-        function hideVenueModal() { document.getElementById('venue-modal').style.display = 'none'; }
 
-        // Mobile menu toggle
+        // --- MOBILE MENU ---
         document.getElementById('menu-btn').addEventListener('click', function() {
             document.getElementById('mobile-menu').classList.toggle('hidden');
         });
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Fetch Events
-            try {
-                const eventsResponse = await fetch('/.netlify/functions/get-events');
-                const events = await eventsResponse.json();
-                const eventGrid = document.getElementById('event-grid');
-                eventGrid.innerHTML = ''; 
+        // --- PAGE NAVIGATION ---
+        function setupNavigation() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                if (link.getAttribute('href').startsWith('#')) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const targetId = this.getAttribute('href').substring(1);
+                        document.querySelectorAll('.page').forEach(page => page.classList.add('hidden', 'mt-16'));
+                        document.getElementById(targetId).classList.remove('hidden', 'mt-16');
+                        
+                        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                        // Make all links pointing to this section active
+                        document.querySelectorAll(`.nav-link[href="${this.getAttribute('href')}"]`).forEach(activeLink => activeLink.classList.add('active'));
 
-                if (events && events.length > 0) {
-                    events.forEach(event => {
-                        const eventCard = `
-                            <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card">
-                                <div class="card-thumbnail w-full mb-4">
-                                    <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="rounded-xl" loading="lazy" width="400" height="400">
-                                </div>
-                                <h3 class="text-2xl font-bold text-white mb-2">${event.name}</h3>
-                                <p class="text-gray-400 mb-2">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
-                                <p class="text-gray-400 mb-4">${event.venue}</p>
-                                <a href="/event/${event.slug}" class="bg-[#B564F7] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">View Details</a>
-                            </div>
-                        `;
-                        eventGrid.insertAdjacentHTML('beforeend', eventCard);
+                        document.getElementById('mobile-menu').classList.add('hidden');
                     });
-                } else {
-                    eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found.</p>';
                 }
+            });
+        }
+        
+        // --- DATA FETCHING ---
+        async function fetchEvents() {
+            try {
+                const response = await fetch('/.netlify/functions/get-events');
+                allEvents = await response.json();
+                renderEvents(allEvents);
+                setupFilters();
             } catch (error) {
                 console.error("Error fetching events:", error);
                 document.getElementById('event-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events. Please try again later.</p>';
             }
+        }
 
-            // Fetch Venues
-            try {
+        async function fetchVenues() {
+             try {
                 const venuesResponse = await fetch('/.netlify/functions/get-venues');
-                const venues = await venuesResponse.json();
-                const venueGrid = document.getElementById('venue-grid');
-                venueGrid.innerHTML = '';
-
-                if (venues && venues.length > 0) {
-                    venues.forEach(venue => {
-                        const descriptionText = venue.description || 'No description provided.'; 
-                        const truncatedDescription = descriptionText.length > 70 ? descriptionText.substring(0, 70) + '...' : descriptionText;
-
-                        // Create image sources, using placeholder if no optimized images exist
-                        const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
-                        const mediumSrc = venue.photo?.medium || placeholder;
-                        const thumbSrc = venue.photo?.thumbnail || mediumSrc; // Fallback to medium if no thumbnail
-                        const srcset = venue.photo ? `${thumbSrc} 200w, ${mediumSrc} 400w` : '';
-
-                        const venueCard = `
-                            <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card">
-                                <div class="card-thumbnail w-full mb-4">
-                                    <img src="${mediumSrc}"
-                                        srcset="${srcset}"
-                                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 33vw, 400px"
-                                        alt="${venue.name}"
-                                        class="rounded-xl"
-                                        loading="lazy"
-                                        width="400"
-                                        height="400">
-                                </div>
-                                <h3 class="text-2xl font-bold text-white mb-2">${venue.name}</h3>
-                                <p class="text-gray-400 mb-4">${truncatedDescription}</p>
-                                <a href="/venue/${venue.slug}" class="bg-[#B564F7] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">View Details</a>
-                            </div>
-                        `;
-                        venueGrid.insertAdjacentHTML('beforeend', venueCard);
-                    });
-                } else {
-                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
-                }
+                allVenues = await venuesResponse.json();
+                renderVenues(allVenues);
             } catch (error) {
                 console.error("Error fetching venues on client-side:", error);
                 document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues. Please try again later.</p>';
             }
-
-            // Simple navigation
-            const navLinks = document.querySelectorAll('.nav-link');
-            navLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href').substring(1);
-                    document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
-                    document.getElementById(targetId).classList.remove('hidden');
-                    navLinks.forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-                    document.getElementById('mobile-menu').classList.add('hidden');
+        }
+        
+        // --- RENDERING FUNCTIONS ---
+        function renderEvents(eventsToRender) {
+            const eventGrid = document.getElementById('event-grid');
+            eventGrid.innerHTML = '';
+            if (eventsToRender && eventsToRender.length > 0) {
+                eventsToRender.forEach(event => {
+                    const eventCard = `
+                        <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card" data-category="${event.category || 'general'}">
+                            <div class="card-thumbnail w-full mb-4">
+                                <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="rounded-xl" loading="lazy" width="400" height="400">
+                            </div>
+                            <h3 class="text-2xl font-bold text-white mb-2">${event.name}</h3>
+                            <p class="text-gray-400 mb-2">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
+                            <p class="text-gray-400 mb-4">${event.venue}</p>
+                            <a href="/event/${event.slug}" class="bg-[#B564F7] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">View Details</a>
+                        </div>
+                    `;
+                    eventGrid.insertAdjacentHTML('beforeend', eventCard);
                 });
+            } else {
+                eventGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No upcoming events found for this filter.</p>';
+            }
+        }
+        
+        function renderVenues(venuesToRender) {
+            const venueGrid = document.getElementById('venue-grid');
+            venueGrid.innerHTML = '';
+
+            if (venuesToRender && venuesToRender.length > 0) {
+                venuesToRender.forEach(venue => {
+                    const descriptionText = venue.description || 'No description provided.'; 
+                    const truncatedDescription = descriptionText.length > 70 ? descriptionText.substring(0, 70) + '...' : descriptionText;
+                    const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
+                    const mediumSrc = venue.photo?.medium || placeholder;
+                    const thumbSrc = venue.photo?.thumbnail || mediumSrc;
+                    const srcset = venue.photo ? `${thumbSrc} 200w, ${mediumSrc} 400w` : '';
+
+                    const venueCard = `
+                        <div class="bg-[#1e1e1e] rounded-2xl shadow-lg p-6 flex flex-col items-center text-center card">
+                            <div class="card-thumbnail w-full mb-4">
+                                <img src="${mediumSrc}" srcset="${srcset}" sizes="(max-width: 768px) 100vw, (max-width: 1024px) 33vw, 400px" alt="${venue.name}" class="rounded-xl" loading="lazy" width="400" height="400">
+                            </div>
+                            <h3 class="text-2xl font-bold text-white mb-2">${venue.name}</h3>
+                            <p class="text-gray-400 mb-4">${truncatedDescription}</p>
+                            <a href="/venue/${venue.slug}" class="bg-[#B564F7] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#A050E0] transition-colors">View Details</a>
+                        </div>
+                    `;
+                    venueGrid.insertAdjacentHTML('beforeend', venueCard);
+                });
+            } else {
+                venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
+            }
+        }
+        
+        // --- FILTERING LOGIC ---
+        function setupFilters() {
+            const filtersContainer = document.getElementById('event-filters');
+            // Extract unique categories from events
+            const categories = [...new Set(allEvents.map(event => event.category).flat().filter(Boolean))];
+            
+            filtersContainer.innerHTML = '<button class="filter-button active" data-filter="all">All</button>';
+            categories.forEach(category => {
+                const button = `<button class="filter-button" data-filter="${category}">${category}</button>`;
+                filtersContainer.insertAdjacentHTML('beforeend', button);
             });
+            
+            // Add event listeners to filter buttons
+            filtersContainer.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const filter = e.target.dataset.filter;
+                    
+                    // Update active button style
+                    filtersContainer.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    
+                    // Filter and render events
+                    if (filter === 'all') {
+                        renderEvents(allEvents);
+                    } else {
+                        const filteredEvents = allEvents.filter(event => event.category && event.category.includes(filter));
+                        renderEvents(filteredEvents);
+                    }
+                }
+            });
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupNavigation();
+            fetchEvents();
+            fetchVenues();
         });
     </script>
 </body>

@@ -1,12 +1,8 @@
 /* Custom Styles for BrumOutLoud */
 body {
-    /* Subtle, dark background image of the Birmingham skyline */
-    background-image: linear-gradient(rgba(26, 26, 26, 0.95), rgba(26, 26, 26, 1)), url('https://images.unsplash.com/photo-1597531737293-94778b873523?q=80&w=2070&auto=format&fit=crop');
-    background-size: cover;
-    background-position: center top;
-    background-attachment: fixed;
-    background-color: #1a1a1a;
-    color: #F5EFE6; /* Creamy off-white */
+    /* Using the original dark theme background */
+    background-color: #121212;
+    color: #EAEAEA;
     font-family: 'Poppins', sans-serif;
 }
 
@@ -16,18 +12,17 @@ body {
     letter-spacing: 0.05em;
 }
 
-/* Accent colors for a more queer, vibrant feel */
-.accent-color { color: #FF007A; } /* Vibrant Pink/Magenta */
-.bg-accent-color { background-color: #FF007A; }
-.border-accent-color { border-color: #FF007A; }
+/* Original BrumOutLoud Colour Palette */
+.accent-color { color: #B564F7; } /* Vibrant Purple */
+.bg-accent-color { background-color: #B564F7; }
+.border-accent-color { border-color: #B564F7; }
 
-.accent-color-secondary { color: #00F2E2; } /* Vibrant Cyan/Teal */
+.accent-color-secondary { color: #FADCD9; } /* Peach */
 
-/* Card/section background */
+/* Card/section background from original site */
 .card-bg {
-    background-color: rgba(42, 42, 42, 0.9); /* Slightly transparent to let bg show through */
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: #1e1e1e;
+    border: 1px solid #2e2e2e;
     border-radius: 1.25rem;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
@@ -69,4 +64,3 @@ body {
 .item-card:hover .item-card-image {
     transform: scale(1.05);
 }
-

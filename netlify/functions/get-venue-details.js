@@ -9,7 +9,12 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        const venueRecords = await base('Venues').select({ maxRecords: 1, filterByFormula: `{Slug} = "${slug}"` }).all();
+        // **FIX:** Requesting all the new fields from Airtable.
+        const venueRecords = await base('Venues').select({
+            maxRecords: 1,
+            filterByFormula: `{Slug} = "${slug}"`,
+            fields: ["Name", "Description", "Address", "Opening Hours", "Accessibility", "Website", "Instagram", "Facebook", "TikTok", "Photo URL"]
+        }).all();
 
         if (!venueRecords || venueRecords.length === 0) {
             return { statusCode: 404, body: 'Venue not found.' };
@@ -23,7 +28,8 @@ exports.handler = async function (event, context) {
 
         const sortedEvents = eventRecords.map(rec => rec.fields);
 
-        const imageUrl = venue.Photo ? venue.Photo[0].url : 'https://placehold.co/1600x600/1e1e1e/EAEAEA?text=Venue';
+        // **FIX:** Using the 'Photo URL' field we now save from our form.
+        const imageUrl = venue['Photo URL'] || 'https://placehold.co/1600x600/1e1e1e/EAEAEA?text=Venue';
         
         const html = `
             <!DOCTYPE html>
@@ -63,12 +69,16 @@ exports.handler = async function (event, context) {
                                 <h3 class="font-bold text-lg accent-color-secondary mb-2">Address</h3>
                                 <p class="text-gray-300 text-lg">${venue.Address || 'N/A'}</p>
                             </div>
+                            <!-- **FIX:** Added sections to display new info -->
+                            ${venue['Opening Hours'] ? `<div><h3 class="font-bold text-lg accent-color-secondary mb-2">Opening Hours</h3><p class="text-gray-300 text-lg whitespace-pre-line">${venue['Opening Hours']}</p></div>` : ''}
+                            ${venue.Accessibility ? `<div><h3 class="font-bold text-lg accent-color-secondary mb-2">Accessibility</h3><p class="text-gray-300 text-lg whitespace-pre-line">${venue.Accessibility}</p></div>` : ''}
                             <div>
                                 <h3 class="font-bold text-lg accent-color-secondary mb-2">Follow Them</h3>
                                 <div class="flex space-x-6 text-2xl text-gray-400">
-                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="hover:text-white"><i class="fas fa-globe"></i></a>` : ''}
-                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="hover:text-white"><i class="fab fa-instagram"></i></a>` : ''}
-                                    ${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" class="hover:text-white"><i class="fab fa-facebook"></i></a>` : ''}
+                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="hover:text-white" title="Website"><i class="fas fa-globe"></i></a>` : ''}
+                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="hover:text-white" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
+                                    ${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" class="hover:text-white" title="Facebook"><i class="fab fa-facebook"></i></a>` : ''}
+                                    ${venue.TikTok ? `<a href="${venue.TikTok}" target="_blank" class="hover:text-white" title="TikTok"><i class="fab fa-tiktok"></i></a>` : ''}
                                 </div>
                             </div>
                         </div>

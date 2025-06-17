@@ -6,6 +6,20 @@
     <title>Data Migration Tool</title>
     <link rel="stylesheet" href="/css/main.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader {
+            border: 4px solid #333;
+            border-top: 4px solid #B564F7;
+            border-radius: 50%;
+            width: 1.5rem; /* h-6 w-6 */
+            height: 1.5rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body class="antialiased">
     <main class="container mx-auto px-8 py-16 text-center max-w-2xl">
@@ -13,22 +27,32 @@
         <p class="text-gray-400 mb-8">Use this tool to scrape content from the live brumoutloud.co.uk site and import it into the Airtable database. This process can take several minutes. Do not close this page while it's running.</p>
         
         <div class="card-bg p-8">
-            <button id="start-migration-btn" class="nav-cta w-full text-lg">
-                Start Venue Migration
+            <button id="start-migration-btn" class="nav-cta w-full text-lg flex items-center justify-center">
+                Start Event Migration
             </button>
-            <div id="status-message" class="mt-6 text-gray-300"></div>
+            <div id="status-container" class="mt-6 text-gray-300 hidden">
+                 <p id="status-message" class="font-semibold"></p>
+                 <!-- NEW: A dedicated area for detailed error messages -->
+                 <pre id="error-details" class="mt-2 text-left bg-gray-900/50 p-4 rounded-lg text-red-400 text-sm whitespace-pre-wrap hidden"></pre>
+            </div>
         </div>
     </main>
 
     <script>
         const startBtn = document.getElementById('start-migration-btn');
+        const statusContainer = document.getElementById('status-container');
         const statusMessage = document.getElementById('status-message');
+        const errorDetails = document.getElementById('error-details');
 
         startBtn.addEventListener('click', async () => {
-            // Disable button and show loading state
+            // Reset UI and show loading state
             startBtn.disabled = true;
-            startBtn.innerHTML = '<span class="loader inline-block w-6 h-6 border-2 border-t-transparent"></span><span class="ml-2">Migration in Progress...</span>';
-            statusMessage.textContent = 'This may take a few minutes. Please wait...';
+            startBtn.innerHTML = '<span class="loader"></span><span class="ml-3">Migration in Progress...</span>';
+            statusContainer.classList.remove('hidden');
+            statusMessage.textContent = 'Contacting server... This may take a few moments.';
+            statusMessage.style.color = '#E5E7EB'; // Default text color
+            errorDetails.classList.add('hidden');
+
 
             try {
                 const response = await fetch('/.netlify/functions/migrate-data', {
@@ -38,18 +62,29 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    statusMessage.textContent = `Success! ${result.message}`;
+                    statusMessage.textContent = 'Success!';
+                    statusMessage.style.color = '#34D399'; // Green
+                    errorDetails.textContent = result.message;
+                    errorDetails.style.color = '#A78BFA'; // Purple for success details
+                    errorDetails.classList.remove('hidden');
+
                     startBtn.style.backgroundColor = '#10B981'; // Green
                     startBtn.innerHTML = 'Migration Complete!';
                 } else {
-                    throw new Error(result.message || 'An unknown error occurred.');
+                    // This will handle errors sent from our function's catch block
+                    throw new Error(result.message || 'An unknown server error occurred.');
                 }
 
             } catch (error) {
-                statusMessage.textContent = `Error: ${error.message}`;
+                // This catches network errors or if the response isn't valid JSON
+                statusMessage.textContent = 'Migration Failed';
+                statusMessage.style.color = '#F87171'; // Red
+                errorDetails.textContent = error.toString();
+                errorDetails.classList.remove('hidden');
+
                 startBtn.disabled = false;
-                startBtn.style.backgroundColor = '#EF4444'; // Red
-                startBtn.innerHTML = 'Migration Failed - Try Again';
+                startBtn.style.backgroundColor = ''; // Revert to default
+                startBtn.innerHTML = 'Try Again';
             }
         });
     </script>

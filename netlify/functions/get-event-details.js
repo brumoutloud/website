@@ -7,7 +7,6 @@ exports.handler = async function (event, context) {
 
   try {
     // --- Step 1: Fetch the main event details ---
-    // Added 'Recurring Info' and 'Venue Address' to the fields to fetch
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${slug}"`,
@@ -37,17 +36,16 @@ exports.handler = async function (event, context) {
     const eventName = fields['Event Name'];
     const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : 'TBC';
-    const venueAddress = fields['Venue Address'] ? fields['Venue Address'][0] : venueName; // Fallback to name if no address
+    const venueAddress = fields['Venue Address'] ? fields['Venue Address'][0] : venueName;
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
 
-    // Data for the client-side script
     const calendarData = {
         title: eventName,
         description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
         location: venueAddress,
         startTime: eventDate.toISOString(),
-        endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(), // Assume 2hr duration
+        endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
         isRecurring: !!recurringInfo,
         recurringDates: futureInstances
     };
@@ -97,7 +95,6 @@ exports.handler = async function (event, context) {
                         </div>
                         ${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
 
-                        <!-- NEW: Add to Calendar Section -->
                         <div id="add-to-calendar-section" class="border-t border-gray-700 pt-6">
                             <h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Add to Calendar</h3>
                             <div class="grid grid-cols-1 gap-2">
@@ -116,10 +113,8 @@ exports.handler = async function (event, context) {
         <script>
             const calendarData = ${JSON.stringify(calendarData)};
 
-            // Function to format dates for iCalendar
             function toICSDate(dateStr) { return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
 
-            // Function to generate Google Calendar URLs
             function generateGoogleLink(isSeries) {
                 const params = new URLSearchParams({
                     action: 'TEMPLATE',
@@ -129,31 +124,19 @@ exports.handler = async function (event, context) {
                     location: calendarData.location
                 });
                 if (isSeries && calendarData.isRecurring) {
-                    // Create an RRULE from the list of dates
                     const rrule = 'RRULE:FREQ=DAILY;BYMONTH=' + [...new Set(calendarData.recurringDates.map(d => new Date(d).getUTCMonth() + 1))].join(',') + ';BYMONTHDAY=' + [...new Set(calendarData.recurringDates.map(d => new Date(d).getUTCDate()))].join(',');
                     params.append('recur', rrule);
                 }
                 return `https://www.google.com/calendar/render?${params.toString()}`;
             }
 
-            // Function to generate and download .ics files
             function generateICSFile(isSeries) {
-                let icsContent = [
-                    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN',
-                    'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk',
-                    'DTSTAMP:' + toICSDate(new Date()),
-                    'DTSTART:' + toICSDate(calendarData.startTime),
-                    'DTEND:' + toICSDate(calendarData.endTime),
-                    'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description,
-                    'LOCATION:' + calendarData.location
-                ];
+                let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location];
                 if (isSeries && calendarData.isRecurring) {
-                     // Using RDATE is more robust for irregular recurring events
                     const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(',');
                     icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString);
                 }
                 icsContent.push('END:VEVENT', 'END:VCALENDAR');
-                
                 const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -164,19 +147,19 @@ exports.handler = async function (event, context) {
                 document.body.removeChild(a);
             }
 
-            // --- UI Generation ---
             document.addEventListener('DOMContentLoaded', () => {
                 const container = document.querySelector('#add-to-calendar-section .grid');
                 if (calendarData.isRecurring) {
+                    // **FIX:** Escaped the dollar signs in the template literals with a backslash (\\$)
                     container.innerHTML = \`
-                        <a href="\${generateGoogleLink(false)}" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>
+                        <a href="\\${generateGoogleLink(false)}" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>
                         <button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>
-                        <a href="\${generateGoogleLink(true)}" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>
+                        <a href="\\${generateGoogleLink(true)}" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>
                         <button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>
                     \`;
                 } else {
                      container.innerHTML = \`
-                        <a href="\${generateGoogleLink(false)}" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>
+                        <a href="\\${generateGoogleLink(false)}" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>
                         <button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>
                     \`;
                 }

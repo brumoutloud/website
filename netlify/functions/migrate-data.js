@@ -3,9 +3,7 @@ const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
 // --- CONFIGURATION ---
-// **FIX:** Changed AIRTABLE_API_KEY to AIRTABLE_PERSONAL_ACCESS_TOKEN to match your other working functions.
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
-const venuesTable = base('Venues');
 const eventsTable = base('Events');
 
 const BASE_URL = 'https://brumoutloud.co.uk';
@@ -25,52 +23,56 @@ async function getPageHtml(url) {
     }
 }
 
-async function scrapeAndUploadVenues() {
-    console.log('--- Starting Venue Scraping ---');
-    // This assumes the main listing page has links to individual venue pages
-    // You will need to update the selector below to match the live site's HTML
-    const html = await getPageHtml(`${BASE_URL}/venues`); 
+// NEW: Function to scrape and upload events
+async function scrapeAndUploadEvents() {
+    console.log('--- Starting Event Scraping ---');
+    // Events are on the homepage of the live site
+    const html = await getPageHtml(BASE_URL);
     if (!html) {
-        return { success: false, message: 'Could not fetch main venues page.' };
+        return { success: false, message: 'Could not fetch the main events page.' };
     }
 
     const $ = cheerio.load(html);
-    const venueLinks = [];
-    // **IMPORTANT**: This selector MUST be updated to match the links on the live brumoutloud.co.uk/venues page
-    $('a.venue-card-selector').each((i, el) => { // Example selector
-        venueLinks.push($(el).attr('href'));
+    const eventLinks = [];
+    
+    // **FIX:** Using a precise selector based on the classes you provided.
+    // This looks for any element with the class 'eventlist-event' that is also a link (<a> tag).
+    $('a.eventlist-event').each((i, el) => {
+        const href = $(el).attr('href');
+        if (href && href.startsWith('/event/')) {
+            eventLinks.push(href);
+        }
     });
+    
+    console.log(`Found ${eventLinks.length} event links.`);
+    let newEvents = 0;
 
-    let newVenues = 0;
-    for (const link of venueLinks) {
-        const venueUrl = `${BASE_URL}${link}`;
-        const venueHtml = await getPageHtml(venueUrl);
-        if (venueHtml) {
-            const $$ = cheerio.load(venueHtml);
-            const venueName = $$('h1').text().trim();
+    for (const link of eventLinks) {
+        const eventUrl = `${BASE_URL}${link}`;
+        const eventHtml = await getPageHtml(eventUrl);
+        if (eventHtml) {
+            const $$ = cheerio.load(eventHtml);
+            // Assuming the event detail page has a clear H1 for the title
+            const eventName = $$('h1').text().trim();
 
-            if (venueName) {
-                const existingRecords = await venuesTable.select({
-                    filterByFormula: `{Name} = "${venueName}"`
-                }).firstPage();
-
+            if (eventName) {
+                const existingRecords = await eventsTable.select({ filterByFormula: `{Event Name} = "${eventName}"` }).firstPage();
                 if (existingRecords.length === 0) {
-                    const venueData = {
-                        'Name': venueName,
-                        // **IMPORTANT**: These selectors must be updated to match the live site's detail page HTML
-                        'Description': $$('.description-class').text().trim(), 
-                        'Address': $$('.address-class').text().trim(), 
+                     const eventData = {
+                        'Event Name': eventName,
+                        'Description': $$('meta[name=description]').attr('content') || '',
+                        'Status': 'Approved',
                     };
-                    await venuesTable.create([{ fields: venueData }]);
-                    newVenues++;
-                    console.log(`Inserted new venue: ${venueName}`);
+                    await eventsTable.create([{ fields: eventData }]);
+                    newEvents++;
+                    console.log(`Inserted new event: ${eventName}`);
                 } else {
-                    console.log(`Skipping existing venue: ${venueName}`);
+                    console.log(`Skipping existing event: ${eventName}`);
                 }
             }
         }
     }
-    return { success: true, message: `Venue migration complete. Added ${newVenues} new venues.` };
+    return { success: true, newRecords: newEvents, type: 'Events' };
 }
 
 
@@ -81,10 +83,14 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        const result = await scrapeAndUploadVenues();
+        // Focusing only on events as requested.
+        const eventResult = await scrapeAndUploadEvents();
+        
+        const summary = `Migration complete. Added ${eventResult.newRecords} new events.`;
+
         return {
             statusCode: 200,
-            body: JSON.stringify(result),
+            body: JSON.stringify({ success: true, message: summary }),
         };
     } catch (error) {
         console.error("Migration Error:", error);

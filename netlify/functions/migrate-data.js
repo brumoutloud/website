@@ -1,104 +1,91 @@
 const Airtable = require('airtable');
 const fetch = require('node-fetch');
+const cheerio = require('cheerio');
 
 // --- CONFIGURATION ---
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
 const BASE_URL = 'https://brumoutloud.co.uk';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
+// This function uses a scraper API to get the fully rendered HTML of a page.
 async function getRenderedHtml(url) {
-    console.log(`Step A: Fetching rendered HTML for: ${url}`);
     const scraperApiKey = process.env.SCRAPER_API_KEY;
     if (!scraperApiKey) throw new Error("SCRAPER_API_KEY environment variable not set.");
     
+    // Using a headless browser is necessary because the events are loaded with JavaScript.
     const scraperUrl = `http://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true`;
-
-    try {
-        const response = await fetch(scraperUrl, { timeout: 25000 }); // 25 second timeout
-        console.log(`Step B: Scraper API response status: ${response.status}`);
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Scraper API failed with status ${response.status}: ${errorText}`);
-        }
-        return await response.text();
-    } catch (error) {
-        console.error("Error in getRenderedHtml:", error);
-        throw error; // Re-throw the error to be caught by the main handler
-    }
+    console.log("Fetching rendered HTML...");
+    const response = await fetch(scraperUrl, { timeout: 25000 }); // Increased timeout
+    if (!response.ok) throw new Error(`Scraper API failed with status ${response.status}`);
+    console.log("Rendered HTML fetched successfully.");
+    return await response.text();
 }
 
-async function parseEventsFromHtmlWithAI(html) {
-    console.log("Step C: Passing HTML to Gemini AI for parsing...");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY environment variable not set.");
 
-    const prompt = `From the following HTML, extract event information. Return a JSON array of objects, where each object has "name" (string) and "url" (string, the full href attribute). HTML: ${html}`;
-    const payload = { contents: [{ parts: [{ text: prompt }] }] };
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        console.log(`Step D: Gemini API response status: ${response.status}`);
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gemini API failed with status ${response.status}: ${errorText}`);
-        }
-        const result = await response.json();
-        const textResponse = result.candidates[0].content.parts[0].text;
-        const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(jsonString);
-    } catch (error) {
-        console.error("Error in parseEventsFromHtmlWithAI:", error);
-        throw error;
-    }
-}
-
-// --- Main Handler ---
 exports.handler = async function (event, context) {
-    console.log("Migration function started.");
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        const renderedHtml = await getRenderedHtml(BASE_URL);
-        if (!renderedHtml) {
-            throw new Error("Failed to get page content from scraper.");
-        }
+        const html = await getRenderedHtml(BASE_URL);
+        const $ = cheerio.load(html);
 
-        const events = await parseEventsFromHtmlWithAI(renderedHtml);
-        console.log(`Step E: AI parsing complete. Found ${events.length} potential events.`);
+        const eventsToCreate = [];
+        let skippedCount = 0;
 
-        let newEventsCount = 0;
-        for (const eventData of events) {
-            if (!eventData.name || !eventData.url) continue; // Skip invalid entries
-            
-            const existingRecords = await eventsTable.select({ filterByFormula: `{Event Name} = "${eventData.name.replace(/"/g, '\\"')}"` }).firstPage();
-            if (existingRecords.length === 0) {
-                await eventsTable.create([{
-                    fields: {
-                        'Event Name': eventData.name,
-                        'Status': 'Approved',
-                        'Description': `Imported from ${BASE_URL}${eventData.url}`
-                    }
-                }]);
-                newEventsCount++;
+        // Using the precise selector based on the HTML you provided
+        $('.eventlist-event').each((i, el) => {
+            const element = $(el);
+            const eventName = element.find('.eventlist-title-link').text().trim();
+            const eventDateStr = element.find('time.event-date').attr('datetime');
+            const eventTimeStr = element.find('time.event-time-localized-start').text().trim();
+
+            if (eventName && eventDateStr && eventTimeStr) {
+                const eventData = {
+                    'Event Name': eventName,
+                    'Date': `${eventDateStr}T${eventTimeStr}:00.000Z`,
+                    'Description': element.find('.eventlist-description').text().trim() || `Details for ${eventName}`,
+                    'VenueText': element.find('.eventlist-meta-address').clone().children().remove().end().text().trim(),
+                    'Category': [element.find('.eventlist-cats a').text().trim()],
+                    'Status': 'Approved'
+                };
+                eventsToCreate.push(eventData);
             }
+        });
+        
+        console.log(`Scraped ${eventsToCreate.length} events from the page.`);
+        let newEventsCount = 0;
+
+        // Check for duplicates and prepare records for insertion
+        const recordsToInsert = [];
+        for(const eventData of eventsToCreate) {
+             const existingRecords = await eventsTable.select({ filterByFormula: `{Event Name} = "${eventData['Event Name'].replace(/"/g, '\\"')}"` }).firstPage();
+             if(existingRecords.length === 0) {
+                recordsToInsert.push({ fields: eventData });
+             } else {
+                skippedCount++;
+             }
         }
         
-        const summary = `Migration successful. Added ${newEventsCount} new events.`;
-        console.log(summary);
+        console.log(`Found ${recordsToInsert.length} new events to add. Skipped ${skippedCount} existing events.`);
+
+        // Airtable's API can only create 10 records at a time, so we process in chunks
+        const chunkSize = 10;
+        for (let i = 0; i < recordsToInsert.length; i += chunkSize) {
+            const chunk = recordsToInsert.slice(i, i + chunkSize);
+            await eventsTable.create(chunk);
+            newEventsCount += chunk.length;
+        }
+
+        const summary = `Migration complete. Added ${newEventsCount} new events. Skipped ${skippedCount} duplicates.`;
         return {
             statusCode: 200,
             body: JSON.stringify({ success: true, message: summary }),
         };
 
     } catch (error) {
-        console.error("!!! Migration Error in Handler:", error);
+        console.error("Migration Error:", error);
         return {
             statusCode: 500,
             body: JSON.stringify({ success: false, message: error.toString() }),

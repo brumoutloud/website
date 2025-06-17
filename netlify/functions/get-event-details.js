@@ -119,7 +119,7 @@ exports.handler = async function (event, context) {
                 const params = new URLSearchParams({
                     action: 'TEMPLATE',
                     text: calendarData.title,
-                    dates: `${toICSDate(calendarData.startTime)}/${toICSDate(calendarData.endTime)}`,
+                    dates: toICSDate(calendarData.startTime) + '/' + toICSDate(calendarData.endTime),
                     details: calendarData.description,
                     location: calendarData.location
                 });
@@ -127,7 +127,7 @@ exports.handler = async function (event, context) {
                     const rrule = 'RRULE:FREQ=DAILY;BYMONTH=' + [...new Set(calendarData.recurringDates.map(d => new Date(d).getUTCMonth() + 1))].join(',') + ';BYMONTHDAY=' + [...new Set(calendarData.recurringDates.map(d => new Date(d).getUTCDate()))].join(',');
                     params.append('recur', rrule);
                 }
-                return `https://www.google.com/calendar/render?${params.toString()}`;
+                return 'https://www.google.com/calendar/render?' + params.toString();
             }
 
             function generateICSFile(isSeries) {
@@ -141,7 +141,7 @@ exports.handler = async function (event, context) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${calendarData.title.replace(/ /g, '_')}.ics`;
+                a.download = calendarData.title.replace(/ /g, '_') + '.ics';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -149,20 +149,21 @@ exports.handler = async function (event, context) {
 
             document.addEventListener('DOMContentLoaded', () => {
                 const container = document.querySelector('#add-to-calendar-section .grid');
+                let buttonsHTML = '';
+                // **FIX:** Replaced nested template literals with standard string concatenation
+                // This is a safer method that prevents server-side parsing errors.
                 if (calendarData.isRecurring) {
-                    // **FIX:** Escaped the dollar signs in the template literals with a backslash (\\$)
-                    container.innerHTML = \`
-                        <a href="\\${generateGoogleLink(false)}" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>
-                        <button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>
-                        <a href="\\${generateGoogleLink(true)}" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>
-                        <button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>
-                    \`;
+                    buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>' +
+                        '<a href="' + generateGoogleLink(true) + '" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>' +
+                        '<button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>';
                 } else {
-                     container.innerHTML = \`
-                        <a href="\\${generateGoogleLink(false)}" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>
-                        <button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>
-                    \`;
+                     buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
                 }
+                container.innerHTML = buttonsHTML;
             });
         </script>
       </body>

@@ -5,8 +5,11 @@ const cheerio = require('cheerio');
 // --- CONFIGURATION ---
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
-
 const BASE_URL = 'https://brumoutloud.co.uk';
+
+// **IMPORTANT**: These selectors must be updated to match the live site's HTML.
+// To find the correct selector: Right-click on an event card on the live site -> Inspect -> Find the <a> tag that links to the event detail page.
+const EVENT_LINK_SELECTOR = '.eventlist-event a'; 
 
 // --- Helper Functions ---
 async function getPageHtml(url) {
@@ -23,10 +26,8 @@ async function getPageHtml(url) {
     }
 }
 
-// NEW: Function to scrape and upload events
 async function scrapeAndUploadEvents() {
     console.log('--- Starting Event Scraping ---');
-    // Events are on the homepage of the live site
     const html = await getPageHtml(BASE_URL);
     if (!html) {
         return { success: false, message: 'Could not fetch the main events page.' };
@@ -35,16 +36,16 @@ async function scrapeAndUploadEvents() {
     const $ = cheerio.load(html);
     const eventLinks = [];
     
-    // **FIX:** Using a precise selector based on the classes you provided.
-    // This looks for any element with the class 'eventlist-event' that is also a link (<a> tag).
-    $('a.eventlist-event').each((i, el) => {
+    // **FIX:** Using a more robust selector. This looks for an <a> tag *inside* an element with the class 'eventlist-event'.
+    $(EVENT_LINK_SELECTOR).each((i, el) => {
         const href = $(el).attr('href');
-        if (href && href.startsWith('/event/')) {
+        // Ensure we only get valid, unique event links
+        if (href && href.startsWith('/event/') && !eventLinks.includes(href)) {
             eventLinks.push(href);
         }
     });
     
-    console.log(`Found ${eventLinks.length} event links.`);
+    console.log(`Found ${eventLinks.length} unique event links using selector "${EVENT_LINK_SELECTOR}".`);
     let newEvents = 0;
 
     for (const link of eventLinks) {
@@ -52,7 +53,6 @@ async function scrapeAndUploadEvents() {
         const eventHtml = await getPageHtml(eventUrl);
         if (eventHtml) {
             const $$ = cheerio.load(eventHtml);
-            // Assuming the event detail page has a clear H1 for the title
             const eventName = $$('h1').text().trim();
 
             if (eventName) {
@@ -83,9 +83,7 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        // Focusing only on events as requested.
         const eventResult = await scrapeAndUploadEvents();
-        
         const summary = `Migration complete. Added ${eventResult.newRecords} new events.`;
 
         return {
@@ -100,3 +98,4 @@ exports.handler = async function (event, context) {
         };
     }
 };
+

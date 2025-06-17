@@ -7,28 +7,19 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 const eventsTable = base('Events');
 const BASE_URL = 'https://brumoutloud.co.uk';
 
-// This function uses a scraper API to get the fully rendered HTML of a page.
-async function getRenderedHtml(url) {
-    const scraperApiKey = process.env.SCRAPER_API_KEY;
-    if (!scraperApiKey) throw new Error("SCRAPER_API_KEY environment variable not set.");
-    
-    // Using a headless browser is necessary because the events are loaded with JavaScript.
-    const scraperUrl = `http://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true`;
-    console.log("Fetching rendered HTML...");
-    const response = await fetch(scraperUrl, { timeout: 25000 }); // Increased timeout
-    if (!response.ok) throw new Error(`Scraper API failed with status ${response.status}`);
-    console.log("Rendered HTML fetched successfully.");
-    return await response.text();
-}
-
-
 exports.handler = async function (event, context) {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        const html = await getRenderedHtml(BASE_URL);
+        console.log("Fetching HTML from", BASE_URL);
+        // Using a simple, fast fetch since the data is in the initial HTML
+        const response = await fetch(BASE_URL);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch page. Status: ${response.status}`);
+        }
+        const html = await response.text();
         const $ = cheerio.load(html);
 
         const eventsToCreate = [];
@@ -37,19 +28,30 @@ exports.handler = async function (event, context) {
         // Using the precise selector based on the HTML you provided
         $('.eventlist-event').each((i, el) => {
             const element = $(el);
-            const eventName = element.find('.eventlist-title-link').text().trim();
+            const titleLink = element.find('.eventlist-title-link');
+            
+            const eventName = titleLink.text().trim();
+            const eventUrl = BASE_URL + titleLink.attr('href');
+            
+            // Extracting other details
             const eventDateStr = element.find('time.event-date').attr('datetime');
             const eventTimeStr = element.find('time.event-time-localized-start').text().trim();
+            const venueName = element.find('.eventlist-meta-address').clone().children().remove().end().text().trim();
+            const category = element.find('.eventlist-cats a').text().trim();
+            const imageUrl = element.find('.eventlist-column-thumbnail img').attr('data-src');
 
             if (eventName && eventDateStr && eventTimeStr) {
                 const eventData = {
                     'Event Name': eventName,
                     'Date': `${eventDateStr}T${eventTimeStr}:00.000Z`,
-                    'Description': element.find('.eventlist-description').text().trim() || `Details for ${eventName}`,
-                    'VenueText': element.find('.eventlist-meta-address').clone().children().remove().end().text().trim(),
-                    'Category': [element.find('.eventlist-cats a').text().trim()],
+                    'Description': `Imported from old site. See: ${eventUrl}`,
+                    'VenueText': venueName,
+                    'Category': category ? [category] : [],
                     'Status': 'Approved'
                 };
+                if(imageUrl) {
+                    eventData['Promo Image'] = [{ url: imageUrl }];
+                }
                 eventsToCreate.push(eventData);
             }
         });
@@ -70,7 +72,7 @@ exports.handler = async function (event, context) {
         
         console.log(`Found ${recordsToInsert.length} new events to add. Skipped ${skippedCount} existing events.`);
 
-        // Airtable's API can only create 10 records at a time, so we process in chunks
+        // Airtable's API can only create 10 records at a time
         const chunkSize = 10;
         for (let i = 0; i < recordsToInsert.length; i += chunkSize) {
             const chunk = recordsToInsert.slice(i, i + chunkSize);

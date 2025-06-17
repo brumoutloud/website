@@ -14,9 +14,14 @@
 
     <header class="p-8">
         <nav class="container mx-auto flex justify-between items-center">
-            <a href="/" class="font-anton text-2xl tracking-widest">BRUM OUT LOUD</a>
-            <a href="/" class="bg-accent-color text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
-                BACK TO SITE
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+            <div class="hidden md:flex items-center space-x-8 font-semibold">
+                <a href="/events.html" class="text-gray-300 hover:accent-color transition-colors">Events</a>
+                <a href="/all-venues.html" class="text-gray-300 hover:accent-color transition-colors">Venues</a>
+                <a href="/community.html" class="accent-color">Community</a>
+            </div>
+            <a href="/get-listed.html" class="nav-cta">
+                GET LISTED
             </a>
         </nav>
     </header>
@@ -29,24 +34,58 @@
             </div>
 
             <div class="card-bg p-8 md:p-12 space-y-8">
-                <h2 class="font-anton text-4xl text-center">FREQUENTLY ASKED QUESTIONS</h2>
-                <div class="space-y-6 text-lg">
-                    <div>
+                <h2 class="font-anton text-4xl text-center text-white">FREQUENTLY ASKED QUESTIONS</h2>
+                <div class="space-y-6 text-lg divide-y divide-gray-700/50">
+                    <div class="pt-6 first:pt-0">
                         <h3 class="font-bold text-xl accent-color-secondary mb-1">Where is Birmingham's Gay Village located?</h3>
                         <p class="text-gray-300">Right in the city centre, bab! It's centred around Hurst Street, just a hop, skip, and a jump away from New Street Station.</p>
                     </div>
-                    <div>
+                    <div class="pt-6">
                         <h3 class="font-bold text-xl accent-color-secondary mb-1">What are the best gay bars and clubs in Birmingham?</h3>
-                        <p class="text-gray-300">Where do we start? The Village Inn, The Fox, The Nightingale Club... the list goes on! Check out our <a href="/#venues" class="font-semibold underline hover:text-white">venues section</a> for all the deets.</p>
+                        <p class="text-gray-300">Where do we start? The Village Inn, The Fox, The Nightingale Club... the list goes on! Check out our <a href="/all-venues.html" class="font-semibold underline hover:text-white">venues page</a> for all the deets.</p>
                     </div>
-                    <div>
+                     <div class="pt-6">
                         <h3 class="font-bold text-xl accent-color-secondary mb-1">Is there a gay sauna in Birmingham?</h3>
                         <p class="text-gray-300">None in the city centre but there are a few options if you don't mind a short journey. The Greenhouse in Darlaston and Spartan in Erdington are popular choices.</p>
+                    </div>
+                     <div class="pt-6">
+                        <h3 class="font-bold text-xl accent-color-secondary mb-1">How does Birmingham's gay scene compare to other UK cities?</h3>
+                        <p class="text-gray-300">Let's set the record straight: Birmingham's queer scene is a force to be reckoned with! Our Gay Village boasts a vibrant array of bars and clubs, rivaling the likes of Manchester's Canal Street or London's Soho. We might not always get the spotlight, but we're proud to be a hidden gem of LGBTQ+ life in the UK.</p>
                     </div>
                 </div>
             </div>
         </section>
     </main>
+    
+    <footer class="border-t-2 border-gray-800 mt-32 p-8">
+        <div class="container mx-auto grid md:grid-cols-2">
+            <div>
+                 <h3 class="font-anton text-5xl leading-tight text-white">BE SEEN,<br>BE HEARD.</h3>
+                 <div class="flex space-x-6 text-2xl mt-6 text-gray-400">
+                    <a href="#" class="hover:accent-color"><i class="fab fa-instagram"></i></a>
+                    <a href="#" class="hover:accent-color"><i class="fab fa-facebook"></i></a>
+                    <a href="#" class="hover:accent-color"><i class="fab fa-tiktok"></i></a>
+                 </div>
+            </div>
+            <div class="grid grid-cols-2 gap-8 mt-8 md:mt-0">
+                <div>
+                    <h4 class="font-bold text-lg mb-4 text-white">Explore</h4>
+                    <ul>
+                        <li class="mb-2"><a href="/events.html" class="text-gray-400 hover:text-white">Events</a></li>
+                        <li class="mb-2"><a href="/all-venues.html" class="text-gray-400 hover:text-white">Venues</a></li>
+                        <li class="mb-2"><a href="/get-listed.html" class="text-gray-400 hover:text-white">Submit Content</a></li>
+                    </ul>
+                </div>
+                 <div>
+                    <h4 class="font-bold text-lg mb-4 text-white">About</h4>
+                    <ul>
+                        <li class="mb-2"><a href="/community.html" class="text-gray-400 hover:text-white">Community & FAQ</a></li>
+                        <li class="mb-2"><a href="mailto:hello@brumoutloud.co.uk" class="text-gray-400 hover:text-white">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
 
 </body>
 </html>

@@ -5,113 +5,82 @@ const cheerio = require('cheerio');
 // --- CONFIGURATION ---
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
-const venuesTable = base('Venues');
 const BASE_URL = 'https://brumoutloud.co.uk';
 
-const EVENT_LINK_SELECTOR = '.eventlist-event a.eventlist-title-link'; 
-
-// --- Helper Functions ---
-async function getPageHtml(url) {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch page. Status: ${response.status}`);
-        }
-        return await response.text();
-    } catch (error) {
-        console.error("Error fetching page:", error);
-        return null;
-    }
-}
-
-// **NEW**: This function finds an existing venue in Airtable and returns its Record ID
-async function findVenueRecordId(venueName) {
-    if (!venueName) return null;
-    try {
-        const records = await venuesTable.select({
-            filterByFormula: `LOWER({Name}) = LOWER("${venueName.replace(/"/g, '\\"')}")`,
-            maxRecords: 1
-        }).firstPage();
-        
-        if (records.length > 0) {
-            return records[0].id;
-        }
-        return null;
-    } catch (error) {
-        console.error(`Error finding venue "${venueName}":`, error);
-        return null;
-    }
-}
-
-
-async function scrapeAndUploadEvents() {
-    console.log('--- Starting Event Scraping ---');
-    const html = await getPageHtml(BASE_URL);
-    if (!html) throw new Error('Could not fetch the main events page.');
-
-    const $ = cheerio.load(html);
-    const eventsToProcess = [];
-
-    $(EVENT_LINK_SELECTOR).each((i, el) => {
-        const eventPath = $(el).attr('href');
-        if (eventPath && eventPath.startsWith('/')) {
-            eventsToProcess.push({ path: eventPath });
-        }
-    });
-
-    console.log(`Found ${eventsToProcess.length} event links to process.`);
-    let newEventsCount = 0;
-    let skippedCount = 0;
-
-    for (const event of eventsToProcess) {
-        const eventUrl = `${BASE_URL}${event.path}`;
-        const eventHtml = await getPageHtml(eventUrl);
-        if (eventHtml) {
-            const $$ = cheerio.load(eventHtml);
-            const eventName = $$('h1.eventitem-title').text().trim();
-            
-            if (eventName) {
-                const existing = await eventsTable.select({ filterByFormula: `{Event Name} = "${eventName.replace(/"/g, '\\"')}"` }).firstPage();
-                if (existing.length === 0) {
-                    const venueName = $$('.eventlist-meta-address').clone().children().remove().end().text().trim();
-                    const venueRecordId = await findVenueRecordId(venueName);
-
-                    const eventData = {
-                        'Event Name': eventName,
-                        'Description': $$('.eventitem-description').text().trim() || '',
-                        'Status': 'Approved',
-                        'VenueText': venueName, // Keep the original text for reference
-                    };
-
-                    // **FIX**: If we found a matching venue, link it.
-                    if (venueRecordId) {
-                        eventData['Venue'] = [venueRecordId]; // Link to the venue record
-                    }
-
-                    await eventsTable.create([{ fields: eventData }]);
-                    newEventsCount++;
-                } else {
-                    skippedCount++;
-                }
-            }
-        }
-    }
-    console.log(`Finished events. Added: ${newEventsCount}, Skipped: ${skippedCount}`);
-    return { added: newEventsCount, skipped: skippedCount };
-}
-
-
-// --- Main Handler ---
 exports.handler = async function (event, context) {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        const eventResults = await scrapeAndUploadEvents();
-        // Removed venue scraping as requested
-        const summary = `Migration complete. Added ${eventResults.added} new events. Skipped ${eventResults.skipped} duplicates.`;
+        console.log("Fetching HTML from", BASE_URL);
+        // Using a simple, fast fetch since the data is in the initial HTML
+        const response = await fetch(BASE_URL);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch page. Status: ${response.status}`);
+        }
+        const html = await response.text();
+        const $ = cheerio.load(html);
+
+        const eventsToCreate = [];
+        let skippedCount = 0;
+
+        // Using the precise selector based on the HTML you provided
+        $('.eventlist-event').each((i, el) => {
+            const element = $(el);
+            const titleLink = element.find('.eventlist-title-link');
+            
+            const eventName = titleLink.text().trim();
+            const eventUrl = BASE_URL + titleLink.attr('href');
+            
+            // Extracting other details
+            const eventDateStr = element.find('time.event-date').attr('datetime');
+            const eventTimeStr = element.find('time.event-time-localized-start').text().trim();
+            const venueName = element.find('.eventlist-meta-address').clone().children().remove().end().text().trim();
+            const category = element.find('.eventlist-cats a').text().trim();
+            const imageUrl = element.find('.eventlist-column-thumbnail img').attr('data-src');
+
+            if (eventName && eventDateStr && eventTimeStr) {
+                const eventData = {
+                    'Event Name': eventName,
+                    'Date': `${eventDateStr}T${eventTimeStr}:00.000Z`,
+                    'Description': `Imported from old site. See: ${eventUrl}`,
+                    'VenueText': venueName,
+                    'Category': category ? [category] : [],
+                    'Status': 'Approved'
+                };
+                if(imageUrl) {
+                    eventData['Promo Image'] = [{ url: imageUrl }];
+                }
+                eventsToCreate.push(eventData);
+            }
+        });
         
+        console.log(`Scraped ${eventsToCreate.length} events from the page.`);
+        let newEventsCount = 0;
+
+        // Check for duplicates and prepare records for insertion
+        const recordsToInsert = [];
+        for(const eventData of eventsToCreate) {
+             const existingRecords = await eventsTable.select({ filterByFormula: `{Event Name} = "${eventData['Event Name'].replace(/"/g, '\\"')}"` }).firstPage();
+             if(existingRecords.length === 0) {
+                recordsToInsert.push({ fields: eventData });
+             } else {
+                skippedCount++;
+             }
+        }
+        
+        console.log(`Found ${recordsToInsert.length} new events to add. Skipped ${skippedCount} existing events.`);
+
+        // Airtable's API can only create 10 records at a time
+        const chunkSize = 10;
+        for (let i = 0; i < recordsToInsert.length; i += chunkSize) {
+            const chunk = recordsToInsert.slice(i, i + chunkSize);
+            await eventsTable.create(chunk);
+            newEventsCount += chunk.length;
+        }
+
+        const summary = `Migration complete. Added ${newEventsCount} new events. Skipped ${skippedCount} duplicates.`;
         return {
             statusCode: 200,
             body: JSON.stringify({ success: true, message: summary }),

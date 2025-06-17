@@ -1,57 +1,95 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Migration Tool</title>
-    <link rel="stylesheet" href="/css/main.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="antialiased">
-    <main class="container mx-auto px-8 py-16 text-center max-w-2xl">
-        <h1 class="font-anton text-5xl text-white mb-4">Data Migration Tool</h1>
-        <p class="text-gray-400 mb-8">Use this tool to scrape content from the live brumoutloud.co.uk site and import it into the Airtable database. This process can take several minutes. Do not close this page while it's running.</p>
-        
-        <div class="card-bg p-8">
-            <button id="start-migration-btn" class="nav-cta w-full text-lg">
-                Start Venue Migration
-            </button>
-            <div id="status-message" class="mt-6 text-gray-300"></div>
-        </div>
-    </main>
+const { Airtable } = require('airtable');
+const fetch = require('node-fetch');
+const cheerio = require('cheerio'); // This was the missing dependency
 
-    <script>
-        const startBtn = document.getElementById('start-migration-btn');
-        const statusMessage = document.getElementById('status-message');
+// --- CONFIGURATION ---
+const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+const venuesTable = base('Venues');
+const eventsTable = base('Events');
 
-        startBtn.addEventListener('click', async () => {
-            // Disable button and show loading state
-            startBtn.disabled = true;
-            startBtn.innerHTML = '<span class="loader inline-block w-6 h-6 border-2 border-t-transparent"></span><span class="ml-2">Migration in Progress...</span>';
-            statusMessage.textContent = 'This may take a few minutes. Please wait...';
+const BASE_URL = 'https://brumoutloud.co.uk';
 
-            try {
-                const response = await fetch('/.netlify/functions/migrate-data', {
-                    method: 'POST'
-                });
-                
-                const result = await response.json();
+// --- Helper Functions ---
+async function getPageHtml(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.error(`Error fetching ${url}: ${response.statusText}`);
+            return null;
+        }
+        return await response.text();
+    } catch (error) {
+        console.error(`Error fetching ${url}:`, error);
+        return null;
+    }
+}
 
-                if (response.ok && result.success) {
-                    statusMessage.textContent = `Success! ${result.message}`;
-                    startBtn.style.backgroundColor = '#10B981'; // Green
-                    startBtn.innerHTML = 'Migration Complete!';
+async function scrapeAndUploadVenues() {
+    console.log('--- Starting Venue Scraping ---');
+    // This assumes the main listing page has links to individual venue pages
+    // You will need to update the selector below to match the live site's HTML
+    const html = await getPageHtml(`${BASE_URL}/venues`); 
+    if (!html) {
+        return { success: false, message: 'Could not fetch main venues page.' };
+    }
+
+    const $ = cheerio.load(html);
+    const venueLinks = [];
+    // **IMPORTANT**: This selector MUST be updated to match the links on the live brumoutloud.co.uk/venues page
+    $('a.venue-card-selector').each((i, el) => { // Example selector
+        venueLinks.push($(el).attr('href'));
+    });
+
+    let newVenues = 0;
+    for (const link of venueLinks) {
+        const venueUrl = `${BASE_URL}${link}`;
+        const venueHtml = await getPageHtml(venueUrl);
+        if (venueHtml) {
+            const $$ = cheerio.load(venueHtml);
+            const venueName = $$('h1').text().trim();
+
+            if (venueName) {
+                const existingRecords = await venuesTable.select({
+                    filterByFormula: `{Name} = "${venueName}"`
+                }).firstPage();
+
+                if (existingRecords.length === 0) {
+                    const venueData = {
+                        'Name': venueName,
+                        // **IMPORTANT**: These selectors must be updated to match the live site's detail page HTML
+                        'Description': $$('.description-class').text().trim(), 
+                        'Address': $$('.address-class').text().trim(), 
+                    };
+                    await venuesTable.create([{ fields: venueData }]);
+                    newVenues++;
+                    console.log(`Inserted new venue: ${venueName}`);
                 } else {
-                    throw new Error(result.message || 'An unknown error occurred.');
+                    console.log(`Skipping existing venue: ${venueName}`);
                 }
-
-            } catch (error) {
-                statusMessage.textContent = `Error: ${error.message}`;
-                startBtn.disabled = false;
-                startBtn.style.backgroundColor = '#EF4444'; // Red
-                startBtn.innerHTML = 'Migration Failed - Try Again';
             }
-        });
-    </script>
-</body>
-</html>
+        }
+    }
+    return { success: true, message: `Venue migration complete. Added ${newVenues} new venues.` };
+}
+
+
+// --- Main Handler ---
+exports.handler = async function (event, context) {
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
+
+    try {
+        const result = await scrapeAndUploadVenues();
+        return {
+            statusCode: 200,
+            body: JSON.stringify(result),
+        };
+    } catch (error) {
+        console.error("Migration Error:", error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ success: false, message: error.toString() }),
+        };
+    }
+};

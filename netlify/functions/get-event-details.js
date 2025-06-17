@@ -26,6 +26,13 @@ exports.handler = async function (event, context) {
     const imageUrl = eventRecord['Promo Image'] ? eventRecord['Promo Image'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Brum+Out+Loud';
     const ticketLink = eventRecord['Link'];
     
+    // NEW: Define variables for social sharing
+    const pageUrl = `https://brumoutloud.co.uk${event.path}`; // Use your actual domain
+    const shareText = encodeURIComponent(`Check out this event: ${eventName}`);
+    const twitterUrl = `https://twitter.com/intent/tweet?url=${pageUrl}&text=${shareText}`;
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${shareText}%20${pageUrl}`;
+    
     const html = `
       <!DOCTYPE html>
       <html lang="en">
@@ -41,8 +48,8 @@ exports.handler = async function (event, context) {
       <body class="antialiased">
         <header class="p-8">
             <nav class="container mx-auto flex justify-between items-center">
-                <a href="/" class="font-anton text-2xl tracking-widest">BRUM OUT LOUD</a>
-                <a href="/" class="bg-accent-color text-white font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">BACK TO EVENTS</a>
+                <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+                <a href="/events.html" class="nav-cta">BACK TO EVENTS</a>
             </nav>
         </header>
         <main class="container mx-auto px-8 py-16">
@@ -56,13 +63,13 @@ exports.handler = async function (event, context) {
                     </div>
                 </div>
                 <div class="lg:col-span-1">
-                    <div class="card-bg p-8 sticky top-8">
-                        <div class="mb-6">
+                    <div class="card-bg p-8 sticky top-8 space-y-6">
+                        <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Date & Time</h3>
                             <p class="text-2xl font-semibold">${formattedDate}</p>
                             <p class="text-xl text-gray-400">${formattedTime}</p>
                         </div>
-                         <div class="mb-6">
+                         <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
                             ${venueSlug 
                                 ? `<a href="/venue/${venueSlug}" class="text-2xl font-semibold hover:text-white underline">${venueName}</a>` 
@@ -70,10 +77,37 @@ exports.handler = async function (event, context) {
                             }
                         </div>
                         ${ticketLink ? `<a href="${ticketLink}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
+
+                        <!-- NEW: Social Sharing Section -->
+                        <div class="border-t border-gray-700 pt-6">
+                            <h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Share This Event</h3>
+                            <div class="flex justify-center space-x-6 text-2xl text-gray-400">
+                                <a href="${whatsappUrl}" target="_blank" class="hover:text-white" title="Share on WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                                <a href="${twitterUrl}" target="_blank" class="hover:text-white" title="Share on Twitter"><i class="fab fa-twitter"></i></a>
+                                <a href="${facebookUrl}" target="_blank" class="hover:text-white" title="Share on Facebook"><i class="fab fa-facebook"></i></a>
+                                <button onclick="copyLink()" class="hover:text-white" title="Copy Link"><i class="fas fa-link"></i></button>
+                            </div>
+                            <p id="copy-success" class="text-sm text-center text-green-400 mt-3 hidden">Link copied!</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </main>
+        <script>
+            function copyLink() {
+                const dummy = document.createElement('input');
+                const text = window.location.href;
+                document.body.appendChild(dummy);
+                dummy.value = text;
+                dummy.select();
+                document.execCommand('copy');
+                document.body.removeChild(dummy);
+                
+                const successMsg = document.getElementById('copy-success');
+                successMsg.classList.remove('hidden');
+                setTimeout(() => { successMsg.classList.add('hidden'); }, 2000);
+            }
+        </script>
       </body>
       </html>
     `;

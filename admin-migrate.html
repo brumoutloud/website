@@ -11,29 +11,26 @@
             border: 4px solid #333;
             border-top: 4px solid #B564F7;
             border-radius: 50%;
-            width: 1.5rem; /* h-6 w-6 */
+            width: 1.5rem;
             height: 1.5rem;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="antialiased">
     <main class="container mx-auto px-8 py-16 text-center max-w-2xl">
         <h1 class="font-anton text-5xl text-white mb-4">Data Migration Tool</h1>
-        <p class="text-gray-400 mb-8">Use this tool to scrape content from the live brumoutloud.co.uk site and import it into the Airtable database. This process can take several minutes. Do not close this page while it's running.</p>
+        <p class="text-gray-400 mb-8">Use this tool to import events from the live brumoutloud.co.uk site into the Airtable database.</p>
         
         <div class="card-bg p-8">
             <button id="start-migration-btn" class="nav-cta w-full text-lg flex items-center justify-center">
                 Start Event Migration
             </button>
-            <div id="status-container" class="mt-6 text-gray-300 hidden">
-                 <p id="status-message" class="font-semibold"></p>
-                 <!-- NEW: A dedicated area for detailed error messages -->
-                 <pre id="error-details" class="mt-2 text-left bg-gray-900/50 p-4 rounded-lg text-red-400 text-sm whitespace-pre-wrap hidden"></pre>
+            <div id="status-container" class="mt-6 text-left hidden">
+                 <p id="progress-bar-container" class="w-full bg-gray-700 rounded-full h-4 mb-4 hidden"><span id="progress-bar" class="bg-accent-color h-4 rounded-full" style="width: 0%"></span></p>
+                 <p id="status-message" class="font-semibold text-lg"></p>
+                 <div id="log-output" class="mt-2 text-left bg-gray-900/50 p-4 rounded-lg text-gray-400 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
             </div>
         </div>
     </main>
@@ -42,48 +39,77 @@
         const startBtn = document.getElementById('start-migration-btn');
         const statusContainer = document.getElementById('status-container');
         const statusMessage = document.getElementById('status-message');
-        const errorDetails = document.getElementById('error-details');
+        const logOutput = document.getElementById('log-output');
+        const progressBarContainer = document.getElementById('progress-bar-container');
+        const progressBar = document.getElementById('progress-bar');
+        const BASE_URL = 'https://brumoutloud.co.uk';
+
+        function log(message, type = 'info') {
+            const color = type === 'error' ? 'text-red-400' : 'text-gray-400';
+            logOutput.innerHTML += `<p class="${color}">> ${message}</p>`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
 
         startBtn.addEventListener('click', async () => {
-            // Reset UI and show loading state
+            // --- UI SETUP ---
             startBtn.disabled = true;
-            startBtn.innerHTML = '<span class="loader"></span><span class="ml-3">Migration in Progress...</span>';
+            startBtn.innerHTML = '<span class="loader"></span><span class="ml-3">Starting...</span>';
             statusContainer.classList.remove('hidden');
-            statusMessage.textContent = 'Contacting server... This may take a few moments.';
-            statusMessage.style.color = '#E5E7EB'; // Default text color
-            errorDetails.classList.add('hidden');
-
+            logOutput.innerHTML = '';
 
             try {
-                const response = await fetch('/.netlify/functions/migrate-data', {
-                    method: 'POST'
-                });
+                // --- STEP 1: Get all event URLs ---
+                log('Fetching list of event URLs...');
+                statusMessage.textContent = 'Step 1 of 2: Getting all event URLs...';
+                const urlsResponse = await fetch('/.netlify/functions/get-event-urls', { method: 'POST' });
+                const urlsResult = await urlsResponse.json();
+                if (!urlsResponse.ok || !urlsResult.success) throw new Error(urlsResult.message || 'Failed to fetch URLs.');
                 
-                const result = await response.json();
+                const eventUrls = urlsResult.urls;
+                log(`Found ${eventUrls.length} event URLs to process.`);
 
-                if (response.ok && result.success) {
-                    statusMessage.textContent = 'Success!';
-                    statusMessage.style.color = '#34D399'; // Green
-                    errorDetails.textContent = result.message;
-                    errorDetails.style.color = '#A78BFA'; // Purple for success details
-                    errorDetails.classList.remove('hidden');
+                // --- STEP 2: Process each URL one by one ---
+                statusMessage.textContent = `Step 2 of 2: Processing ${eventUrls.length} events...`;
+                progressBarContainer.style.display = 'block';
+                let successCount = 0;
 
-                    startBtn.style.backgroundColor = '#10B981'; // Green
-                    startBtn.innerHTML = 'Migration Complete!';
-                } else {
-                    // This will handle errors sent from our function's catch block
-                    throw new Error(result.message || 'An unknown server error occurred.');
+                for (let i = 0; i < eventUrls.length; i++) {
+                    const eventPath = eventUrls[i];
+                    const fullUrl = `${BASE_URL}${eventPath}`;
+                    
+                    try {
+                        const processResponse = await fetch('/.netlify/functions/process-single-event', {
+                            method: 'POST',
+                            body: JSON.stringify({ eventUrl: fullUrl })
+                        });
+                        const processResult = await processResponse.json();
+
+                        if (processResult.success) {
+                            if(processResult.status === 'created') {
+                                log(`SUCCESS: Created "${processResult.name}"`);
+                                successCount++;
+                            } else {
+                                log(`SKIPPED: "${processResult.name}" already exists.`);
+                            }
+                        } else {
+                            log(`FAILED to process ${eventPath}: ${processResult.message}`, 'error');
+                        }
+                    } catch (e) {
+                         log(`CRITICAL FAIL on ${eventPath}: ${e.message}`, 'error');
+                    }
+                    progressBar.style.width = `${((i + 1) / eventUrls.length) * 100}%`;
                 }
 
-            } catch (error) {
-                // This catches network errors or if the response isn't valid JSON
-                statusMessage.textContent = 'Migration Failed';
-                statusMessage.style.color = '#F87171'; // Red
-                errorDetails.textContent = error.toString();
-                errorDetails.classList.remove('hidden');
+                // --- FINAL UI UPDATE ---
+                statusMessage.textContent = 'Migration Complete!';
+                log(`Finished! Added ${successCount} new events.`);
+                startBtn.style.backgroundColor = '#10B981';
+                startBtn.innerHTML = 'Complete!';
 
+            } catch (error) {
+                statusMessage.textContent = 'Migration Failed';
+                log(error.toString(), 'error');
                 startBtn.disabled = false;
-                startBtn.style.backgroundColor = ''; // Revert to default
                 startBtn.innerHTML = 'Try Again';
             }
         });

@@ -1,9 +1,10 @@
-const Airtable = require('airtable'); // This was the line that needed fixing
+const Airtable = require('airtable');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
 // --- CONFIGURATION ---
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+// **FIX:** Changed AIRTABLE_API_KEY to AIRTABLE_PERSONAL_ACCESS_TOKEN to match your other working functions.
+const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const venuesTable = base('Venues');
 const eventsTable = base('Events');
 

@@ -49,7 +49,6 @@ exports.handler = async function (event, context) {
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
 
-    // **FIX:** The calendar data now correctly includes the recurring status and all future dates
     const calendarData = {
         title: eventName,
         description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
@@ -60,7 +59,6 @@ exports.handler = async function (event, context) {
         recurringDates: allFutureInstances.map(i => i.Date)
     };
     
-    // For display, filter out the current event from the list of "other" instances
     const otherInstancesToDisplay = allFutureInstances.filter(inst => inst.Slug !== slug);
 
     // --- Step 4: Generate list of other instances for display ---
@@ -132,8 +130,8 @@ exports.handler = async function (event, context) {
                          <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
                              <p class="text-2xl font-semibold">${venueName}</p>
-                             <p class="text-lg text-gray-400">${venueAddress}</p>
-                        </div>
+                             <!-- **FIX:** Removed the duplicated line below -->
+                         </div>
                         ${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
 
                         <div id="add-to-calendar-section" class="border-t border-gray-700 pt-6">
@@ -183,7 +181,6 @@ exports.handler = async function (event, context) {
                 document.body.removeChild(a);
             }
 
-            // **FIX:** Logic to show different buttons for single vs. recurring events is now restored.
             document.addEventListener('DOMContentLoaded', () => {
                 const container = document.querySelector('#add-to-calendar-section .grid');
                 let buttonsHTML = '';

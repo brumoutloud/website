@@ -21,14 +21,13 @@
 <body class="antialiased">
     <main class="container mx-auto px-8 py-16 text-center max-w-2xl">
         <h1 class="font-anton text-5xl text-white mb-4">Data Migration Tool</h1>
-        <p class="text-gray-400 mb-8">Use this tool to import events from the live brumoutloud.co.uk site into the Airtable database.</p>
+        <p class="text-gray-400 mb-8">Use this tool to scrape events from the live brumoutloud.co.uk site and import them into the Airtable database.</p>
         
         <div class="card-bg p-8">
             <button id="start-migration-btn" class="nav-cta w-full text-lg flex items-center justify-center">
                 Start Event Migration
             </button>
             <div id="status-container" class="mt-6 text-left hidden">
-                 <div id="progress-bar-container" class="w-full bg-gray-700 rounded-full h-4 mb-4 hidden"><div id="progress-bar" class="bg-accent-color h-4 rounded-full transition-all duration-500" style="width: 0%"></div></div>
                  <p id="status-message" class="font-semibold text-lg"></p>
                  <div id="log-output" class="mt-2 text-left bg-gray-900/50 p-4 rounded-lg text-gray-400 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
             </div>
@@ -40,75 +39,34 @@
         const statusContainer = document.getElementById('status-container');
         const statusMessage = document.getElementById('status-message');
         const logOutput = document.getElementById('log-output');
-        const progressBarContainer = document.getElementById('progress-bar-container');
-        const progressBar = document.getElementById('progress-bar');
-        const BASE_URL = 'https://brumoutloud.co.uk';
-
-        function log(message, type = 'info') {
-            const color = type === 'error' ? 'text-red-400' : 'text-gray-400';
-            logOutput.innerHTML += `<p class="${color}">> ${message}</p>`;
-            logOutput.scrollTop = logOutput.scrollHeight;
-        }
 
         startBtn.addEventListener('click', async () => {
             // --- UI SETUP ---
             startBtn.disabled = true;
-            startBtn.innerHTML = '<span class="loader"></span><span class="ml-3">Starting...</span>';
+            startBtn.innerHTML = '<span class="loader"></span><span class="ml-3">Migration in Progress...</span>';
             statusContainer.classList.remove('hidden');
-            logOutput.innerHTML = '';
+            logOutput.innerHTML = '<p class="text-gray-400">> Starting... this may take up to 30 seconds.</p>';
 
             try {
-                // --- STEP 1: Get all event URLs ---
-                log('Fetching list of event URLs...');
-                statusMessage.textContent = 'Step 1 of 2: Getting all event URLs...';
-                const urlsResponse = await fetch('/.netlify/functions/get-event-urls', { method: 'POST' });
-                const urlsResult = await urlsResponse.json();
-                if (!urlsResponse.ok || !urlsResult.success) throw new Error(urlsResult.message || 'Failed to fetch URLs.');
+                const response = await fetch('/.netlify/functions/migrate-data', { 
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' }
+                });
                 
-                const eventUrls = urlsResult.urls;
-                log(`Found ${eventUrls.length} event URLs to process.`);
+                const result = await response.json();
 
-                // --- STEP 2: Process each URL one by one ---
-                statusMessage.textContent = `Step 2 of 2: Processing ${eventUrls.length} events...`;
-                progressBarContainer.style.display = 'block';
-                let successCount = 0;
-
-                for (let i = 0; i < eventUrls.length; i++) {
-                    const eventPath = eventUrls[i];
-                    const fullUrl = `${BASE_URL}${eventPath}`;
-                    
-                    try {
-                        const processResponse = await fetch('/.netlify/functions/process-single-event', {
-                            method: 'POST',
-                            body: JSON.stringify({ eventUrl: fullUrl })
-                        });
-                        const processResult = await processResponse.json();
-
-                        if (processResult.success) {
-                            if(processResult.status === 'created') {
-                                log(`SUCCESS: Created "${processResult.name}"`);
-                                successCount++;
-                            } else {
-                                log(`SKIPPED: "${processResult.name}" already exists.`);
-                            }
-                        } else {
-                            log(`FAILED to process ${eventPath}: ${processResult.message}`, 'error');
-                        }
-                    } catch (e) {
-                         log(`CRITICAL FAIL on ${eventPath}: ${e.message}`, 'error');
-                    }
-                    progressBar.style.width = `${((i + 1) / eventUrls.length) * 100}%`;
+                if (!response.ok) {
+                    throw new Error(result.message || `Server responded with status ${response.status}`);
                 }
 
-                // --- FINAL UI UPDATE ---
                 statusMessage.textContent = 'Migration Complete!';
-                log(`Finished! Added ${successCount} new events.`);
+                logOutput.innerHTML = `<p class="text-green-400">> ${result.message}</p>`;
                 startBtn.style.backgroundColor = '#10B981';
                 startBtn.innerHTML = 'Complete!';
 
             } catch (error) {
                 statusMessage.textContent = 'Migration Failed';
-                log(error.toString(), 'error');
+                logOutput.innerHTML = `<p class="text-red-400">> ${error.toString()}</p>`;
                 startBtn.disabled = false;
                 startBtn.innerHTML = 'Try Again';
             }

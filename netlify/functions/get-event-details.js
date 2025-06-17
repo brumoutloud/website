@@ -22,26 +22,24 @@ exports.handler = async function (event, context) {
     const eventName = fields['Event Name'];
     const parentEventName = fields['Parent Event Name'];
     const recurringInfo = fields['Recurring Info'];
-    let otherInstances = [];
+    let allFutureInstances = [];
 
     // --- Step 2: Fetch other instances (with backward compatibility) ---
     let filterFormula;
     if (parentEventName) {
-        // --- NEW METHOD: Use the Parent Event Name for precise matching ---
         const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
-        filterFormula = `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')), {Slug} != "${slug}")`;
+        filterFormula = `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
     } else if (recurringInfo) {
-        // --- OLD METHOD (BACKWARD COMPATIBILITY): Use the original event name and recurring info ---
         const eventNameForQuery = eventName.replace(/"/g, '\\"');
-        filterFormula = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info}, IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')), {Slug} != "${slug}")`;
+        filterFormula = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info}, IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
     }
 
     if (filterFormula) {
-        const otherInstanceRecords = await base('Events').select({
+        const futureInstanceRecords = await base('Events').select({
             filterByFormula: filterFormula,
             sort: [{ field: 'Date', direction: 'asc' }]
         }).all();
-        otherInstances = otherInstanceRecords.map(rec => rec.fields);
+        allFutureInstances = futureInstanceRecords.map(rec => rec.fields);
     }
     
     // --- Step 3: Prepare all data for the template ---
@@ -51,16 +49,22 @@ exports.handler = async function (event, context) {
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
 
+    // **FIX:** The calendar data now correctly includes the recurring status and all future dates
     const calendarData = {
         title: eventName,
         description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
         location: venueAddress,
         startTime: eventDate.toISOString(),
         endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        isRecurring: (parentEventName || recurringInfo) && allFutureInstances.length > 0,
+        recurringDates: allFutureInstances.map(i => i.Date)
     };
     
+    // For display, filter out the current event from the list of "other" instances
+    const otherInstancesToDisplay = allFutureInstances.filter(inst => inst.Slug !== slug);
+
     // --- Step 4: Generate list of other instances for display ---
-    const otherInstancesHTML = otherInstances.slice(0, 5).map(instance => {
+    const otherInstancesHTML = otherInstancesToDisplay.slice(0, 5).map(instance => {
         const d = new Date(instance.Date);
         const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
         const month = d.toLocaleDateString('en-GB', { month: 'short' });
@@ -147,7 +151,7 @@ exports.handler = async function (event, context) {
 
             function toICSDate(dateStr) { return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
 
-            function generateGoogleLink() {
+            function generateGoogleLink(isSeries) {
                 const params = new URLSearchParams({
                     action: 'TEMPLATE',
                     text: calendarData.title,
@@ -155,11 +159,20 @@ exports.handler = async function (event, context) {
                     details: calendarData.description,
                     location: calendarData.location
                 });
+                if (isSeries && calendarData.isRecurring) {
+                    const rrule = 'RRULE:RDATE;VALUE=DATE-TIME:' + calendarData.recurringDates.map(d => toICSDate(d)).join(',');
+                    params.set('recur', rrule);
+                }
                 return 'https://www.google.com/calendar/render?' + params.toString();
             }
 
-            function generateICSFile() {
-                let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location, 'END:VEVENT', 'END:VCALENDAR'];
+            function generateICSFile(isSeries) {
+                let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location];
+                if (isSeries && calendarData.isRecurring) {
+                    const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(',');
+                    icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString);
+                }
+                icsContent.push('END:VEVENT', 'END:VCALENDAR');
                 const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -170,10 +183,21 @@ exports.handler = async function (event, context) {
                 document.body.removeChild(a);
             }
 
+            // **FIX:** Logic to show different buttons for single vs. recurring events is now restored.
             document.addEventListener('DOMContentLoaded', () => {
                 const container = document.querySelector('#add-to-calendar-section .grid');
-                let buttonsHTML = '<a href="' + generateGoogleLink() + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' +
-                                  '<button onclick="generateICSFile()" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
+                let buttonsHTML = '';
+                if (calendarData.isRecurring) {
+                    buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>' +
+                        '<a href="' + generateGoogleLink(true) + '" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>' +
+                        '<button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>';
+                } else {
+                     buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
+                }
                 container.innerHTML = buttonsHTML;
             });
         </script>

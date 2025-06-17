@@ -37,8 +37,16 @@ exports.handler = async function (event, context) {
             const eventDateStr = element.find('time.event-date').attr('datetime');
             const eventTimeStr = element.find('time.event-time-localized-start').text().trim();
             const venueName = element.find('.eventlist-meta-address').clone().children().remove().end().text().trim();
-            const category = element.find('.eventlist-cats a').text().trim();
             const imageUrl = element.find('.eventlist-column-thumbnail img').attr('data-src');
+
+            // **FIX:** Iterate over each category link to build an array, preventing "smushing".
+            const categories = [];
+            element.find('.eventlist-cats a').each((i, catEl) => {
+                const catText = $(catEl).text().trim();
+                if(catText) {
+                    categories.push(catText);
+                }
+            });
 
             if (eventName && eventDateStr && eventTimeStr) {
                 const eventData = {
@@ -46,7 +54,7 @@ exports.handler = async function (event, context) {
                     'Date': `${eventDateStr}T${eventTimeStr}:00.000Z`,
                     'Description': `Imported from old site. See: ${eventUrl}`,
                     'VenueText': venueName,
-                    'Category': category ? [category] : [],
+                    'Category': categories, // Use the new array of categories
                     'Status': 'Approved'
                 };
                 if(imageUrl) {

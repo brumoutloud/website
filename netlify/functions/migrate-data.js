@@ -1,6 +1,6 @@
-const { Airtable } = require('airtable');
+const Airtable = require('airtable'); // This was the line that needed fixing
 const fetch = require('node-fetch');
-const cheerio = require('cheerio'); // This was the missing dependency
+const cheerio = require('cheerio');
 
 // --- CONFIGURATION ---
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);

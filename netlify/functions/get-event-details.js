@@ -7,10 +7,12 @@ exports.handler = async function (event, context) {
 
   try {
     // --- Step 1: Fetch the main event details ---
+    // **FIX:** Removed 'Venue Address' from the list of fields.
+    // This field is a lookup and will be handled more safely below.
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${slug}"`,
-        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Venue Address']
+        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug']
     }).firstPage();
 
     if (!eventRecords || eventRecords.length === 0) {
@@ -36,7 +38,9 @@ exports.handler = async function (event, context) {
     const eventName = fields['Event Name'];
     const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : 'TBC';
-    const venueAddress = fields['Venue Address'] ? fields['Venue Address'][0] : venueName;
+    // **FIX:** Using venueName as a safe fallback for the location.
+    // The venue's detail page will have the full address.
+    const venueAddress = venueName; 
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
 
@@ -150,8 +154,6 @@ exports.handler = async function (event, context) {
             document.addEventListener('DOMContentLoaded', () => {
                 const container = document.querySelector('#add-to-calendar-section .grid');
                 let buttonsHTML = '';
-                // **FIX:** Replaced nested template literals with standard string concatenation
-                // This is a safer method that prevents server-side parsing errors.
                 if (calendarData.isRecurring) {
                     buttonsHTML = 
                         '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>' +

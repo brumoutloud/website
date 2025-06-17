@@ -16,11 +16,11 @@
         <nav class="container mx-auto flex justify-between items-center">
             <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
             <div class="hidden md:flex items-center space-x-8 font-semibold">
-                <a href="/events.html" class="nav-link text-gray-300 hover:accent-color transition-colors">Events</a>
-                <a href="/all-venues.html" class="nav-link accent-color transition-colors">Venues</a>
+                <a href="/events.html" class="text-gray-300 hover:accent-color transition-colors">Events</a>
+                <a href="/all-venues.html" class="accent-color">Venues</a>
                 <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
             </div>
-            <a href="/get-listed.html" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+            <a href="/get-listed.html" class="nav-cta">
                 GET LISTED
             </a>
         </nav>
@@ -33,41 +33,54 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Discover the best LGBTQ+ friendly bars, clubs, and spaces in Birmingham.</p>
             </div>
             <div id="venue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <p class="col-span-full text-center text-gray-400">Loading venues...</p>
+                <div class="col-span-full text-center text-gray-400 flex justify-center items-center gap-4">
+                    <div class="loader"></div>
+                    <span>Loading venues...</span>
+                </div>
+            </div>
+             <div id="no-results-message" class="hidden text-center card-bg p-12 col-span-full">
+                <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-accent-color-secondary">
+                    <i class="fas fa-store-alt-slash fa-2x"></i>
+                </div>
+                <h3 class="mt-4 text-xl font-semibold text-white">No Venues Found</h3>
+                <p class="mt-2 text-gray-400">We couldn't find any venues at this time. Why not be the first to <a href="/get-listed.html" class="underline hover:text-white">get listed</a>?</p>
             </div>
         </section>
     </main>
     
     <script>
         async function renderVenues() {
+            const venueGrid = document.getElementById('venue-grid');
+            const noResultsMessage = document.getElementById('no-results-message');
             try {
                 const venuesResponse = await fetch('/.netlify/functions/get-venues');
                 const venues = await venuesResponse.json();
-                const venueGrid = document.getElementById('venue-grid');
+                
                 venueGrid.innerHTML = '';
+                venueGrid.style.display = venues.length > 0 ? 'grid' : 'none';
+                noResultsMessage.style.display = venues.length > 0 ? 'none' : 'block';
+
                 if (venues && venues.length > 0) {
                     venues.forEach(venue => {
                         const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
                         const mediumSrc = venue.photo?.medium || placeholder;
                         const venueCard = `
-                            <a href="/venue/${venue.slug}" class="item-card card-bg block group">
+                            <a href="/venue/${venue.slug}" class="item-card card-bg block group animate-fade-in">
                                 <div class="item-card-image-container">
                                     <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
                                 </div>
                                 <div class="p-6">
-                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color-secondary">${venue.name}</h3>
+                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${venue.name}</h3>
                                     <p class="text-gray-400 h-12 overflow-hidden">${venue.description}</p>
                                 </div>
                             </a>
                         `;
                         venueGrid.insertAdjacentHTML('beforeend', venueCard);
                     });
-                } else {
-                    venueGrid.innerHTML = '<p class="col-span-full text-center text-gray-400">No venues found.</p>';
                 }
             } catch (error) {
                 console.error("Error fetching venues:", error);
-                document.getElementById('venue-grid').innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues.</p>';
+                venueGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues.</p>';
             }
         }
 

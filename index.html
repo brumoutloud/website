@@ -8,13 +8,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Linking to the single source of truth for our styles -->
     <link rel="stylesheet" href="/css/main.css">
     <style>
+        /* Page-specific styles can go here if needed */
         .feature-card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         .feature-card:hover {
-            transform: scale(1.03);
+            transform: scale(1.03) translateY(-5px);
             box-shadow: 0 20px 50px rgba(0,0,0,0.6);
         }
     </style>
@@ -29,7 +31,8 @@
                 <a href="/all-venues.html" class="text-gray-300 hover:accent-color transition-colors">Venues</a>
                 <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
             </div>
-            <a href="/get-listed.html" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">
+            <!-- Using the defined nav-cta class from our design system -->
+            <a href="/get-listed.html" class="nav-cta">
                 GET LISTED
             </a>
         </nav>
@@ -37,17 +40,20 @@
 
     <main class="container mx-auto px-8 py-16">
         <section class="text-center mb-32">
+            <!-- Using the defined Hero Heading style -->
             <h1 class="font-anton text-7xl md:text-9xl lg:text-[10rem] leading-none tracking-wider heading-gradient">
                 OUR CITY. <br><span class="accent-color">OUR</span> SCENE.
             </h1>
-            <p class="mt-4 text-xl font-semibold tracking-widest text-gray-300">YOUR GUIDE TO LGBTQ+ BIRMINGHAM</p>
+            <p class="mt-4 text-xl text-gray-300">YOUR GUIDE TO LGBTQ+ BIRMINGHAM</p>
         </section>
 
         <section class="grid md:grid-cols-2 gap-8">
             <!-- Link to Events Page -->
             <a href="/events.html" class="feature-card card-bg block group p-8 md:p-12 text-center">
                 <div class="spark-icon accent-color text-5xl mb-4">✦</div>
+                <!-- Using the defined Section Heading style -->
                 <h2 class="font-anton text-5xl md:text-6xl text-white mb-4 group-hover:heading-gradient">WHAT'S ON</h2>
+                <!-- Using the defined Body Copy style -->
                 <p class="text-lg text-gray-400 mb-6">Explore all the latest events, from club nights to theatre.</p>
                 <span class="font-bold text-accent-color text-lg">VIEW EVENTS &rarr;</span>
             </a>

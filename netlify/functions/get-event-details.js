@@ -1,181 +1,124 @@
 const Airtable = require('airtable');
+const parser = require('lambda-multipart-parser');
+const fetch = require('node-fetch');
+const cloudinary = require('cloudinary').v2;
+
+// --- Initialize Airtable and Cloudinary ---
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// --- Helper Functions ---
+async function findVenueRecord(venueName) {
+    if (!venueName) return null;
+    const sanatizedVenueName = venueName.toLowerCase().replace(/"/g, '\\"');
+    const formula = `OR(LOWER({Name}) = "${sanatizedVenueName}", FIND("${sanatizedVenueName}", LOWER({Name})), FIND("${sanatizedVenueName}", LOWER({Aliases})))`;
+    try {
+        const records = await base('Venues').select({ maxRecords: 1, filterByFormula: formula }).firstPage();
+        return records.length > 0 ? records[0] : null;
+    } catch (error) {
+        console.error("Error finding venue:", error);
+        return null;
+    }
+}
+
+async function uploadImage(file) {
+    if (!file) return null;
+    try {
+        const base64String = file.content.toString('base64');
+        const dataUri = `data:${file.contentType};base64,${base64String}`;
+        const result = await cloudinary.uploader.upload(dataUri, { folder: 'brumoutloud_events' });
+        return { url: result.secure_url };
+    } catch (error) {
+        console.error("Error uploading to Cloudinary:", error);
+        return null;
+    }
+}
+
+async function getDatesFromAI(eventName, startDate, recurringInfo) {
+    const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Generate a list of all future dates for this event for the next 3 months. Include the original start date. The dates must be a comma-separated list of YYYY-MM-DD strings.`;
+    const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return [startDate];
+    
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) return [startDate];
+        const result = await response.json();
+        const textResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textResponse) return textResponse.trim().split(',').map(d => d.trim());
+        return [startDate];
+    } catch (error) {
+        console.error("Error calling AI:", error);
+        return [startDate];
+    }
+}
+
+// --- Main Handler ---
 exports.handler = async function (event, context) {
-  const slug = event.path.split("/").pop();
-  if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
-
-  try {
-    // --- Step 1: Fetch the main event details based on the slug ---
-    const eventRecords = await base('Events').select({
-        maxRecords: 1,
-        filterByFormula: `{Slug} = "${slug}"`,
-        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name']
-    }).firstPage();
-
-    if (!eventRecords || eventRecords.length === 0) {
-      return { statusCode: 404, body: `Event not found.` };
+    let submission;
+    try {
+        submission = await parser.parse(event);
+    } catch (e) {
+        return { statusCode: 400, body: "Error processing form data." };
     }
 
-    const eventRecord = eventRecords[0];
-    const fields = eventRecord.fields;
-    const eventName = fields['Event Name'];
-    const parentEventName = fields['Parent Event Name'];
-    let otherInstances = [];
+    try {
+        const venueRecord = await findVenueRecord(submission.venue);
+        const promoImageFile = submission.files.find(f => f.fieldname === 'promo-image');
+        const uploadedImage = await uploadImage(promoImageFile);
+        let datesToCreate = [];
+        const recurringInfoText = submission['recurring-info'] || null;
 
-    // --- Step 2: If the event is part of a series, fetch all other upcoming instances ---
-    if (parentEventName) {
-        const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
-        const otherInstanceRecords = await base('Events').select({
-            // Fetch other events in the series, excluding the one we're currently on
-            filterByFormula: `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')), {Slug} != "${slug}")`,
-            sort: [{ field: 'Date', direction: 'asc' }]
-        }).all();
-        otherInstances = otherInstanceRecords.map(rec => rec.fields);
+        if (recurringInfoText && recurringInfoText.trim() !== '') {
+            datesToCreate = await getDatesFromAI(submission['event-name'], submission.date, recurringInfoText);
+        } else {
+            datesToCreate.push(submission.date);
+        }
+
+        const recordsToCreate = datesToCreate.map((date, index) => {
+            const fields = {
+                "Event Name": submission['event-name'],
+                "Description": submission.description,
+                "Date": `${date}T${submission['start-time']}:00.000Z`,
+                "Link": submission.link,
+                "Status": "Pending Review",
+                "VenueText": submission.venue,
+            };
+
+            if (venueRecord) fields["Venue"] = [venueRecord.id];
+            if (uploadedImage) fields["Promo Image"] = [{ url: uploadedImage.url }];
+            
+            // **THE FIX:** If this is a recurring event, set the Parent Event Name.
+            if (recurringInfoText) {
+                fields["Parent Event Name"] = submission['event-name']; // The main name is the parent
+                if (index === 0) {
+                     fields["Recurring Info"] = recurringInfoText; // Only add text to the first instance
+                }
+            }
+            return { fields };
+        });
+
+        const chunkSize = 10;
+        for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
+            await base('Events').create(recordsToCreate.slice(i, i + chunkSize), { typecast: true });
+        }
+
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'text/html' },
+            body: `<!DOCTYPE html><html><head><title>Success</title><meta http-equiv="refresh" content="3;url=/events.html"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;"><h1>Thank you!</h1><p>Your event has been submitted for review.</p><p>You will be redirected shortly.</p></body></html>`
+        };
+    } catch (error) {
+        console.error("An error occurred during event submission:", error);
+        return { statusCode: 500, body: `Error processing submission.` };
     }
-    
-    // --- Step 3: Prepare all data for the template ---
-    const eventDate = new Date(fields['Date']);
-    const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : 'TBC';
-    const venueAddress = venueName; 
-    const description = fields['Description'] || 'No description provided.';
-    const pageUrl = `https://brumoutloud.co.uk${event.path}`;
-
-    const calendarData = {
-        title: eventName,
-        description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
-        location: venueAddress,
-        startTime: eventDate.toISOString(),
-        endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-    };
-    
-    // --- Step 4: Generate list of other instances for display ---
-    const otherInstancesHTML = otherInstances.slice(0, 5).map(instance => {
-        const d = new Date(instance.Date);
-        const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
-        const month = d.toLocaleDateString('en-GB', { month: 'short' });
-        return `<a href="/event/${instance.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
-                    <div class="text-center w-20 flex-shrink-0">
-                        <p class="text-2xl font-bold text-white">${day}</p>
-                        <p class="text-lg text-gray-400">${month}</p>
-                    </div>
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-white text-xl">${instance['Event Name']}</h4>
-                        <p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
-                    </div>
-                    <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
-                </a>`;
-    }).join('');
-
-
-    // --- Step 5: Generate Final HTML ---
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${eventName} | Brum Out Loud</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-        <link rel="stylesheet" href="/css/main.css">
-      </head>
-      <body class="antialiased">
-        <header class="p-8">
-            <nav class="container mx-auto flex justify-between items-center">
-                <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
-                <a href="/events.html" class="nav-cta">BACK TO EVENTS</a>
-            </nav>
-        </header>
-        <main class="container mx-auto px-8 py-16">
-            <div class="grid lg:grid-cols-3 gap-16">
-                <div class="lg:col-span-2">
-                     <img src="${fields['Promo Image'] ? fields['Promo Image'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Brum+Out+Loud'}" alt="${eventName}" class="w-full h-auto rounded-2xl mb-8 shadow-2xl object-cover aspect-video">
-                    <p class="font-semibold accent-color mb-2">EVENT DETAILS</p>
-                    <h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${eventName}</h1>
-                    <div class="prose prose-invert prose-lg max-w-none text-gray-300">
-                        ${description.replace(/\n/g, '<br>')}
-                    </div>
-
-                    <!-- NEW: Section for other events in the series -->
-                    ${parentEventName && otherInstancesHTML ? `
-                        <div class="mt-16">
-                             <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Events</span> in this Series</h2>
-                             <div class="space-y-4">${otherInstancesHTML}</div>
-                        </div>
-                    ` : ''}
-
-                </div>
-                <div class="lg:col-span-1">
-                    <div class="card-bg p-8 sticky top-8 space-y-6">
-                        <div>
-                            <h3 class="font-bold text-lg accent-color-secondary mb-2">Date & Time</h3>
-                            <p class="text-2xl font-semibold">${eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                            <p class="text-xl text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
-                            ${fields['Recurring Info'] ? `<p class="mt-2 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${fields['Recurring Info']}</p>` : ''}
-                        </div>
-                         <div>
-                            <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
-                             <p class="text-2xl font-semibold">${venueName}</p>
-                             <p class="text-lg text-gray-400">${venueAddress}</p>
-                        </div>
-                        ${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
-
-                        <div id="add-to-calendar-section" class="border-t border-gray-700 pt-6">
-                            <h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Add to Calendar</h3>
-                            <div class="grid grid-cols-1 gap-2">
-                                <!-- Buttons will be generated by JS -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-        <script>
-            const calendarData = ${JSON.stringify(calendarData)};
-
-            function toICSDate(dateStr) { return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
-
-            function generateGoogleLink() {
-                const params = new URLSearchParams({
-                    action: 'TEMPLATE',
-                    text: calendarData.title,
-                    dates: toICSDate(calendarData.startTime) + '/' + toICSDate(calendarData.endTime),
-                    details: calendarData.description,
-                    location: calendarData.location
-                });
-                return 'https://www.google.com/calendar/render?' + params.toString();
-            }
-
-            function generateICSFile() {
-                let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location, 'END:VEVENT', 'END:VCALENDAR'];
-                const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = calendarData.title.replace(/ /g, '_') + '.ics';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
-
-            document.addEventListener('DOMContentLoaded', () => {
-                const container = document.querySelector('#add-to-calendar-section .grid');
-                let buttonsHTML = '<a href="' + generateGoogleLink() + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' +
-                                  '<button onclick="generateICSFile()" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
-                container.innerHTML = buttonsHTML;
-            });
-        </script>
-      </body>
-      </html>
-    `;
-
-    return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
-
-  } catch (error) {
-    console.error(error);
-    return { statusCode: 500, body: 'Server error fetching event details.' };
-  }
 };
-

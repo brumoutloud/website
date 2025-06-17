@@ -1,6 +1,5 @@
 /* Custom Styles for BrumOutLoud */
 body {
-    /* Using the original dark theme background */
     background-color: #121212;
     color: #EAEAEA;
     font-family: 'Poppins', sans-serif;
@@ -12,51 +11,56 @@ body {
     letter-spacing: 0.05em;
 }
 
-/* Original BrumOutLoud Colour Palette */
-.accent-color { color: #B564F7; } /* Vibrant Purple */
+/* Core Colour Palette Classes */
+.accent-color { color: #B564F7; }
 .bg-accent-color { background-color: #B564F7; }
 .border-accent-color { border-color: #B564F7; }
-
-.accent-color-secondary { color: #FADCD9; } /* Peach */
-/* FIX: Added a background-color class for the secondary color */
+.accent-color-secondary { color: #FADCD9; }
 .bg-accent-color-secondary { background-color: #FADCD9; }
 
-/* FIX: Added a dedicated class for the main CTA button in the navbar */
+/* Component Styles */
 .nav-cta {
-    background-color: #FADCD9; /* Peach background */
-    color: #333333; /* Dark text */
-    font-weight: bold;
-    padding: 0.75rem 1.5rem; /* py-3 px-6 */
-    border-radius: 0.5rem; /* rounded-lg */
-    transition: opacity 0.3s ease;
+    background-color: #FADCD9; color: #333333; font-weight: bold;
+    padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: opacity 0.3s ease;
 }
-.nav-cta:hover {
-    opacity: 0.9;
-}
+.nav-cta:hover { opacity: 0.9; }
 
-
-/* Card/section background from original site */
 .card-bg {
-    background-color: #1e1e1e;
-    border: 1px solid #2e2e2e;
-    border-radius: 1.25rem;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    background-color: #1e1e1e; border: 1px solid #2e2e2e;
+    border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
-/* Large text gradient effect */
 .heading-gradient {
     background: linear-gradient(180deg, #FFFFFF 50%, #d1c7b8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-fill-color: transparent;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; text-fill-color: transparent;
 }
 
-/* Custom spark icon shape */
-.spark-icon {
-    font-size: 2rem;
-    font-weight: bold;
-    line-height: 1;
+/* FIX: Definitive styles for filter buttons added to central CSS */
+.filter-button {
+    background-color: rgba(42, 42, 42, 0.8);
+    color: #EAEAEA;
+    border: 2px solid transparent;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.filter-button:hover {
+    background-color: rgba(60, 60, 60, 0.8);
+    color: white;
+}
+.filter-button.active {
+    background-color: transparent;
+    color: #B564F7; /* accent-color */
+    border-color: #B564F7; /* accent-color */
 }
 
 /* Event/Venue Card Styles */
@@ -70,6 +74,9 @@ body {
 .item-card-image-container {
     aspect-ratio: 1 / 1;
     overflow: hidden;
+    /* FIX: Ensure top corners are rounded to match the parent card */
+    border-top-left-radius: 1.25rem;
+    border-top-right-radius: 1.25rem;
 }
 .item-card-image {
     width: 100%;

@@ -6,9 +6,7 @@ exports.handler = async function (event, context) {
   if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
 
   try {
-    // --- Step 1: Fetch the main event details ---
-    // **FIX:** Removed 'Venue Address' from the list of fields.
-    // This field is a lookup and will be handled more safely below.
+    // --- Step 1: Fetch the main event details based on the slug ---
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${slug}"`,
@@ -21,25 +19,28 @@ exports.handler = async function (event, context) {
 
     const eventRecord = eventRecords[0];
     const fields = eventRecord.fields;
+    const eventName = fields['Event Name'];
     const recurringInfo = fields['Recurring Info'];
     let futureInstances = [];
+    let nextEventDate = new Date(fields['Date']);
 
     // --- Step 2: If the event is recurring, fetch all future instances ---
     if (recurringInfo) {
-        const eventNameForQuery = fields['Event Name'].replace(/"/g, '\\"');
+        const eventNameForQuery = eventName.replace(/"/g, '\\"');
         const futureInstanceRecords = await base('Events').select({
-            filterByFormula: `AND({Event Name} = "${eventNameForQuery}", IS_AFTER({Date}, TODAY()))`,
+            filterByFormula: `AND({Event Name} = "${eventNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`,
             sort: [{ field: 'Date', direction: 'asc' }]
         }).all();
-        futureInstances = futureInstanceRecords.map(rec => rec.fields.Date);
+        
+        if (futureInstanceRecords.length > 0) {
+            futureInstances = futureInstanceRecords.map(rec => rec.fields.Date);
+            // The next event is the first one in the sorted list
+            nextEventDate = new Date(futureInstances[0]);
+        }
     }
     
     // --- Step 3: Prepare all data for the template ---
-    const eventName = fields['Event Name'];
-    const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : 'TBC';
-    // **FIX:** Using venueName as a safe fallback for the location.
-    // The venue's detail page will have the full address.
     const venueAddress = venueName; 
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
@@ -48,13 +49,34 @@ exports.handler = async function (event, context) {
         title: eventName,
         description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
         location: venueAddress,
-        startTime: eventDate.toISOString(),
-        endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        startTime: nextEventDate.toISOString(),
+        endTime: new Date(nextEventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
         isRecurring: !!recurringInfo,
         recurringDates: futureInstances
     };
+    
+    // --- Step 4: Generate list of upcoming dates for display ---
+    const upcomingDatesHTML = futureInstances.slice(0, 5).map(dateStr => {
+        const d = new Date(dateStr);
+        const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
+        const month = d.toLocaleDateString('en-GB', { month: 'short' });
+        const fullDate = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+        const time = d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
 
-    // --- Step 4: Generate HTML with the new data ---
+        return `<div class="card-bg p-4 flex items-center space-x-4">
+                    <div class="text-center w-20 flex-shrink-0">
+                        <p class="text-2xl font-bold text-white">${day}</p>
+                        <p class="text-lg text-gray-400">${month}</p>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-white text-xl">${fullDate}</h4>
+                        <p class="text-sm text-gray-400">${time}</p>
+                    </div>
+                </div>`;
+    }).join('');
+
+
+    // --- Step 5: Generate Final HTML ---
     const html = `
       <!DOCTYPE html>
       <html lang="en">
@@ -83,13 +105,22 @@ exports.handler = async function (event, context) {
                     <div class="prose prose-invert prose-lg max-w-none text-gray-300">
                         ${description.replace(/\n/g, '<br>')}
                     </div>
+
+                    <!-- NEW: Upcoming Dates Section for recurring events -->
+                    ${recurringInfo && upcomingDatesHTML ? `
+                        <div class="mt-16">
+                             <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Upcoming</span> Dates</h2>
+                             <div class="space-y-4">${upcomingDatesHTML}</div>
+                        </div>
+                    ` : ''}
+
                 </div>
                 <div class="lg:col-span-1">
                     <div class="card-bg p-8 sticky top-8 space-y-6">
                         <div>
-                            <h3 class="font-bold text-lg accent-color-secondary mb-2">Date & Time</h3>
-                            <p class="text-2xl font-semibold">${eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                            <p class="text-xl text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
+                            <h3 class="font-bold text-lg accent-color-secondary mb-2">Next Event</h3>
+                            <p class="text-2xl font-semibold">${nextEventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                            <p class="text-xl text-gray-400">${nextEventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
                             ${recurringInfo ? `<p class="mt-2 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${recurringInfo}</p>` : ''}
                         </div>
                          <div>
@@ -127,16 +158,16 @@ exports.handler = async function (event, context) {
                     details: calendarData.description,
                     location: calendarData.location
                 });
-                if (isSeries && calendarData.isRecurring) {
-                    const rrule = 'RRULE:FREQ=DAILY;BYMONTH=' + [...new Set(calendarData.recurringDates.map(d => new Date(d).getUTCMonth() + 1))].join(',') + ';BYMONTHDAY=' + [...new Set(calendarData.recurringDates.map(d => new Date(d).getUTCDate()))].join(',');
-                    params.append('recur', rrule);
+                if (isSeries && calendarData.isRecurring && calendarData.recurringDates.length > 0) {
+                    const rrule = 'RRULE:RDATE;VALUE=DATE-TIME:' + calendarData.recurringDates.map(d => toICSDate(d)).join(',');
+                    params.set('recur', rrule);
                 }
                 return 'https://www.google.com/calendar/render?' + params.toString();
             }
 
             function generateICSFile(isSeries) {
                 let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location];
-                if (isSeries && calendarData.isRecurring) {
+                if (isSeries && calendarData.isRecurring && calendarData.recurringDates.length > 0) {
                     const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(',');
                     icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString);
                 }
@@ -179,3 +210,4 @@ exports.handler = async function (event, context) {
     return { statusCode: 500, body: 'Server error fetching event details.' };
   }
 };
+

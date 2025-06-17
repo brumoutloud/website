@@ -41,13 +41,13 @@
         const logOutput = document.getElementById('log-output');
 
         startBtn.addEventListener('click', async () => {
-            // --- UI SETUP ---
             startBtn.disabled = true;
             startBtn.innerHTML = '<span class="loader"></span><span class="ml-3">Migration in Progress...</span>';
             statusContainer.classList.remove('hidden');
-            logOutput.innerHTML = '<p class="text-gray-400">> Starting... this may take up to 30 seconds.</p>';
+            logOutput.innerHTML = '<p class="text-gray-400">> Starting migration...</p>';
 
             try {
+                // **FIX:** Calling our single, unified migration function
                 const response = await fetch('/.netlify/functions/migrate-data', { 
                     method: 'POST',
                     headers: { 'Accept': 'application/json' }

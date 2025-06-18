@@ -1,6 +1,6 @@
 const parser = require('lambda-multipart-parser');
 const fetch = require('node-fetch');
-const { parse } = require('csv-parse/sync');
+const xlsx = require('xlsx'); // Library for reading Excel files
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -16,27 +16,30 @@ exports.handler = async function (event, context) {
         const spreadsheetFile = result.files[0];
         if (!spreadsheetFile) throw new Error("No spreadsheet file was uploaded.");
 
-        // Convert the file buffer into a string
-        const fileContent = spreadsheetFile.content.toString('utf-8');
-        
-        // Use the csv-parse library to read the CSV data
-        const records = parse(fileContent, {
-            columns: true,
-            skip_empty_lines: true
-        });
+        let csvText;
 
-        // Convert the parsed data back to a simple string to send to the AI
-        const csvText = JSON.stringify(records);
+        // **FIX:** Check the file type and parse accordingly.
+        if (spreadsheetFile.contentType.includes('spreadsheetml') || spreadsheetFile.contentType.includes('ms-excel')) {
+            // It's an .xlsx or .xls file
+            const workbook = xlsx.read(spreadsheetFile.content, { type: 'buffer' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            csvText = xlsx.utils.sheet_to_csv(worksheet);
+        } else {
+            // Assume it's a plain text .csv file
+            csvText = spreadsheetFile.content.toString('utf-8');
+        }
         
         const prompt = `
             You are an event listings assistant.
-            The following is a JSON array of objects parsed from a user's uploaded CSV file. The column names are messy.
+            The following is raw CSV data from a user's uploaded spreadsheet. The column names may be messy or inconsistent.
             Your task is to analyze this data and return a clean JSON array of event objects.
-            Each object should have the following keys: "name", "venue", "date" (YYYY-MM-DD), "time" (HH:MM 24-hour), and "description".
+            Each object should have the following keys: "name", "venue", "date" (in YYYY-MM-DD format), "time" (in HH:MM 24-hour format), and "description".
             Intelligently map the messy column names (e.g., "Event", "Title") to the correct keys.
             The current year is 2025. If a year is not specified, assume it is 2025.
 
-            Messy Data: ${csvText}
+            CSV Data:
+            ${csvText}
         `;
 
         const payload = { contents: [{ parts: [{ text: prompt }] }] };

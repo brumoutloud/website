@@ -38,8 +38,8 @@
   from = "/get-listed"
   to = "/get-listed.html"
   status = 200
-
-# NEW: Public-facing Promoter Tools Page  
+  
+# Rule for the Public Promoter Tools Page
 [[redirects]]
     from = "/promoter-tool"
     to = "/promoter-tool.html"
@@ -68,4 +68,10 @@
 [[redirects]]
     from = "/admin/approvals"
     to = "/admin-approvals.html"
+    status = 200
+
+# NEW: Rule for the Add Venue admin tool
+[[redirects]]
+    from = "/admin/add-venue"
+    to = "/admin-add-venue.html"
     status = 200

@@ -39,13 +39,26 @@
   to = "/get-listed.html"
   status = 200
   
+# --- NEW: Admin Section Rules ---
+
+# Directs users to the login page
+[[redirects]]
+    from = "/admin"
+    to = "/admin-login.html"
+    status = 200
+    
+[[redirects]]
+    from = "/admin/login"
+    to = "/admin-login.html"
+    status = 200
+    
 # Rule for the hidden admin migration tool
 [[redirects]]
     from = "/admin/migrate"
     to = "/admin-migrate.html"
     status = 200
     
-# NEW: Rule for the hidden admin settings page
+# Rule for the hidden admin settings page
 [[redirects]]
     from = "/admin/settings"
     to = "/admin-settings.html"

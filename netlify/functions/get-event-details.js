@@ -45,6 +45,7 @@ exports.handler = async function (event, context) {
     const venueSlug = fields['Venue Slug'] ? fields['Venue Slug'][0] : null;
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
+    const imageUrl = fields['Promo Image'] ? fields['Promo Image'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Brum+Out+Loud';
 
     const calendarData = {
         title: eventName,
@@ -56,7 +57,6 @@ exports.handler = async function (event, context) {
         recurringDates: allFutureInstances.map(i => i.Date)
     };
     
-    // **FIX**: Comparing the full date string is more reliable than comparing slugs.
     const otherInstancesToDisplay = allFutureInstances.filter(inst => inst.Date !== fields['Date']);
 
     const otherInstancesHTML = otherInstancesToDisplay.slice(0, 5).map(instance => {
@@ -87,6 +87,35 @@ exports.handler = async function (event, context) {
         <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
         <link rel="stylesheet" href="/css/main.css">
+        <!-- **NEW**: CSS for the blurred background image effect -->
+        <style>
+            .hero-image-container {
+                position: relative;
+                width: 100%;
+                aspect-ratio: 16 / 9;
+                background-color: #1e1e1e;
+                overflow: hidden;
+                border-radius: 1.25rem;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            }
+            .hero-image-bg {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                filter: blur(24px) brightness(0.5);
+                transform: scale(1.1);
+            }
+            .hero-image-fg {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                object-fit: contain; /* This is the key change */
+                z-index: 10;
+            }
+        </style>
       </head>
       <body class="antialiased">
         <header class="p-8">
@@ -98,7 +127,11 @@ exports.handler = async function (event, context) {
         <main class="container mx-auto px-8 py-16">
             <div class="grid lg:grid-cols-3 gap-16">
                 <div class="lg:col-span-2">
-                     <img src="${fields['Promo Image'] ? fields['Promo Image'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Brum+Out+Loud'}" alt="${eventName}" class="w-full h-auto rounded-2xl mb-8 shadow-2xl object-cover aspect-video">
+                     <!-- **NEW**: Updated HTML structure for the hero image -->
+                     <div class="hero-image-container mb-8">
+                        <img src="${imageUrl}" alt="" class="hero-image-bg" aria-hidden="true">
+                        <img src="${imageUrl}" alt="${eventName}" class="hero-image-fg">
+                     </div>
                     <p class="font-semibold accent-color mb-2">EVENT DETAILS</p>
                     <h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${eventName}</h1>
                     <div class="prose prose-invert prose-lg max-w-none text-gray-300">
@@ -127,7 +160,6 @@ exports.handler = async function (event, context) {
                 </div>
             </div>
         </main>
-        <!-- **FIX**: Restored the full, readable JavaScript for the calendar buttons -->
         <script>
             const calendarData = ${JSON.stringify(calendarData)};
             

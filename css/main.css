@@ -28,6 +28,7 @@ body {
 .card-bg {
     background-color: #1e1e1e; border: 1px solid #2e2e2e;
     border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden; /* Important for containing the image corners */
 }
 
 .heading-gradient {
@@ -36,7 +37,6 @@ body {
     background-clip: text; text-fill-color: transparent;
 }
 
-/* FIX: Definitive styles for filter buttons added to central CSS */
 .filter-button {
     background-color: rgba(42, 42, 42, 0.8);
     color: #EAEAEA;
@@ -74,16 +74,29 @@ body {
 .item-card-image-container {
     aspect-ratio: 1 / 1;
     overflow: hidden;
-    /* FIX: Ensure top corners are rounded to match the parent card */
-    border-top-left-radius: 1.25rem;
-    border-top-right-radius: 1.25rem;
+    position: relative; /* Needed for positioning child images */
 }
-.item-card-image {
+
+/* NEW: Styles for the blurred background and foreground image effect */
+.item-card-image-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.4s ease;
+    filter: blur(16px) brightness(0.6);
+    transform: scale(1.1);
 }
-.item-card:hover .item-card-image {
+.item-card-image-fg {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Default state: cropped */
+    transition: all 0.4s ease;
+}
+.item-card:hover .item-card-image-fg {
+    object-fit: contain; /* Hover state: uncropped */
     transform: scale(1.05);
 }

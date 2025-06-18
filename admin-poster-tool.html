@@ -93,7 +93,9 @@
                         <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Ticket Link</label><input type="url" name="ticketLink" value="${eventData.ticketLink || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
                         <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Parent Event Name</label><input type="text" name="parentEventName" value="${eventData.parentEventName || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
                     </div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Recurring Info</label><input type="text" name="recurringInfo" value="" class="w-full p-2 bg-gray-900/50 rounded-md" placeholder="e.g., Every second Friday"></div>
                     <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Categories (comma-separated)</label><input type="text" name="categories" value="${categories}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Promo Image (Optional Override)</label><input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif"></div>
                     
                     <div class="flex justify-end gap-4 pt-2">
                         <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
@@ -151,19 +153,20 @@
                 target.disabled = true;
                 target.textContent = 'Adding...';
 
+                // **FIX:** Now using FormData to handle the image file upload
                 const formData = new FormData(reviewForm);
-                const eventData = Object.fromEntries(formData.entries());
                 
                 try {
                     const response = await fetch('/.netlify/functions/create-approved-event', {
                         method: 'POST',
-                        body: JSON.stringify(eventData)
+                        body: formData // Send the form data directly
                     });
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.message);
                     
                     reviewForm.style.opacity = '0.5';
-                    reviewForm.innerHTML = `<p class="text-center text-green-400">Approved & Added: ${eventData.name}</p>`;
+                    const eventName = new FormData(reviewForm).get('name');
+                    reviewForm.innerHTML = `<p class="text-center text-green-400">Approved & Added: ${eventName}</p>`;
 
                 } catch (error) {
                     target.disabled = false;

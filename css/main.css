@@ -28,7 +28,7 @@ body {
 .card-bg {
     background-color: #1e1e1e; border: 1px solid #2e2e2e;
     border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    overflow: hidden; /* Important for containing the image corners */
+    overflow: hidden; 
 }
 
 .heading-gradient {
@@ -59,8 +59,8 @@ body {
 }
 .filter-button.active {
     background-color: transparent;
-    color: #B564F7; /* accent-color */
-    border-color: #B564F7; /* accent-color */
+    color: #B564F7;
+    border-color: #B564F7;
 }
 
 /* Event/Venue Card Styles */

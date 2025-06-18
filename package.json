@@ -7,6 +7,6 @@
     "lambda-multipart-parser": "^1.0.1",
     "node-fetch": "^2.6.7",
     "cheerio": "^1.0.0-rc.12",
-    "csv-parse": "^5.5.6"
+    "xlsx": "^0.18.5"
   }
 }

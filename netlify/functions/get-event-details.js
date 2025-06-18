@@ -45,6 +45,8 @@ exports.handler = async function (event, context) {
     // --- Step 3: Prepare all data for the template ---
     const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : (fields['VenueText'] || 'TBC');
+    // **FIX:** Explicitly get the venue slug to use for the link
+    const venueSlug = fields['Venue Slug'] ? fields['Venue Slug'][0] : null;
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
 
@@ -127,7 +129,11 @@ exports.handler = async function (event, context) {
                         </div>
                          <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
-                             <p class="text-2xl font-semibold">${venueName}</p>
+                            <!-- **FIX:** Logic to conditionally create a link for the venue -->
+                            ${venueSlug 
+                                ? `<a href="/venue/${venueSlug}" class="text-2xl font-semibold hover:text-white underline">${venueName}</a>` 
+                                : `<p class="text-2xl font-semibold">${venueName}</p>`
+                            }
                          </div>
                         ${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
 
@@ -139,10 +145,9 @@ exports.handler = async function (event, context) {
                 </div>
             </div>
         </main>
-        <!-- **FIX**: Restored the client-side script for generating calendar buttons -->
         <script>
             const calendarData = ${JSON.stringify(calendarData)};
-
+            
             function toICSDate(dateStr) { return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
 
             function generateGoogleLink(isSeries) {
@@ -176,7 +181,7 @@ exports.handler = async function (event, context) {
                 a.click();
                 document.body.removeChild(a);
             }
-
+            
             document.addEventListener('DOMContentLoaded', () => {
                 const container = document.querySelector('#add-to-calendar-section .grid');
                 let buttonsHTML = '';

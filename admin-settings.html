@@ -28,6 +28,19 @@
             </div>
 
             <div class="space-y-8">
+                <!-- Content Management Card -->
+                <div class="card-bg p-8 md:p-12">
+                    <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Content Management</h2>
+                    <p class="text-gray-400 mb-6">Tools for managing submissions and site data.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <a href="/admin/approvals" class="nav-cta text-center flex items-center justify-center gap-2">
+                            <span>Approval Queue</span>
+                            <span id="approval-count-badge" class="bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center hidden">0</span>
+                        </a>
+                        <a href="/admin/add-venue" class="nav-cta text-center">Add New Venue</a>
+                    </div>
+                </div>
+                
                 <!-- Affiliate Management Card -->
                 <form id="settings-form" class="card-bg p-8 md:p-12 space-y-8">
                     <div>
@@ -54,20 +67,6 @@
                     </div>
                     <div id="success-message" class="text-green-400 mt-4 text-center hidden">Settings saved successfully!</div>
                 </form>
-
-                <!-- Data Tools Card -->
-                <div class="card-bg p-8 md:p-12">
-                    <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Content Tools</h2>
-                    <p class="text-gray-400 mb-6">Tools for managing submissions and site data.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- **FIX**: Added a span for the counter badge -->
-                        <a href="/admin/approvals" class="nav-cta text-center flex items-center justify-center gap-2">
-                            <span>Go to Approval Queue</span>
-                            <span id="approval-count-badge" class="bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center hidden">0</span>
-                        </a>
-                        <a href="/admin/poster-tool" class="nav-cta text-center">Go to Poster Parser</a>
-                    </div>
-                </div>
             </div>
         </section>
     </main>
@@ -83,7 +82,6 @@
             document.getElementById('skiddle-id').value = '15424'; 
         }
 
-        // **NEW**: Function to fetch and display the pending count
         async function loadPendingCount() {
             try {
                 const response = await fetch('/.netlify/functions/get-pending-items');
@@ -122,7 +120,7 @@
         
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
-            loadPendingCount(); // Fetch the count when the page loads
+            loadPendingCount();
         });
     </script>
 </body>

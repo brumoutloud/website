@@ -7,16 +7,15 @@ exports.handler = async function (event, context) {
     }
 
     try {
+        // **FIX**: By removing the specific `fields` array, the query will now return all fields
+        // for the matching records, which prevents the function from crashing if a specific
+        // column like "Contact Email" doesn't exist in the Airtable base.
         const fetchEvents = base('Events').select({
-            filterByFormula: "{Status} = 'Pending Review'",
-            // **FIX:** Added 'Contact Email' to the list of fields to fetch.
-            fields: ["Event Name", "Description", "VenueText", "Contact Email"]
+            filterByFormula: "{Status} = 'Pending Review'"
         }).all();
 
         const fetchVenues = base('Venues').select({
-            filterByFormula: "{Status} = 'Pending Review'",
-            // **FIX:** Added 'Contact Email' to the list of fields to fetch.
-            fields: ["Name", "Description", "Address", "Contact Email"]
+            filterByFormula: "{Status} = 'Pending Review'"
         }).all();
 
         const [eventRecords, venueRecords] = await Promise.all([fetchEvents, fetchVenues]);
@@ -27,10 +26,10 @@ exports.handler = async function (event, context) {
             pendingItems.push({
                 id: record.id,
                 type: 'Event',
-                name: record.get('Event Name'),
+                name: record.get('Event Name') || 'No Name',
                 description: record.get('Description'),
                 location: record.get('VenueText'),
-                contactEmail: record.get('Contact Email') // Now included
+                contactEmail: record.get('Contact Email') // This will now safely return undefined if the field doesn't exist
             });
         });
 
@@ -38,10 +37,10 @@ exports.handler = async function (event, context) {
             pendingItems.push({
                 id: record.id,
                 type: 'Venue',
-                name: record.get('Name'),
+                name: record.get('Name') || 'No Name',
                 description: record.get('Description'),
                 location: record.get('Address'),
-                contactEmail: record.get('Contact Email') // Now included
+                contactEmail: record.get('Contact Email')
             });
         });
 

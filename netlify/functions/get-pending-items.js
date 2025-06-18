@@ -7,18 +7,24 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        // **FIX:** By removing the specific `fields` array, the query will now return all fields
-        // for the matching records. This makes the function much more robust and less likely
-        // to fail if a column name is slightly different.
-        const fetchEvents = base('Events').select({
-            filterByFormula: "{Status} = 'Pending Review'"
-        }).all();
+        console.log("Step 1: Starting function execution.");
 
-        const fetchVenues = base('Venues').select({
+        const eventQuery = base('Events').select({
             filterByFormula: "{Status} = 'Pending Review'"
-        }).all();
+        });
+        console.log("Step 2: Created query for Events.");
 
-        const [eventRecords, venueRecords] = await Promise.all([fetchEvents, fetchVenues]);
+        const venueQuery = base('Venues').select({
+            filterByFormula: "{Status} = 'Pending Review'"
+        });
+        console.log("Step 3: Created query for Venues.");
+
+        console.log("Step 4: Fetching all records from Airtable...");
+        const [eventRecords, venueRecords] = await Promise.all([
+            eventQuery.all(),
+            venueQuery.all()
+        ]);
+        console.log(`Step 5: Fetched data successfully. Found ${eventRecords.length} events and ${venueRecords.length} venues.`);
 
         const pendingItems = [];
 
@@ -29,7 +35,6 @@ exports.handler = async function (event, context) {
                 name: record.get('Event Name') || 'No Name',
                 description: record.get('Description'),
                 location: record.get('VenueText'),
-                // This will now reliably find the email, regardless of the column name.
                 contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
             });
         });
@@ -44,6 +49,8 @@ exports.handler = async function (event, context) {
                 contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
             });
         });
+        
+        console.log("Step 6: Processed all records. Returning data.");
 
         return {
             statusCode: 200,
@@ -51,10 +58,10 @@ exports.handler = async function (event, context) {
         };
 
     } catch (error) {
-        console.error("Error fetching pending items:", error);
+        console.error("!!! CRITICAL ERROR fetching pending items:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Failed to fetch pending items' }),
+            body: JSON.stringify({ error: 'Failed to fetch pending items', details: error.message }),
         };
     }
 };

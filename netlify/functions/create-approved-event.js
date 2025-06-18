@@ -88,7 +88,8 @@ exports.handler = async function (event, context) {
                 'Description': eventData.description || '',
                 'VenueText': eventData.venue || '',
                 'Date': `${date}T${eventData.time || '00:00'}:00.000Z`,
-                'Status': 'Approved'
+                // **FIX**: All submissions from this tool now go into the queue for final review.
+                'Status': 'Pending Review'
             };
 
             if (venueRecordId) fields['Venue'] = [venueRecordId];
@@ -97,8 +98,6 @@ exports.handler = async function (event, context) {
             if (eventData.recurringInfo) fields['Recurring Info'] = eventData.recurringInfo;
             if (eventData.categories && Array.isArray(eventData.categories)) fields['Category'] = eventData.categories;
             if (uploadedImage) fields['Promo Image'] = [{ url: uploadedImage.url }];
-            // **FIX:** Removed the line that was causing the error.
-            // The contact email from the form will no longer be saved to Airtable.
             
             return { fields };
         });

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poster Upload Tool | Brum Out Loud</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/auth-guard.js"></script>
+</head>
+<body class="antialiased">
+
+    <header class="p-8">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+            <div class="font-semibold text-gray-400">Admin Panel</div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-8 py-16">
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">POSTER <span class="accent-color">PARSER</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Upload an event poster and let the AI extract the details. Review and approve the events to add them to the site.</p>
+            </div>
+
+            <form id="poster-form" class="card-bg p-8 md:p-12 space-y-6">
+                 <div>
+                    <label for="poster-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Upload Poster Image</label>
+                    <input type="file" id="poster-file" name="poster" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif" required>
+                </div>
+                 <div id="image-preview" class="hidden">
+                    <p class="text-sm font-semibold mb-2 accent-color-secondary">Image Preview</p>
+                    <img id="preview-img" class="rounded-lg max-h-64 mx-auto" alt="Image preview">
+                 </div>
+                <div class="pt-4">
+                    <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity w-full flex items-center justify-center">
+                         <span id="submit-text">Parse Poster</span>
+                         <span id="submit-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
+                    </button>
+                </div>
+            </form>
+
+            <div id="results-container" class="mt-12 space-y-6">
+                <!-- Parsed event forms will be injected here -->
+            </div>
+            <div id="status-message" class="mt-4 text-center"></div>
+        </section>
+    </main>
+    
+    <script>
+        const form = document.getElementById('poster-form');
+        const fileInput = document.getElementById('poster-file');
+        const imagePreviewContainer = document.getElementById('image-preview');
+        const previewImg = document.getElementById('preview-img');
+        const submitBtn = form.querySelector('button[type=submit]');
+        const submitText = document.getElementById('submit-text');
+        const submitLoader = document.getElementById('submit-loader');
+        const resultsContainer = document.getElementById('results-container');
+        const statusMessage = document.getElementById('status-message');
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    imagePreviewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        function renderEventForm(eventData, index) {
+            const formHtml = `
+                <form class="event-review-form card-bg p-6 space-y-4" data-index="${index}">
+                    <h3 class="font-anton text-2xl text-white">Review Event ${index + 1}</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Name</label><input type="text" name="name" value="${eventData.name || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label><input type="text" name="venue" value="${eventData.venue || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Date</label><input type="date" name="date" value="${eventData.date || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Time</label><input type="time" name="time" value="${eventData.time || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
+                    <div class="flex justify-end gap-4 pt-2">
+                        <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
+                        <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Approve & Add</button>
+                    </div>
+                </form>
+            `;
+            resultsContainer.insertAdjacentHTML('beforeend', formHtml);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+
+            submitBtn.disabled = true;
+            submitText.textContent = 'Processing...';
+            submitLoader.classList.remove('hidden');
+            resultsContainer.innerHTML = '';
+            statusMessage.textContent = 'Uploading image and contacting AI. This may take a moment...';
+            
+            try {
+                const response = await fetch('/.netlify/functions/process-poster', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'An unknown server error occurred.');
+                
+                statusMessage.textContent = `AI found ${result.events.length} event(s). Please review and approve.`;
+                if(result.events.length === 0) { statusMessage.textContent = "AI couldn't find any clear event details on this poster."; }
+
+                result.events.forEach(renderEventForm);
+
+            } catch (error) {
+                statusMessage.textContent = `Error: ${error.toString()}`;
+            } finally {
+                 submitBtn.disabled = false;
+                 submitText.textContent = 'Parse Poster';
+                 submitLoader.classList.add('hidden');
+            }
+        });
+
+        resultsContainer.addEventListener('click', async (e) => {
+            const target = e.target;
+            const reviewForm = target.closest('.event-review-form');
+            if (!reviewForm) return;
+
+            if (target.classList.contains('reject-btn')) {
+                reviewForm.style.opacity = '0.5';
+                reviewForm.innerHTML = '<p class="text-center text-red-400">Rejected</p>';
+            }
+
+            if (target.classList.contains('approve-btn')) {
+                e.preventDefault();
+                target.disabled = true;
+                target.textContent = 'Adding...';
+
+                const formData = new FormData(reviewForm);
+                const eventData = Object.fromEntries(formData.entries());
+                
+                try {
+                    const response = await fetch('/.netlify/functions/create-approved-event', {
+                        method: 'POST',
+                        body: JSON.stringify(eventData)
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message);
+                    
+                    reviewForm.style.opacity = '0.5';
+                    reviewForm.innerHTML = `<p class="text-center text-green-400">Approved & Added: ${eventData.name}</p>`;
+
+                } catch (error) {
+                    target.disabled = false;
+                    target.textContent = 'Approve & Add';
+                    alert(`Error adding event: ${error.toString()}`);
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

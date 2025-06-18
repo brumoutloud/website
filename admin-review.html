@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Parsed Events | Brum Out Loud</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/auth-guard.js"></script>
+</head>
+<body class="antialiased">
+
+    <header class="p-8">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+            <a href="/admin/settings" class="text-gray-300 hover:text-white">Back to Admin Settings</a>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-8 py-16">
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">REVIEW <span class="accent-color">EVENTS</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">The smart system has extracted the following events. Please review, edit if necessary, and approve them to add them to the site.</p>
+            </div>
+
+            <div id="results-container" class="space-y-6">
+                <!-- Parsed event forms will be injected here -->
+            </div>
+            <div id="status-message" class="mt-8 text-center"></div>
+        </section>
+    </main>
+    
+    <script>
+        const resultsContainer = document.getElementById('results-container');
+        const statusMessage = document.getElementById('status-message');
+
+        function renderEventForm(eventData, index) {
+            const categories = Array.isArray(eventData.categories) ? eventData.categories.join(', ') : '';
+            const formHtml = `
+                <form class="event-review-form card-bg p-6 space-y-4" data-index="${index}">
+                    <h3 class="font-anton text-2xl text-white">Review Event ${index + 1}</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Name</label><input type="text" name="name" value="${eventData.name || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label><input type="text" name="venue" value="${eventData.venue || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Date</label><input type="date" name="date" value="${eventData.date || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Time (24hr)</label><input type="time" name="time" value="${eventData.time || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
+                    <div class="flex justify-end gap-4 pt-2">
+                        <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
+                        <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Approve & Add</button>
+                    </div>
+                </form>
+            `;
+            resultsContainer.insertAdjacentHTML('beforeend', formHtml);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Read the data from the URL hash
+                const encodedData = window.location.hash.substring(1);
+                if (!encodedData) {
+                    statusMessage.textContent = 'No event data found to review.';
+                    return;
+                }
+                const jsonData = atob(decodeURIComponent(encodedData));
+                const parsedEvents = JSON.parse(jsonData);
+
+                if (parsedEvents && parsedEvents.length > 0) {
+                    parsedEvents.forEach(renderEventForm);
+                } else {
+                    statusMessage.textContent = 'No events were found in the uploaded file.';
+                }
+            } catch (e) {
+                console.error("Error parsing data from URL:", e);
+                statusMessage.textContent = 'Could not read the event data. Please try uploading again.';
+            }
+        });
+        
+        resultsContainer.addEventListener('click', async (e) => {
+            const target = e.target;
+            const reviewForm = target.closest('.event-review-form');
+            if (!reviewForm) return;
+
+            if (target.classList.contains('reject-btn')) {
+                reviewForm.style.opacity = '0.5';
+                reviewForm.innerHTML = '<p class="text-center text-red-400 font-bold">Rejected</p>';
+            }
+
+            if (target.classList.contains('approve-btn')) {
+                e.preventDefault();
+                target.disabled = true;
+                target.textContent = 'Adding...';
+
+                const formData = new FormData(reviewForm);
+                const eventData = Object.fromEntries(formData.entries());
+                
+                try {
+                    const response = await fetch('/.netlify/functions/create-approved-event', {
+                        method: 'POST',
+                        body: JSON.stringify(eventData)
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message);
+                    
+                    reviewForm.style.opacity = '0.5';
+                    reviewForm.innerHTML = `<p class="text-center text-green-400 font-bold">Approved & Added: ${eventData.name}</p>`;
+
+                } catch (error) {
+                    target.disabled = false;
+                    target.textContent = 'Approve & Add';
+                    alert(`Error adding event: ${error.toString()}`);
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

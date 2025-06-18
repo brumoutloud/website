@@ -11,15 +11,15 @@
     <link rel="stylesheet" href="/css/main.css">
     <style>
         .popover {
-            display: none; /* Initially hidden */
+            display: none;
             position: absolute;
             margin-top: 0.5rem;
-            width: 18rem; /* w-72 */
-            border-radius: 0.75rem; /* rounded-xl */
+            width: 18rem;
+            border-radius: 0.75rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             padding: 1rem;
             z-index: 20;
-            background-color: #1e1e1e; /* Changed from #2a2a2a to card-bg color */
+            background-color: #1e1e1e;
             border: 1px solid #2e2e2e;
         }
         .popover.show {
@@ -30,20 +30,20 @@
             width: 100%;
             text-align: left;
             padding: 0.5rem 1rem;
-            border-radius: 0.5rem; /* rounded-lg */
-            color: #D1D5DB; /* text-gray-300 */
+            border-radius: 0.5rem;
+            color: #D1D5DB;
         }
         .popover-option:hover {
-            background-color: #374151; /* bg-gray-700 */
+            background-color: #374151;
         }
         .category-tag {
             display: inline-block;
-            background-color: rgba(181, 100, 247, 0.1); /* bg-accent-color/10 */
-            color: #B564F7; /* accent-color */
-            font-size: 0.75rem; /* text-sm */
-            font-weight: 600; /* font-semibold */
-            padding: 0.25rem 0.75rem; /* px-3 py-1 */
-            border-radius: 9999px; /* rounded-full */
+            background-color: rgba(181, 100, 247, 0.1);
+            color: #B564F7;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
         }
     </style>
 </head>
@@ -212,12 +212,11 @@
                 const tagsHTML = event.category.map(cat => `<span class="category-tag">${cat}</span>`).join('');
                 const imageUrl = event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
 
-                // **FIX:** Using the new HTML structure for the image container
+                // **FIX:** Using the simpler HTML structure for the image card
                 const eventCard = `
                     <a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in">
                         <div class="item-card-image-container">
-                            <img src="${imageUrl}" alt="" class="item-card-image-bg" aria-hidden="true">
-                            <img src="${imageUrl}" alt="${event.name}" class="item-card-image-fg" loading="lazy">
+                            <img src="${imageUrl}" alt="${event.name}" class="item-card-image" loading="lazy">
                         </div>
                         <div class="p-6">
                             <div class="mb-2 flex flex-wrap gap-2">${tagsHTML}</div>

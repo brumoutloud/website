@@ -3,8 +3,11 @@ const parser = require('lambda-multipart-parser');
 const fetch = require('node-fetch');
 const cloudinary = require('cloudinary').v2;
 
-// --- Initialize Airtable and Cloudinary ---
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
+const eventsTable = base('Events');
+const venuesTable = base('Venues');
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -13,13 +16,13 @@ cloudinary.config({
 });
 
 // --- Helper Functions ---
-async function findVenueRecord(venueName) {
+async function findVenueRecordId(venueName) {
     if (!venueName) return null;
     const sanatizedVenueName = venueName.toLowerCase().replace(/"/g, '\\"');
     const formula = `OR(LOWER({Name}) = "${sanatizedVenueName}", FIND("${sanatizedVenueName}", LOWER({Name})), FIND("${sanatizedVenueName}", LOWER({Aliases})))`;
     try {
-        const records = await base('Venues').select({ maxRecords: 1, filterByFormula: formula }).firstPage();
-        return records.length > 0 ? records[0] : null;
+        const records = await venuesTable.select({ maxRecords: 1, filterByFormula: formula }).firstPage();
+        return records.length > 0 ? records[0].id : null;
     } catch (error) {
         console.error("Error finding venue:", error);
         return null;
@@ -27,7 +30,7 @@ async function findVenueRecord(venueName) {
 }
 
 async function uploadImage(file) {
-    if (!file) return null;
+    if (!file || !file.content) return null;
     try {
         const base64String = file.content.toString('base64');
         const dataUri = `data:${file.contentType};base64,${base64String}`;
@@ -40,102 +43,96 @@ async function uploadImage(file) {
 }
 
 async function getDatesFromAI(eventName, startDate, recurringInfo) {
-    const prompt = `You are an event scheduling assistant. An event named "${eventName}" is scheduled to start on ${startDate}. The user has provided the following rule for when it should recur: "${recurringInfo}". Generate a list of all future dates for this event for the next 3 months. Include the original start date. The dates must be a comma-separated list of YYYY-MM-DD strings.`;
-    const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        console.warn("GEMINI_API_KEY not set. Falling back to single date.");
-        return [startDate];
-    }
+    if (!GEMINI_API_KEY) return [startDate];
+    const prompt = `For an event named "${eventName}" starting on ${startDate} with the rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format.`;
+    const payload = { contents: [{ parts: [{ text: prompt }] }] };
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
     
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-            console.error("AI API response was not OK:", response.status);
-            return [startDate];
-        }
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) return [startDate];
         const result = await response.json();
         const textResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-            return textResponse.trim().split(',').map(d => d.trim());
-        }
-        return [startDate];
+        return textResponse ? textResponse.trim().split(',').map(d => d.trim()) : [startDate];
     } catch (error) {
-        console.error("Error calling AI:", error);
+        console.error("Error calling AI for dates:", error);
         return [startDate];
     }
 }
 
-// --- Main Handler ---
+
 exports.handler = async function (event, context) {
-    let submission;
-    try {
-        submission = await parser.parse(event);
-    } catch (e) {
-        console.error("Error parsing form data:", e.toString());
-        return { 
-            statusCode: 400, 
-            body: `Error processing form data: ${e.message}` 
+    let submissionData;
+    let promoImageFile = null;
+    const isJson = event.headers['content-type'] === 'application/json';
+
+    // **FIX:** Handle both JSON and multipart form data
+    if (isJson) {
+        submissionData = JSON.parse(event.body);
+    } else {
+        const parsedForm = await parser.parse(event);
+        submissionData = {
+            name: parsedForm['event-name'],
+            venue: parsedForm.venue,
+            date: parsedForm.date,
+            time: parsedForm['start-time'],
+            description: parsedForm.description,
+            link: parsedForm.link,
+            recurringInfo: parsedForm['recurring-info'],
+            contactEmail: parsedForm.email,
         };
+        promoImageFile = parsedForm.files.find(f => f.fieldname === 'promo-image');
     }
 
     try {
-        const venueRecord = await findVenueRecord(submission.venue);
-        const promoImageFile = submission.files.find(f => f.fieldname === 'promo-image');
+        const venueRecordId = await findVenueRecordId(submissionData.venue);
         const uploadedImage = await uploadImage(promoImageFile);
+        
         let datesToCreate = [];
-        const recurringInfoText = submission['recurring-info'] || null;
-        const parentEventName = submission['event-name'];
+        const recurringInfoText = submissionData.recurringInfo || null;
 
         if (recurringInfoText && recurringInfoText.trim() !== '') {
-            datesToCreate = await getDatesFromAI(parentEventName, submission.date, recurringInfoText);
+            datesToCreate = await getDatesFromAI(submissionData.name, submissionData.date, recurringInfoText);
         } else {
-            datesToCreate.push(submission.date);
+            datesToCreate.push(submissionData.date);
         }
 
         const recordsToCreate = datesToCreate.map((date, index) => {
-            const eventNameForInstance = submission['event-name']; 
-
             const fields = {
-                "Event Name": eventNameForInstance,
-                "Description": submission.description,
-                "Date": `${date}T${submission['start-time']}:00.000Z`,
-                "Link": submission.link,
-                "Status": "Pending Review",
-                "VenueText": submission.venue,
+                'Event Name': submissionData.name,
+                'Description': submissionData.description || '',
+                'VenueText': submissionData.venue || '',
+                'Date': `${date}T${submissionData.time || '00:00'}:00.000Z`,
+                'Link': submissionData.link || '',
+                'Contact Email': submissionData.contactEmail || '',
+                'Status': 'Pending Review'
             };
 
-            if (venueRecord) fields["Venue"] = [venueRecord.id];
-            if (uploadedImage) fields["Promo Image"] = [{ url: uploadedImage.url }];
-            
+            if (venueRecordId) fields.Venue = [venueRecordId];
+            if (uploadedImage) fields['Promo Image'] = [{ url: uploadedImage.url }];
             if (recurringInfoText) {
-                fields["Parent Event Name"] = parentEventName; 
-                if (index === 0) {
-                     fields["Recurring Info"] = recurringInfoText;
-                }
+                fields['Parent Event Name'] = submissionData.name;
+                if (index === 0) fields['Recurring Info'] = recurringInfoText;
             }
             return { fields };
         });
 
         const chunkSize = 10;
         for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
-            await base('Events').create(recordsToCreate.slice(i, i + chunkSize), { typecast: true });
+            await eventsTable.create(recordsToCreate.slice(i, i + chunkSize));
         }
 
-        return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'text/html' },
-            body: `<!DOCTYPE html><html><head><title>Success</title><meta http-equiv="refresh" content="3;url=/events.html"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;"><h1>Thank you!</h1><p>Your event has been submitted for review.</p><p>You will be redirected shortly.</p></body></html>`
-        };
+        if (isJson) {
+            return { statusCode: 200, body: JSON.stringify({ success: true }) };
+        } else {
+            return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'text/html' },
+                body: `<!DOCTYPE html><html><head><title>Success</title><meta http-equiv="refresh" content="3;url=/events.html"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;"><h1>Thank you!</h1><p>Your event has been submitted for review.</p><p>You will be redirected shortly.</p></body></html>`
+            };
+        }
     } catch (error) {
-        console.error("An error occurred during event submission:", error);
-        return { 
-            statusCode: 500,
-            body: `<html><body><h1>Server Error</h1><p>An unexpected error occurred while submitting your event. The team has been notified.</p><pre>${error.toString()}</pre></body></html>`
-        };
+        console.error("Error processing event submission:", error);
+        return { statusCode: 500, body: `Error: ${error.toString()}` };
     }
 };

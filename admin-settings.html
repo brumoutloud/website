@@ -9,8 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
-    <!-- **NEW**: Including the auth guard script -->
-    <script type="module" src="/js/auth-guard.js"></script>
 </head>
 <body class="antialiased">
 
@@ -28,65 +26,72 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Manage global settings for the website, such as affiliate codes and integrations.</p>
             </div>
 
-            <div class="space-y-8">
-                <!-- Affiliate Management Card -->
-                <form id="settings-form" class="card-bg p-8 md:p-12 space-y-8">
-                    <div>
-                        <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Affiliate Link Management</h2>
-                        <p class="text-gray-400 mb-6">The codes entered here will be automatically appended to the relevant links across the site.</p>
-                        
-                        <div class="space-y-6">
-                            <div>
-                                <label for="skiddle-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Skiddle Affiliate ID (sktag)</label>
-                                <input type="text" id="skiddle-id" name="skiddleId" placeholder="e.g., 15424" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
-                            </div>
-                            <div>
-                                <label for="hotels-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Hotels.com Affiliate ID</label>
-                                <input type="text" id="hotels-id" name="hotelsId" placeholder="e.g., 12345" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
-                            </div>
+            <form id="settings-form" class="card-bg p-8 md:p-12 space-y-8">
+                <div>
+                    <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Affiliate Link Management</h2>
+                    <p class="text-gray-400 mb-6">The codes entered here will be automatically appended to the relevant links across the site.</p>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label for="skiddle-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Skiddle Affiliate ID (sktag)</label>
+                            <input type="text" id="skiddle-id" name="skiddleId" placeholder="e.g., 15424" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
+                        </div>
+                        <div>
+                            <label for="hotels-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Hotels.com Affiliate ID</label>
+                            <input type="text" id="hotels-id" name="hotelsId" placeholder="e.g., 12345" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
                         </div>
                     </div>
-                    
-                    <div class="text-right pt-4">
-                        <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity flex items-center">
-                             <span id="save-button-text">Save Settings</span>
-                             <span id="save-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
-                        </button>
-                    </div>
-                    <div id="success-message" class="text-green-400 mt-4 text-center hidden">Settings saved successfully!</div>
-                </form>
-
-                <!-- **NEW**: Data Tools Card -->
-                <div class="card-bg p-8 md:p-12">
-                    <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools</h2>
-                    <p class="text-gray-400 mb-6">One-off tools for managing site data, such as migrating content from the old website.</p>
-                    <a href="/admin/migrate" class="nav-cta">Go to Migration Tool &rarr;</a>
                 </div>
-            </div>
+                
+                <div class="text-right pt-4">
+                    <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity flex items-center">
+                         <span id="save-button-text">Save Settings</span>
+                         <span id="save-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
+                    </button>
+                </div>
+                <div id="success-message" class="text-green-400 mt-4 text-center hidden">Settings saved successfully!</div>
+            </form>
         </section>
     </main>
     
     <script>
+        // In a real application, you would create serverless functions
+        // to save these settings to and load them from a 'Settings' table in Airtable.
+        // For now, this script demonstrates the UI functionality.
+
         const form = document.getElementById('settings-form');
         const saveBtnText = document.getElementById('save-button-text');
         const saveLoader = document.getElementById('save-loader');
         const successMessage = document.getElementById('success-message');
 
+        // Dummy function to simulate loading settings
         function loadSettings() {
-            document.getElementById('skiddle-id').value = '15424'; 
+            // In the future, this would fetch from /api/get-settings
+            document.getElementById('skiddle-id').value = '15424'; // Example value
         }
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
+            
+            // Show loading state
             saveBtnText.textContent = 'Saving...';
             saveLoader.classList.remove('hidden');
             successMessage.classList.add('hidden');
             form.querySelector('button[type=submit]').disabled = true;
 
+            // In the future, this would POST to /api/save-settings
+            // const skiddleId = document.getElementById('skiddle-id').value;
+            // const hotelsId = document.getElementById('hotels-id').value;
+            // await fetch('/.netlify/functions/save-settings', { method: 'POST', body: JSON.stringify({ skiddleId, hotelsId }) });
+
+            // Simulate a network request
             setTimeout(() => {
+                // Restore button state
                 saveBtnText.textContent = 'Save Settings';
                 saveLoader.classList.add('hidden');
                 form.querySelector('button[type=submit]').disabled = false;
+                
+                // Show success message
                 successMessage.classList.remove('hidden');
                 setTimeout(() => {
                      successMessage.classList.add('hidden');
@@ -95,7 +100,10 @@
             }, 1500);
         });
         
+        // Load settings when the page loads
         document.addEventListener('DOMContentLoaded', loadSettings);
+
     </script>
+
 </body>
 </html>

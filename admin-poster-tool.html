@@ -36,7 +36,7 @@
                         <input type="file" id="poster-file" name="poster" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif" required>
                     </div>
                     <div id="image-preview" class="hidden"><img id="preview-img" class="rounded-lg max-h-64 mx-auto" alt="Image preview"></div>
-                    <div class="pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg w-full">Parse Poster</button></div>
+                    <div class="pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg w-full flex items-center justify-center">Parse Poster</button></div>
                 </form>
 
                 <!-- Spreadsheet Parser -->
@@ -46,7 +46,7 @@
                         <label for="spreadsheet-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Upload Spreadsheet</label>
                         <input type="file" id="spreadsheet-file" name="spreadsheet" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
                     </div>
-                    <div class="pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg w-full">Parse Spreadsheet</button></div>
+                    <div class="pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg w-full flex items-center justify-center">Parse Spreadsheet</button></div>
                 </form>
             </div>
 
@@ -107,11 +107,12 @@
         
         async function handleFormSubmit(formElement, endpoint) {
             const submitBtn = formElement.querySelector('button[type=submit]');
+            const originalBtnText = submitBtn.textContent;
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loader ml-3 w-5 h-5 border-2"></span>';
+            submitBtn.innerHTML = '<span class="loader ml-3 w-5 h-5 border-2"></span><span class="ml-2">Processing...</span>';
             
             resultsContainer.innerHTML = '';
-            statusMessage.textContent = 'Processing... This may take a moment.';
+            statusMessage.textContent = 'Contacting our smart system... This may take a moment.';
             statusMessage.classList.remove('hidden');
 
             try {
@@ -128,7 +129,7 @@
                 statusMessage.textContent = `Error: ${error.toString()}`;
             } finally {
                  submitBtn.disabled = false;
-                 submitBtn.textContent = formElement.id === 'poster-form' ? 'Parse Poster' : 'Parse Spreadsheet';
+                 submitBtn.innerHTML = originalBtnText;
             }
         }
 
@@ -137,7 +138,6 @@
             handleFormSubmit(posterForm, '/.netlify/functions/process-poster');
         });
 
-        // **FIX**: Added event listener for the spreadsheet form
         bulkUploadForm.addEventListener('submit', (e) => {
             e.preventDefault();
             handleFormSubmit(bulkUploadForm, '/.netlify/functions/process-spreadsheet');
@@ -150,13 +150,14 @@
 
             if (target.classList.contains('reject-btn')) {
                 reviewForm.style.opacity = '0.5';
-                reviewForm.innerHTML = '<p class="text-center text-red-400">Rejected</p>';
+                reviewForm.innerHTML = '<p class="text-center text-red-400 font-bold">Rejected</p>';
             }
 
             if (target.classList.contains('approve-btn')) {
                 e.preventDefault();
-                target.disabled = true;
-                target.textContent = 'Adding...';
+                const approveButton = reviewForm.querySelector('.approve-btn');
+                approveButton.disabled = true;
+                approveButton.textContent = 'Adding...';
 
                 const formData = new FormData(reviewForm);
                 const eventData = Object.fromEntries(formData.entries());
@@ -170,11 +171,11 @@
                     if (!response.ok) throw new Error(result.message);
                     
                     reviewForm.style.opacity = '0.5';
-                    reviewForm.innerHTML = `<p class="text-center text-green-400">Approved & Added: ${eventData.name}</p>`;
+                    reviewForm.innerHTML = `<p class="text-center text-green-400 font-bold">Approved & Added: ${eventData.name}</p>`;
 
                 } catch (error) {
-                    target.disabled = false;
-                    target.textContent = 'Approve & Add';
+                    approveButton.disabled = false;
+                    approveButton.textContent = 'Approve & Add';
                     alert(`Error adding event: ${error.toString()}`);
                 }
             }

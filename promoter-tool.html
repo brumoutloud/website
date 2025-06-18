@@ -85,11 +85,9 @@
         });
         
         function renderEventForm(eventData, index) {
-            const parsedCategories = Array.isArray(eventData.categories) ? eventData.categories : [];
-            
-            // Create options for the multi-select dropdown
+            const categories = Array.isArray(eventData.categories) ? eventData.categories.join(', ') : '';
             const categoryOptions = VALID_CATEGORIES.map(cat => {
-                const isSelected = parsedCategories.includes(cat);
+                const isSelected = (Array.isArray(eventData.categories) && eventData.categories.includes(cat));
                 return `<option value="${cat}" ${isSelected ? 'selected' : ''}>${cat}</option>`;
             }).join('');
 
@@ -107,7 +105,7 @@
                     <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
                     <div class="grid md:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Ticket Link</label><input type="url" name="ticketLink" value="${eventData.ticketLink || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
-                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Event Series Name (if applicable)</label><input type="text" name="parentEventName" value="${eventData.parentEventName || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Event Series Name</label><input type="text" name="parentEventName" value="${eventData.parentEventName || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
                     </div>
                     <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Recurring Info</label><input type="text" name="recurringInfo" value="" class="w-full p-2 bg-gray-900/50 rounded-md" placeholder="e.g., Every second Friday"></div>
                     <div>
@@ -118,7 +116,7 @@
                     
                     <div class="flex justify-end gap-4 pt-2">
                         <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
-                        <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Approve & Submit</button>
+                        <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Submit for Review</button>
                     </div>
                 </form>
             `;
@@ -178,10 +176,10 @@
                 approveButton.textContent = 'Submitting...';
 
                 const formData = new FormData(reviewForm);
-                // **FIX:** Add the promoter email to the form data
                 formData.append('contactEmail', promoterEmailInput.value);
                 
                 try {
+                    // **FIX**: The save function is now create-approved-event, but it saves as 'Pending Review'
                     const response = await fetch('/.netlify/functions/create-approved-event', {
                         method: 'POST',
                         body: formData
@@ -191,11 +189,12 @@
                     
                     reviewForm.style.opacity = '0.5';
                     const eventName = new FormData(reviewForm).get('name');
-                    reviewForm.innerHTML = `<p class="text-center text-green-400 font-bold">Submitted for Review: ${eventName}</p>`;
+                    // **FIX**: Update success message to be clearer
+                    reviewForm.innerHTML = `<p class="text-center text-green-400 font-bold">Submitted for Final Review: ${eventName}</p>`;
 
                 } catch (error) {
                     approveButton.disabled = false;
-                    approveButton.textContent = 'Approve & Submit';
+                    approveButton.textContent = 'Submit for Review';
                     alert(`Error adding event: ${error.toString()}`);
                 }
             }

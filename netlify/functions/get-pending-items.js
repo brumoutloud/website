@@ -1,30 +1,38 @@
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
+// This function fetches all records from a table using pagination to avoid timeouts.
+async function fetchAllRecords(tableName) {
+    const allRecords = [];
+    try {
+        await base(tableName).select({
+            filterByFormula: "{Status} = 'Pending Review'"
+        }).eachPage((records, fetchNextPage) => {
+            records.forEach(record => allRecords.push(record));
+            fetchNextPage();
+        });
+        return allRecords;
+    } catch (error) {
+        console.error(`Error fetching records from ${tableName}:`, error);
+        throw error; // Re-throw the error to be caught by the main handler
+    }
+}
+
 exports.handler = async function (event, context) {
     if (event.httpMethod !== 'GET') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        console.log("Step 1: Starting function execution.");
+        console.log("Starting function execution using paginated fetch.");
 
-        const eventQuery = base('Events').select({
-            filterByFormula: "{Status} = 'Pending Review'"
-        });
-        console.log("Step 2: Created query for Events.");
-
-        const venueQuery = base('Venues').select({
-            filterByFormula: "{Status} = 'Pending Review'"
-        });
-        console.log("Step 3: Created query for Venues.");
-
-        console.log("Step 4: Fetching all records from Airtable...");
+        // **FIX:** Using the new paginated fetch function to avoid timeouts.
         const [eventRecords, venueRecords] = await Promise.all([
-            eventQuery.all(),
-            venueQuery.all()
+            fetchAllRecords('Events'),
+            fetchAllRecords('Venues')
         ]);
-        console.log(`Step 5: Fetched data successfully. Found ${eventRecords.length} events and ${venueRecords.length} venues.`);
+        
+        console.log(`Fetched data successfully. Found ${eventRecords.length} events and ${venueRecords.length} venues.`);
 
         const pendingItems = [];
 
@@ -50,7 +58,7 @@ exports.handler = async function (event, context) {
             });
         });
         
-        console.log("Step 6: Processed all records. Returning data.");
+        console.log("Processed all records. Returning data.");
 
         return {
             statusCode: 200,

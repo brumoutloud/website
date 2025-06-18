@@ -19,8 +19,8 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             padding: 1rem;
             z-index: 20;
-            background-color: #2a2a2a; /* card-bg */
-            border: 1px solid #3a3a3a;
+            background-color: #1e1e1e; /* Changed from #2a2a2a to card-bg color */
+            border: 1px solid #2e2e2e;
         }
         .popover.show {
             display: block;
@@ -35,6 +35,15 @@
         }
         .popover-option:hover {
             background-color: #374151; /* bg-gray-700 */
+        }
+        .category-tag {
+            display: inline-block;
+            background-color: rgba(181, 100, 247, 0.1); /* bg-accent-color/10 */
+            color: #B564F7; /* accent-color */
+            font-size: 0.75rem; /* text-sm */
+            font-weight: 600; /* font-semibold */
+            padding: 0.25rem 0.75rem; /* px-3 py-1 */
+            border-radius: 9999px; /* rounded-full */
         }
     </style>
 </head>
@@ -104,21 +113,17 @@
         </section>
     </main>
     
-    <!-- **FIX:** Modal now uses a 2-column layout on medium screens and up to reduce height -->
     <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="w-full max-w-4xl">
              <form name="event-submission" class="card-bg p-8 md:p-12 space-y-6 relative" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
                 <button type="button" onclick="hideEventModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl">&times;</button>
                 <h3 class="font-anton text-4xl text-center heading-gradient mb-6">Submit an <span class="accent-color">Event</span></h3>
-                
                 <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
-                    <!-- Left Column -->
                     <div class="space-y-6">
                         <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" id="event-name" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
                         <div><label for="venue" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="venue" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
                         <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="8" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
                     </div>
-                    <!-- Right Column -->
                     <div class="space-y-6">
                         <div class="grid grid-cols-2 gap-4">
                             <div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" id="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
@@ -129,10 +134,7 @@
                         <div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div>
                     </div>
                 </div>
-
-                <div class="text-right pt-4">
-                    <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button>
-                </div>
+                <div class="text-right pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
             </form>
         </div>
     </div>
@@ -208,8 +210,22 @@
             
             events.forEach(event => {
                 const tagsHTML = event.category.map(cat => `<span class="category-tag">${cat}</span>`).join('');
-                
-                const eventCard = `<a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in"><div class="item-card-image-container"><img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy"></div><div class="p-6"><div class="mb-2 flex flex-wrap gap-2">${tagsHTML}</div><h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3><p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p><p class="text-gray-400">${event.venue}</p></div></a>`;
+                const imageUrl = event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
+
+                // **FIX:** Using the new HTML structure for the image container
+                const eventCard = `
+                    <a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in">
+                        <div class="item-card-image-container">
+                            <img src="${imageUrl}" alt="" class="item-card-image-bg" aria-hidden="true">
+                            <img src="${imageUrl}" alt="${event.name}" class="item-card-image-fg" loading="lazy">
+                        </div>
+                        <div class="p-6">
+                            <div class="mb-2 flex flex-wrap gap-2">${tagsHTML}</div>
+                            <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3>
+                            <p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
+                            <p class="text-gray-400">${event.venue}</p>
+                        </div>
+                    </a>`;
                 eventGrid.insertAdjacentHTML('beforeend', eventCard);
             });
         }

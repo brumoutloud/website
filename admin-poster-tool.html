@@ -16,7 +16,7 @@
     <header class="p-8">
         <nav class="container mx-auto flex justify-between items-center">
             <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
-            <div class="font-semibold text-gray-400">Admin Panel</div>
+            <a href="/admin/settings" class="text-gray-300 hover:text-white">Back to Admin Settings</a>
         </nav>
     </header>
 
@@ -74,7 +74,9 @@
             }
         });
         
+        // **FIX:** Updated to include all the new fields.
         function renderEventForm(eventData, index) {
+            const categories = Array.isArray(eventData.categories) ? eventData.categories.join(', ') : '';
             const formHtml = `
                 <form class="event-review-form card-bg p-6 space-y-4" data-index="${index}">
                     <h3 class="font-anton text-2xl text-white">Review Event ${index + 1}</h3>
@@ -84,9 +86,15 @@
                     </div>
                     <div class="grid md:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Date</label><input type="date" name="date" value="${eventData.date || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
-                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Time</label><input type="time" name="time" value="${eventData.time || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Time (24hr)</label><input type="time" name="time" value="${eventData.time || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
                     </div>
                     <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Ticket Link</label><input type="url" name="ticketLink" value="${eventData.ticketLink || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Parent Event Name</label><input type="text" name="parentEventName" value="${eventData.parentEventName || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Categories (comma-separated)</label><input type="text" name="categories" value="${categories}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    
                     <div class="flex justify-end gap-4 pt-2">
                         <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
                         <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Approve & Add</button>
@@ -99,7 +107,6 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(form);
-
             submitBtn.disabled = true;
             submitText.textContent = 'Processing...';
             submitLoader.classList.remove('hidden');

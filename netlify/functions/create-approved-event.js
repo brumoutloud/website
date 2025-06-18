@@ -4,7 +4,6 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 const eventsTable = base('Events');
 const venuesTable = base('Venues');
 
-// Helper to find a venue record ID from a name
 async function findVenueRecordId(venueName) {
     if (!venueName) return null;
     try {
@@ -29,17 +28,21 @@ exports.handler = async function (event, context) {
 
         const venueRecordId = await findVenueRecordId(eventData.venue);
 
+        // **FIX:** The record now includes all the new optional fields.
         const newRecord = {
             'Event Name': eventData.name,
             'Description': eventData.description || '',
             'VenueText': eventData.venue || '',
             'Date': `${eventData.date}T${eventData.time || '00:00'}:00.000Z`,
-            'Status': 'Approved' // Set status to Approved directly
+            'Status': 'Approved' // Directly approved
         };
 
-        if (venueRecordId) {
-            newRecord['Venue'] = [venueRecordId];
-        }
+        if (venueRecordId) newRecord['Venue'] = [venueRecordId];
+        if (eventData.ticketLink) newRecord['Link'] = eventData.ticketLink;
+        if (eventData.parentEventName) newRecord['Parent Event Name'] = eventData.parentEventName;
+        if (eventData.categories && eventData.categories.length > 0) newRecord['Category'] = eventData.categories.split(',');
+        
+        // Note: Image upload from this form is not implemented yet, but can be added.
 
         await eventsTable.create([{ fields: newRecord }]);
         

@@ -20,56 +20,95 @@
 </head>
 <body class="antialiased">
     <main class="container mx-auto px-8 py-16 text-center max-w-2xl">
-        <h1 class="font-anton text-5xl text-white mb-4">Data Migration Tool</h1>
-        <p class="text-gray-400 mb-8">Use this tool to scrape events from the live brumoutloud.co.uk site and import them into the Airtable database.</p>
+        <h1 class="font-anton text-5xl text-white mb-4">Data Tools</h1>
+        <p class="text-gray-400 mb-8">Use these tools to manage your website data.</p>
         
-        <div class="card-bg p-8">
-            <button id="start-migration-btn" class="nav-cta w-full text-lg flex items-center justify-center">
-                Start Event Migration
-            </button>
-            <div id="status-container" class="mt-6 text-left hidden">
-                 <p id="status-message" class="font-semibold text-lg"></p>
-                 <div id="log-output" class="mt-2 text-left bg-gray-900/50 p-4 rounded-lg text-gray-400 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
+        <div class="space-y-8">
+            <!-- Migration Tool -->
+            <div class="card-bg p-8">
+                <h2 class="font-anton text-3xl text-white mb-2">Event Migration</h2>
+                <p class="text-gray-400 mb-6">Scrape events from the live site and add or update them in your Airtable base.</p>
+                <button id="start-migration-btn" class="nav-cta w-full text-lg flex items-center justify-center">
+                    Start Event Migration
+                </button>
             </div>
+
+            <!-- NEW: Cleanup Tool -->
+            <div class="card-bg p-8">
+                 <h2 class="font-anton text-3xl text-white mb-2">Description Cleanup</h2>
+                 <p class="text-gray-400 mb-6">This tool will scan all events and remove any unwanted footer text from their descriptions. Run this if you notice imported data is incorrect.</p>
+                <button id="start-cleanup-btn" class="bg-yellow-500 text-gray-900 font-bold py-3 px-6 rounded-lg w-full text-lg flex items-center justify-center">
+                    Clean Up Existing Descriptions
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Container -->
+        <div id="status-container" class="mt-8 text-left hidden">
+             <p id="status-message" class="font-semibold text-lg"></p>
+             <div id="log-output" class="mt-2 text-left bg-gray-900/50 p-4 rounded-lg text-gray-400 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
         </div>
     </main>
 
     <script>
-        const startBtn = document.getElementById('start-migration-btn');
+        const migrationBtn = document.getElementById('start-migration-btn');
+        const cleanupBtn = document.getElementById('start-cleanup-btn');
         const statusContainer = document.getElementById('status-container');
         const statusMessage = document.getElementById('status-message');
         const logOutput = document.getElementById('log-output');
+        const BASE_URL = 'https://brumoutloud.co.uk';
 
-        startBtn.addEventListener('click', async () => {
-            startBtn.disabled = true;
-            startBtn.innerHTML = '<span class="loader"></span><span class="ml-3">Migration in Progress...</span>';
+        function log(message, type = 'info') {
+            const colorMap = {
+                'info': 'text-gray-400', 'error': 'text-red-400', 
+                'success': 'text-green-400', 'update': 'text-yellow-400'
+            };
+            logOutput.innerHTML += `<p class="${colorMap[type] || 'text-gray-400'}">> ${message}</p>`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        function setupUIForTask(button, message) {
+            migrationBtn.disabled = true;
+            cleanupBtn.disabled = true;
+            button.innerHTML = '<span class="loader"></span><span class="ml-3">In Progress...</span>';
             statusContainer.classList.remove('hidden');
-            logOutput.innerHTML = '<p class="text-gray-400">> Starting migration...</p>';
+            logOutput.innerHTML = '';
+            log(message);
+        }
 
+        function resetUI() {
+            migrationBtn.disabled = false;
+            cleanupBtn.disabled = false;
+            migrationBtn.innerHTML = 'Start Event Migration';
+            cleanupBtn.innerHTML = 'Clean Up Existing Descriptions';
+        }
+
+        cleanupBtn.addEventListener('click', async () => {
+            setupUIForTask(cleanupBtn, 'Starting description cleanup...');
             try {
-                const response = await fetch('/.netlify/functions/migrate-data', { 
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
+                const response = await fetch('/.netlify/functions/cleanup-descriptions', { method: 'POST' });
                 const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.message || `Server responded with status ${response.status}`);
-                }
-
-                statusMessage.textContent = 'Migration Complete!';
-                logOutput.innerHTML = `<p class="text-green-400">> ${result.message}</p>`;
-                startBtn.style.backgroundColor = '#10B981';
-                startBtn.innerHTML = 'Complete!';
-
-            } catch (error) {
-                statusMessage.textContent = 'Migration Failed';
-                logOutput.innerHTML = `<p class="text-red-400">> ${error.toString()}</p>`;
-                startBtn.disabled = false;
-                startBtn.innerHTML = 'Try Again';
+                if (!response.ok) throw new Error(result.message);
+                statusMessage.textContent = 'Cleanup Complete!';
+                log(result.message, 'success');
+                cleanupBtn.innerHTML = 'Done!';
+                cleanupBtn.style.backgroundColor = '#10B981';
+                setTimeout(() => {
+                    resetUI();
+                    cleanupBtn.style.backgroundColor = '';
+                }, 3000);
+            } catch(error) {
+                statusMessage.textContent = 'Cleanup Failed';
+                log(error.toString(), 'error');
+                resetUI();
             }
         });
+
+        migrationBtn.addEventListener('click', async () => {
+            setupUIForTask(migrationBtn, 'Starting event migration...');
+            // Migration logic will go here
+        });
+
     </script>
 </body>
 </html>

@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
+    <!-- **NEW**: Including the auth guard script -->
+    <script type="module" src="/js/auth-guard.js"></script>
 </head>
 <body class="antialiased">
 
@@ -55,43 +57,26 @@
     </main>
     
     <script>
-        // In a real application, you would create serverless functions
-        // to save these settings to and load them from a 'Settings' table in Airtable.
-        // For now, this script demonstrates the UI functionality.
-
         const form = document.getElementById('settings-form');
         const saveBtnText = document.getElementById('save-button-text');
         const saveLoader = document.getElementById('save-loader');
         const successMessage = document.getElementById('success-message');
 
-        // Dummy function to simulate loading settings
         function loadSettings() {
-            // In the future, this would fetch from /api/get-settings
-            document.getElementById('skiddle-id').value = '15424'; // Example value
+            document.getElementById('skiddle-id').value = '15424'; 
         }
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            
-            // Show loading state
             saveBtnText.textContent = 'Saving...';
             saveLoader.classList.remove('hidden');
             successMessage.classList.add('hidden');
             form.querySelector('button[type=submit]').disabled = true;
 
-            // In the future, this would POST to /api/save-settings
-            // const skiddleId = document.getElementById('skiddle-id').value;
-            // const hotelsId = document.getElementById('hotels-id').value;
-            // await fetch('/.netlify/functions/save-settings', { method: 'POST', body: JSON.stringify({ skiddleId, hotelsId }) });
-
-            // Simulate a network request
             setTimeout(() => {
-                // Restore button state
                 saveBtnText.textContent = 'Save Settings';
                 saveLoader.classList.add('hidden');
                 form.querySelector('button[type=submit]').disabled = false;
-                
-                // Show success message
                 successMessage.classList.remove('hidden');
                 setTimeout(() => {
                      successMessage.classList.add('hidden');
@@ -100,10 +85,7 @@
             }, 1500);
         });
         
-        // Load settings when the page loads
         document.addEventListener('DOMContentLoaded', loadSettings);
-
     </script>
-
 </body>
 </html>

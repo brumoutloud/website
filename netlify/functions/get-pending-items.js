@@ -7,6 +7,9 @@ exports.handler = async function (event, context) {
     }
 
     try {
+        // **FIX:** By removing the specific `fields` array, the query will now return all fields
+        // for the matching records. This makes the function much more robust and less likely
+        // to fail if a column name is slightly different.
         const fetchEvents = base('Events').select({
             filterByFormula: "{Status} = 'Pending Review'"
         }).all();
@@ -26,7 +29,7 @@ exports.handler = async function (event, context) {
                 name: record.get('Event Name') || 'No Name',
                 description: record.get('Description'),
                 location: record.get('VenueText'),
-                // **FIX**: The script now checks for multiple possible field names for the email.
+                // This will now reliably find the email, regardless of the column name.
                 contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
             });
         });

@@ -4,8 +4,6 @@ const cheerio = require('cheerio');
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
-const BASE_URL = 'https://brumoutloud.co.uk';
-
 
 exports.handler = async function (event, context) {
     if (event.httpMethod !== 'POST') {
@@ -16,24 +14,22 @@ exports.handler = async function (event, context) {
         const { eventUrl } = JSON.parse(event.body);
         if (!eventUrl) return { statusCode: 400, body: JSON.stringify({ message: "eventUrl not provided." }) };
 
-        // For individual pages, we don't need the headless browser, just the HTML.
         const response = await fetch(eventUrl);
         const html = await response.text();
         const $ = cheerio.load(html);
 
-        const eventName = $('h1').first().text().trim();
-        const description = $('meta[name=description]').attr('content') || '';
+        const eventName = $('h1.eventitem-title').text().trim();
 
         if (eventName) {
             const existingRecords = await eventsTable.select({ filterByFormula: `{Event Name} = "${eventName.replace(/"/g, '\\"')}"` }).firstPage();
             if (existingRecords.length === 0) {
-                await eventsTable.create([{
-                    fields: {
-                        'Event Name': eventName,
-                        'Description': description,
-                        'Status': 'Approved'
-                    }
-                }]);
+                 const eventData = {
+                    'Event Name': eventName,
+                    'Description': $('.eventitem-description p').text().trim() || '',
+                    'VenueText': $('.event-meta-item--location a').text().trim(),
+                    'Status': 'Approved'
+                };
+                await eventsTable.create([{ fields: eventData }]);
                 return { statusCode: 200, body: JSON.stringify({ success: true, status: 'created', name: eventName }) };
             } else {
                 return { statusCode: 200, body: JSON.stringify({ success: true, status: 'skipped', name: eventName }) };

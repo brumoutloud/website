@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Venue | Admin Panel</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/auth-guard.js"></script>
+</head>
+<body class="antialiased">
+
+    <header class="p-8">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+            <a href="/admin/settings" class="text-gray-300 hover:text-white">Back to Admin Settings</a>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-8 py-16">
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">ADD NEW <span class="accent-color">VENUE</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Use this form to add a new, automatically approved venue to the website.</p>
+            </div>
+
+            <form id="add-venue-form" class="card-bg p-8 md:p-12 space-y-6">
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label for="name" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="name" name="name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                    <div><label for="address" class="block text-sm font-semibold mb-2 accent-color-secondary">Address</label><input type="text" id="address" name="address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                </div>
+                <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                <div><label for="opening-hours" class="block text-sm font-semibold mb-2 accent-color-secondary">Opening Hours</label><textarea id="opening-hours" name="opening-hours" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Mon-Thu: 5pm - 12am..."></textarea></div>
+                <div><label for="accessibility" class="block text-sm font-semibold mb-2 accent-color-secondary">Accessibility Info</label><textarea id="accessibility" name="accessibility" rows="3" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                <div class="border-t border-gray-700 pt-6">
+                    <h3 class="font-bold text-xl mb-4 text-white text-center">Social & Website Links</h3>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div><label for="website" class="block text-sm font-semibold mb-2 accent-color-secondary">Website URL</label><input type="url" id="website" name="website" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
+                         <div><label for="instagram" class="block text-sm font-semibold mb-2 accent-color-secondary">Instagram URL</label><input type="url" id="instagram" name="instagram" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
+                         <div><label for="facebook" class="block text-sm font-semibold mb-2 accent-color-secondary">Facebook URL</label><input type="url" id="facebook" name="facebook" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
+                         <div><label for="tiktok" class="block text-sm font-semibold mb-2 accent-color-secondary">TikTok URL</label><input type="url" id="tiktok" name="tiktok" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
+                     </div>
+                </div>
+                <div><label for="photo" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Photo</label><input type="file" id="photo" name="photo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div>
+                
+                <div class="text-right pt-4">
+                    <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity flex items-center">
+                         <span id="save-button-text">Add Venue</span>
+                         <span id="save-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
+                    </button>
+                </div>
+                <div id="success-message" class="text-green-400 mt-4 text-center hidden"></div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById('add-venue-form');
+        const saveBtnText = document.getElementById('save-button-text');
+        const saveLoader = document.getElementById('save-loader');
+        const successMessage = document.getElementById('success-message');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+
+            saveBtnText.textContent = 'Saving...';
+            saveLoader.classList.remove('hidden');
+            successMessage.classList.add('hidden');
+            form.querySelector('button[type=submit]').disabled = true;
+
+            try {
+                const response = await fetch('/.netlify/functions/create-approved-venue', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                
+                successMessage.textContent = result.message;
+                successMessage.classList.remove('hidden');
+                form.reset();
+
+            } catch (error) {
+                alert(`Error adding venue: ${error.toString()}`);
+            } finally {
+                saveBtnText.textContent = 'Add Venue';
+                saveLoader.classList.add('hidden');
+                form.querySelector('button[type=submit]').disabled = false;
+                 setTimeout(() => {
+                     successMessage.classList.add('hidden');
+                }, 4000);
+            }
+        });
+    </script>
+
+</body>
+</html>

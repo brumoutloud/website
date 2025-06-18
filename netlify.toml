@@ -69,3 +69,9 @@
     from = "/admin/approvals"
     to = "/admin-approvals.html"
     status = 200
+
+# NEW: Rule for the Promoter Submission Page
+[[redirects]]
+    from = "/submit"
+    to = "/promoter-submit.html"
+    status = 200

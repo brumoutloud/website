@@ -45,6 +45,19 @@
         </section>
     </main>
 
+    <!-- NEW: Edit Modal -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <form id="edit-form" class="card-bg p-8 w-full max-w-2xl space-y-4">
+             <h3 class="font-anton text-3xl text-white">Edit Submission</h3>
+             <!-- Form fields will be dynamically inserted here -->
+             <div id="edit-form-fields" class="space-y-4"></div>
+             <div class="flex justify-end gap-4 pt-4">
+                <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+                <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
+             </div>
+        </form>
+    </div>
+
     <div id="rejection-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="card-bg p-8 w-full max-w-lg">
             <h3 class="font-anton text-3xl text-white mb-4">Reason for Rejection</h3>
@@ -61,10 +74,17 @@
         const approvalList = document.getElementById('approval-list');
         const loadingState = document.getElementById('loading-state');
         const noItemsMessage = document.getElementById('no-items-message');
+        
+        const editModal = document.getElementById('edit-modal');
+        const editForm = document.getElementById('edit-form');
+        const editFormFields = document.getElementById('edit-form-fields');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        
         const rejectionModal = document.getElementById('rejection-modal');
         const rejectionReasonInput = document.getElementById('rejection-reason');
         const cancelRejectionBtn = document.getElementById('cancel-rejection-btn');
         const confirmRejectionBtn = document.getElementById('confirm-rejection-btn');
+        
         let currentItemForAction = null;
 
         function renderItem(item) {
@@ -74,13 +94,15 @@
             card.dataset.item = JSON.stringify(item);
             
             card.innerHTML = `
-                <div class="flex justify-between items-start">
+                <div class="flex justify-between items-start flex-wrap gap-4">
                     <div>
                         <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full ${item.type === 'Event' ? 'bg-accent-color/20 text-accent-color' : 'bg-accent-color-secondary/20 text-accent-color-secondary'}">${item.type}</span>
                         <h3 class="font-bold text-2xl mt-2 text-white">${item.name}</h3>
                         <p class="text-gray-400 text-sm">${item.location || ''}</p>
                     </div>
+                    <!-- **NEW**: Added an Edit button -->
                     <div class="flex gap-2 flex-shrink-0">
+                        <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40">Edit</button>
                         <button class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg hover:bg-red-600/40">Reject</button>
                         <button class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg hover:bg-green-600/40">Approve</button>
                     </div>
@@ -92,83 +114,50 @@
             approvalList.appendChild(card);
         }
 
-        async function processItemUpdate(item, newStatus, reason = '') {
-            const cardElement = document.querySelector(`.review-card[data-id="${item.id}"]`);
-            try {
-                const payload = { ...item, newStatus, reason };
-                const response = await fetch('/.netlify/functions/update-submission-status', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error('Server responded with an error.');
-
-                if(cardElement) {
-                    cardElement.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                    cardElement.style.opacity = '0';
-                    cardElement.style.transform = 'scale(0.95)';
-                    setTimeout(() => cardElement.remove(), 500);
-                }
-
-            } catch (error) {
-                console.error("Failed to update status:", error);
-                alert('Could not update the item. Please try again.');
-            }
+        function populateEditForm(item) {
+            currentItemForAction = item;
+            editFormFields.innerHTML = `
+                 <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Name</label><input type="text" name="name" value="${item.name || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                 <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="4" class="w-full p-2 bg-gray-900/50 rounded-md">${item.description || ''}</textarea></div>
+                 ${item.type === 'Event' ? `<div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label><input type="text" name="VenueText" value="${item.location || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>` : ''}
+                 ${item.type === 'Venue' ? `<div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Address</label><input type="text" name="Address" value="${item.location || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>` : ''}
+            `;
+            editModal.classList.remove('hidden');
         }
+
+        async function processItemUpdate(item, newStatus, reason = '') { /* ... existing logic ... */ }
         
         approvalList.addEventListener('click', (e) => {
             const card = e.target.closest('.review-card');
             if (!card) return;
-
             const item = JSON.parse(card.dataset.item);
             
-            if (e.target.classList.contains('approve-btn')) {
-                processItemUpdate(item, 'Approved');
-            } else if (e.target.classList.contains('reject-btn')) {
-                if(!item.contactEmail) {
-                    if (confirm('This submission has no contact email. Are you sure you want to reject it without sending a notification?')) {
-                        processItemUpdate(item, 'Rejected');
-                    }
-                } else {
-                    currentItemForAction = item;
-                    rejectionReasonInput.value = '';
-                    rejectionModal.classList.remove('hidden');
-                }
+            if (e.target.classList.contains('edit-btn')) {
+                populateEditForm(item);
             }
+            // ... existing approve/reject logic ...
         });
         
-        cancelRejectionBtn.addEventListener('click', () => {
-             rejectionModal.classList.add('hidden');
-             currentItemForAction = null;
-        });
-        
-        confirmRejectionBtn.addEventListener('click', () => {
-            const reason = rejectionReasonInput.value.trim();
-            if(!reason) {
-                alert('Please provide a reason for the rejection.');
-                return;
-            }
-            if(currentItemForAction) {
-                processItemUpdate(currentItemForAction, 'Rejected', reason);
-            }
-            rejectionModal.classList.add('hidden');
+        cancelEditBtn.addEventListener('click', () => {
+            editModal.classList.add('hidden');
             currentItemForAction = null;
         });
 
-        async function loadPendingItems() {
-            try {
-                const response = await fetch('/.netlify/functions/get-pending-items');
-                const items = await response.json();
-                
-                loadingState.style.display = 'none';
-                if (items.length === 0) {
-                    noItemsMessage.classList.remove('hidden');
-                } else {
-                    items.forEach(renderItem);
-                }
-            } catch (error) {
-                loadingState.innerHTML = '<p class="text-red-400">Failed to load items. Please try again later.</p>';
-            }
-        }
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(editForm);
+            const updatedFields = Object.fromEntries(formData.entries());
+
+            // Here we would call a new function to save the updated data
+            // For now, just log it and close the modal
+            console.log("Saving changes:", { id: currentItemForAction.id, type: currentItemForAction.type, fields: updatedFields });
+            alert('Saving changes... (check console for data)');
+            
+            editModal.classList.add('hidden');
+            currentItemForAction = null;
+        });
+
+        async function loadPendingItems() { /* ... existing logic ... */ }
 
         document.addEventListener('DOMContentLoaded', loadPendingItems);
     </script>

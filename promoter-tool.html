@@ -26,6 +26,12 @@
             </div>
 
             <div class="space-y-8">
+                <div class="card-bg p-8 md:p-12">
+                     <label for="promoter-email" class="block text-lg font-semibold mb-2 accent-color-secondary">Your Contact Email</label>
+                     <p class="text-gray-400 mb-4">Please enter your email once. It will be associated with all events you submit in this session.</p>
+                     <input type="email" id="promoter-email" placeholder="you@example.com" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none" required>
+                </div>
+
                 <form id="poster-form" class="card-bg p-8 md:p-12 space-y-6">
                     <h2 class="font-anton text-3xl text-white">Parse a Poster</h2>
                     <div>
@@ -60,11 +66,14 @@
     <script>
         const posterForm = document.getElementById('poster-form');
         const bulkUploadForm = document.getElementById('bulk-upload-form');
+        const promoterEmailInput = document.getElementById('promoter-email');
         const fileInput = document.getElementById('poster-file');
         const imagePreviewContainer = document.getElementById('image-preview');
         const previewImg = document.getElementById('preview-img');
         const resultsContainer = document.getElementById('results-container');
         const statusMessage = document.getElementById('status-message');
+
+        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
 
         fileInput.addEventListener('change', () => {
             const file = fileInput.files[0];
@@ -76,7 +85,14 @@
         });
         
         function renderEventForm(eventData, index) {
-            const categories = Array.isArray(eventData.categories) ? eventData.categories.join(', ') : '';
+            const parsedCategories = Array.isArray(eventData.categories) ? eventData.categories : [];
+            
+            // Create options for the multi-select dropdown
+            const categoryOptions = VALID_CATEGORIES.map(cat => {
+                const isSelected = parsedCategories.includes(cat);
+                return `<option value="${cat}" ${isSelected ? 'selected' : ''}>${cat}</option>`;
+            }).join('');
+
             const formHtml = `
                 <form class="event-review-form card-bg p-6 space-y-4" data-index="${index}" enctype="multipart/form-data">
                     <h3 class="font-anton text-2xl text-white">Review Event ${index + 1}</h3>
@@ -91,10 +107,13 @@
                     <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
                     <div class="grid md:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Ticket Link</label><input type="url" name="ticketLink" value="${eventData.ticketLink || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
-                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Parent Event Name</label><input type="text" name="parentEventName" value="${eventData.parentEventName || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Event Series Name (if applicable)</label><input type="text" name="parentEventName" value="${eventData.parentEventName || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
                     </div>
                     <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Recurring Info</label><input type="text" name="recurringInfo" value="" class="w-full p-2 bg-gray-900/50 rounded-md" placeholder="e.g., Every second Friday"></div>
-                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Categories (comma-separated)</label><input type="text" name="categories" value="${categories}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 accent-color-secondary">Categories</label>
+                        <select name="categories" multiple class="w-full p-2 bg-gray-900/50 rounded-md h-32">${categoryOptions}</select>
+                    </div>
                     <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Promo Image</label><input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif"></div>
                     
                     <div class="flex justify-end gap-4 pt-2">
@@ -107,6 +126,11 @@
         }
         
         async function handleFormSubmit(formElement, endpoint) {
+            if (!promoterEmailInput.value) {
+                alert('Please enter your contact email before proceeding.');
+                promoterEmailInput.focus();
+                return;
+            }
             const submitBtn = formElement.querySelector('button[type=submit]');
             const originalBtnText = submitBtn.textContent;
             submitBtn.disabled = true;
@@ -154,6 +178,8 @@
                 approveButton.textContent = 'Submitting...';
 
                 const formData = new FormData(reviewForm);
+                // **FIX:** Add the promoter email to the form data
+                formData.append('contactEmail', promoterEmailInput.value);
                 
                 try {
                     const response = await fetch('/.netlify/functions/create-approved-event', {

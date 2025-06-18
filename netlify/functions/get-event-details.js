@@ -6,7 +6,7 @@ exports.handler = async function (event, context) {
   if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
 
   try {
-    // --- Step 1: Fetch the main event details ---
+    // --- Step 1: Fetch the details of the specific event the user clicked on ---
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${slug}"`,
@@ -24,7 +24,7 @@ exports.handler = async function (event, context) {
     const recurringInfo = fields['Recurring Info'];
     let allFutureInstances = [];
 
-    // --- Step 2: Fetch other instances (with backward compatibility) ---
+    // --- Step 2: If it's part of a series, fetch all other upcoming instances ---
     let filterFormula;
     if (parentEventName) {
         const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
@@ -43,9 +43,9 @@ exports.handler = async function (event, context) {
     }
     
     // --- Step 3: Prepare all data for the template ---
+    // **FIX:** The main date for the page is now always the date of the event that was clicked.
     const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : (fields['VenueText'] || 'TBC');
-    // **FIX:** Explicitly get the venue slug to use for the link
     const venueSlug = fields['Venue Slug'] ? fields['Venue Slug'][0] : null;
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
@@ -54,12 +54,13 @@ exports.handler = async function (event, context) {
         title: eventName,
         description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
         location: venueName,
-        startTime: eventDate.toISOString(),
+        startTime: eventDate.toISOString(), // Use the correct event's start time
         endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-        isRecurring: (parentEventName || recurringInfo) && allFutureInstances.length > 0,
+        isRecurring: (parentEventName || recurringInfo) && allFutureInstances.length > 1,
         recurringDates: allFutureInstances.map(i => i.Date)
     };
     
+    // **FIX:** Filter out the current event from the list of "other" instances to display.
     const otherInstancesToDisplay = allFutureInstances.filter(inst => inst.Slug !== slug);
 
     // --- Step 4: Generate list of other instances for display ---
@@ -129,7 +130,6 @@ exports.handler = async function (event, context) {
                         </div>
                          <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
-                            <!-- **FIX:** Logic to conditionally create a link for the venue -->
                             ${venueSlug 
                                 ? `<a href="/venue/${venueSlug}" class="text-2xl font-semibold hover:text-white underline">${venueName}</a>` 
                                 : `<p class="text-2xl font-semibold">${venueName}</p>`

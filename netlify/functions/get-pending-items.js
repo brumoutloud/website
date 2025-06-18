@@ -9,12 +9,14 @@ exports.handler = async function (event, context) {
     try {
         const fetchEvents = base('Events').select({
             filterByFormula: "{Status} = 'Pending Review'",
-            fields: ["Event Name", "Description", "VenueText"] // Fetch fields needed for review
+            // **FIX:** Added 'Contact Email' to the list of fields to fetch.
+            fields: ["Event Name", "Description", "VenueText", "Contact Email"]
         }).all();
 
         const fetchVenues = base('Venues').select({
             filterByFormula: "{Status} = 'Pending Review'",
-            fields: ["Name", "Description", "Address"] // Fetch fields needed for review
+            // **FIX:** Added 'Contact Email' to the list of fields to fetch.
+            fields: ["Name", "Description", "Address", "Contact Email"]
         }).all();
 
         const [eventRecords, venueRecords] = await Promise.all([fetchEvents, fetchVenues]);
@@ -27,7 +29,8 @@ exports.handler = async function (event, context) {
                 type: 'Event',
                 name: record.get('Event Name'),
                 description: record.get('Description'),
-                location: record.get('VenueText')
+                location: record.get('VenueText'),
+                contactEmail: record.get('Contact Email') // Now included
             });
         });
 
@@ -37,7 +40,8 @@ exports.handler = async function (event, context) {
                 type: 'Venue',
                 name: record.get('Name'),
                 description: record.get('Description'),
-                location: record.get('Address')
+                location: record.get('Address'),
+                contactEmail: record.get('Contact Email') // Now included
             });
         });
 

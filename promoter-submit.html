@@ -54,26 +54,73 @@
                 <!-- Bulk Upload Section -->
                 <div class="card-bg p-8 md:p-12">
                     <h2 class="font-anton text-3xl text-white mb-4">Got a lot of events to add?</h2>
-                    <!-- **FIX:** Updated copy to remove mention of Gemini -->
-                    <p class="text-gray-400 mb-6">Upload a spreadsheet (.csv, .xls, .xlsx) with your event listings. Make sure it has columns for Name, Venue, Date, Time, and Description. Our smart system will parse the data for your review.</p>
+                    <p class="text-gray-400 mb-6">Upload a spreadsheet (.csv, .xls, .xlsx) with your event listings. Our smart system will parse the data for your review.</p>
                     <form id="bulk-upload-form">
                         <div>
                             <label for="spreadsheet-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Upload Spreadsheet</label>
                             <input type="file" id="spreadsheet-file" name="spreadsheet" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
                         </div>
-                        <div class="pt-6"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 w-full">Parse Spreadsheet</button></div>
+                        <div class="pt-6"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 w-full flex items-center justify-center">
+                            <span id="bulk-submit-text">Parse Spreadsheet</span>
+                            <span id="bulk-submit-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
+                        </button></div>
                     </form>
                 </div>
             </div>
             
             <!-- Container for parsed results from spreadsheet -->
             <div id="results-container" class="mt-12 space-y-6"></div>
+            <div id="status-message" class="mt-4 text-center"></div>
         </section>
     </main>
 
     <script>
-      // The logic for the spreadsheet parser will be complex and require new serverless functions.
-      // This front-end is the first step.
+        const bulkForm = document.getElementById('bulk-upload-form');
+        const bulkSubmitBtn = bulkForm.querySelector('button[type=submit]');
+        const bulkSubmitText = document.getElementById('bulk-submit-text');
+        const bulkSubmitLoader = document.getElementById('bulk-submit-loader');
+        const resultsContainer = document.getElementById('results-container');
+        const statusMessage = document.getElementById('status-message');
+
+        function renderEventForm(eventData, index) { /* Same as poster tool */ }
+
+        bulkForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(bulkForm);
+            
+            bulkSubmitBtn.disabled = true;
+            bulkSubmitText.textContent = 'Processing...';
+            bulkSubmitLoader.classList.remove('hidden');
+            resultsContainer.innerHTML = '';
+            statusMessage.textContent = 'Uploading spreadsheet and contacting AI. This may take a moment...';
+
+            try {
+                const response = await fetch('/.netlify/functions/process-spreadsheet', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'An unknown error occurred.');
+
+                statusMessage.textContent = `AI found ${result.events.length} event(s). Please review and approve.`;
+                if(result.events.length === 0) { statusMessage.textContent = "Could not find any clear event details in this file."; }
+                
+                result.events.forEach((event, index) => {
+                    // This function would be the same as the one in the poster-parser tool,
+                    // creating an editable form for each event. We'll reuse that logic.
+                    // For now, we just log it:
+                    console.log(`Event ${index+1} to review:`, event);
+                });
+
+
+            } catch (error) {
+                statusMessage.textContent = `Error: ${error.toString()}`;
+            } finally {
+                bulkSubmitBtn.disabled = false;
+                bulkSubmitText.textContent = 'Parse Spreadsheet';
+                bulkSubmitLoader.classList.add('hidden');
+            }
+        });
     </script>
 </body>
 </html>

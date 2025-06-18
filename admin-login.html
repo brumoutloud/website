@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | Brum Out Loud</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body class="antialiased">
+
+    <main class="container mx-auto px-8 py-16 flex items-center justify-center min-h-screen">
+        <section class="max-w-md w-full">
+            <div class="text-center mb-12">
+                <a href="/" class="font-anton text-4xl tracking-widest text-white">BRUM OUT LOUD</a>
+                <p class="text-gray-400 mt-2">Admin Panel</p>
+            </div>
+
+            <form id="login-form" class="card-bg p-8 md:p-12 space-y-6">
+                 <div>
+                    <label for="email" class="block text-sm font-semibold mb-2 accent-color-secondary">Email Address</label>
+                    <input type="email" id="email" name="email" required class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
+                </div>
+                 <div>
+                    <label for="password" class="block text-sm font-semibold mb-2 accent-color-secondary">Password</label>
+                    <input type="password" id="password" name="password" required class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
+                </div>
+                
+                <div class="text-right pt-4">
+                    <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity w-full">
+                         Sign In
+                    </button>
+                </div>
+                <div id="error-message" class="text-red-400 text-center pt-2 hidden"></div>
+            </form>
+        </section>
+    </main>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+      import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
+      
+      const firebaseConfig = {
+        apiKey: "AIzaSyAg8EIRoDGo3uPP0oCXAtDL7xNreJQeY7k",
+        authDomain: "brumoutloud-3dd92.firebaseapp.com",
+        projectId: "brumoutloud-3dd92",
+        storageBucket: "brumoutloud-3dd92.appspot.com",
+        messagingSenderId: "803476014859",
+        appId: "1:803476014859:web:660ab2967e64955b0d440e"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+
+      const loginForm = document.getElementById('login-form');
+      const errorMessage = document.getElementById('error-message');
+
+      loginForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = loginForm.email.value;
+          const password = loginForm.password.value;
+          
+          try {
+              await signInWithEmailAndPassword(auth, email, password);
+              // On success, redirect to the main admin settings page
+              window.location.href = '/admin/settings';
+          } catch (error) {
+              console.error("Firebase Auth Error:", error);
+              errorMessage.textContent = "Error: Invalid email or password.";
+              errorMessage.classList.remove('hidden');
+          }
+      });
+    </script>
+</body>
+</html>

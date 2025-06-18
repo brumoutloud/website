@@ -39,7 +39,7 @@
   to = "/get-listed.html"
   status = 200
   
-# --- NEW: Admin Section Rules ---
+# --- Admin Section Rules ---
 
 # Directs users to the login page
 [[redirects]]
@@ -62,4 +62,10 @@
 [[redirects]]
     from = "/admin/settings"
     to = "/admin-settings.html"
+    status = 200
+    
+# NEW: Rule for the Poster Parser tool
+[[redirects]]
+    from = "/admin/poster-tool"
+    to = "/admin-poster-tool.html"
     status = 200

@@ -23,7 +23,7 @@ exports.handler = async function (event, context) {
             Analyze the provided image (an event poster) and extract all relevant event details.
             The current year is 2025. If a year is not specified, assume it is 2025.
             Return the data as a JSON array of objects. Each object represents a single event and should have these keys: "name", "venue", "date" (YYYY-MM-DD), "time" (HH:MM 24-hour), "description", "ticketLink", and "categories" (an array of strings from this list: Comedy, Drag, Live Music, Men Only, Party, Pride, Social, Theatre, Viewing Party, Women Only, Fetish, Community, Exhibition, Health, Quiz).
-            If a value isn't found, leave it as an empty string or empty array.
+            If a value isn't found, return an empty string or empty array.
             If the poster is for a recurring event (e.g., "Glittershit"), set a "parentEventName" key to the main series name.
         `;
 

@@ -4,17 +4,20 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 // This function fetches all records from a table using pagination to avoid timeouts.
 async function fetchAllRecords(tableName) {
     const allRecords = [];
+    console.log(`Starting to fetch from ${tableName}...`);
     try {
         await base(tableName).select({
             filterByFormula: "{Status} = 'Pending Review'"
         }).eachPage((records, fetchNextPage) => {
+            console.log(`Fetched a page of ${records.length} records from ${tableName}.`);
             records.forEach(record => allRecords.push(record));
             fetchNextPage();
         });
+        console.log(`Finished fetching all pages from ${tableName}. Total: ${allRecords.length}`);
         return allRecords;
     } catch (error) {
-        console.error(`Error fetching records from ${tableName}:`, error);
-        throw error; // Re-throw the error to be caught by the main handler
+        console.error(`Error during pagination for ${tableName}:`, error);
+        throw error;
     }
 }
 
@@ -26,13 +29,12 @@ exports.handler = async function (event, context) {
     try {
         console.log("Starting function execution using paginated fetch.");
 
-        // **FIX:** Using the new paginated fetch function to avoid timeouts.
         const [eventRecords, venueRecords] = await Promise.all([
             fetchAllRecords('Events'),
             fetchAllRecords('Venues')
         ]);
         
-        console.log(`Fetched data successfully. Found ${eventRecords.length} events and ${venueRecords.length} venues.`);
+        console.log(`Data fetching complete. Found ${eventRecords.length} events and ${venueRecords.length} venues.`);
 
         const pendingItems = [];
 

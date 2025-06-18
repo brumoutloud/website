@@ -70,7 +70,8 @@
         function renderItem(item) {
             const card = document.createElement('div');
             card.className = 'review-card card-bg p-6';
-            card.dataset.item = JSON.stringify(item); // Store all data
+            card.dataset.id = item.id;
+            card.dataset.item = JSON.stringify(item);
             
             card.innerHTML = `
                 <div class="flex justify-between items-start">
@@ -91,9 +92,8 @@
             approvalList.appendChild(card);
         }
 
-        // **FIX:** Combined update logic into a single robust function
         async function processItemUpdate(item, newStatus, reason = '') {
-            const cardElement = document.querySelector(`.review-card[data-item='${JSON.stringify(item)}']`);
+            const cardElement = document.querySelector(`.review-card[data-id="${item.id}"]`);
             try {
                 const payload = { ...item, newStatus, reason };
                 const response = await fetch('/.netlify/functions/update-submission-status', {
@@ -124,7 +124,6 @@
             if (e.target.classList.contains('approve-btn')) {
                 processItemUpdate(item, 'Approved');
             } else if (e.target.classList.contains('reject-btn')) {
-                // Now that the backend fetches the email correctly, this logic will work as intended
                 if(!item.contactEmail) {
                     if (confirm('This submission has no contact email. Are you sure you want to reject it without sending a notification?')) {
                         processItemUpdate(item, 'Rejected');

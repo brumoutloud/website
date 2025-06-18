@@ -63,3 +63,9 @@
     from = "/admin/poster-tool"
     to = "/admin-poster-tool.html"
     status = 200
+
+# Rule for the Pending Approvals page
+[[redirects]]
+    from = "/admin/approvals"
+    to = "/admin-approvals.html"
+    status = 200

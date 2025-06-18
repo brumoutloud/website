@@ -4,7 +4,7 @@ const cheerio = require('cheerio');
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
-const venuesTable = base('Venues'); // Keep this for linking
+const venuesTable = base('Venues');
 
 // Helper function to find a venue's Record ID
 async function findVenueRecordId(venueName) {
@@ -41,16 +41,10 @@ exports.handler = async function (event, context) {
 
         if (eventName) {
             
-            // **FIX:** Scraper now targets only <p> tags inside the main description div.
-            // It joins them together to form a clean paragraph, ignoring the footer.
-            const description = $('.eventitem-description .sqs-html-content p').map((i, el) => $(el).text().trim()).get().join('\n\n');
-
-            const venueName = $('.eventitem-meta-address-line--title').text().trim() || $('.event-meta-item--location a').text().trim();
-            const ticketLink = $('.sqs-block-button-element').attr('href');
-            const imageUrl = $('.eventitem-column-content .image-block-wrapper img').attr('data-src');
             let eventDateStr, eventTimeStr;
             const dateElement = $('time.event-date').first();
             eventDateStr = dateElement.attr('datetime');
+
             const timeElement = $('time.event-time-localized-start').first();
             if (timeElement.length) {
                 eventTimeStr = timeElement.text().trim();
@@ -58,12 +52,24 @@ exports.handler = async function (event, context) {
                 eventTimeStr = $('time.event-time-localized').first().text().trim();
             }
 
+            const description = $('.sqs-html-content p').text().trim() || '';
+            const venueName = $('.eventitem-meta-address-line--title').text().trim() || $('.event-meta-item--location a').text().trim();
+            const ticketLink = $('.sqs-block-button-element').attr('href');
+            const imageUrl = $('.eventitem-column-content .image-block-wrapper img').attr('data-src');
+            
+            // **FIX:** Scrape all categories from the event page footer.
+            const categories = [];
+            $('.eventitem-meta-cats a').each((i, el) => {
+                categories.push($(el).text().trim());
+            });
+
             const venueRecordId = await findVenueRecordId(venueName);
 
             const eventData = {
                 'Event Name': eventName,
                 'Description': description,
                 'VenueText': venueName,
+                'Category': categories, // Add the scraped categories
                 'Status': 'Approved'
             };
             

@@ -56,7 +56,8 @@ exports.handler = async function (event, context) {
         recurringDates: allFutureInstances.map(i => i.Date)
     };
     
-    const otherInstancesToDisplay = allFutureInstances.filter(inst => inst.Slug !== slug);
+    // **FIX**: Comparing the full date string is more reliable than comparing slugs.
+    const otherInstancesToDisplay = allFutureInstances.filter(inst => inst.Date !== fields['Date']);
 
     const otherInstancesHTML = otherInstancesToDisplay.slice(0, 5).map(instance => {
         const d = new Date(instance.Date);
@@ -125,24 +126,61 @@ exports.handler = async function (event, context) {
                     </div>
                 </div>
             </div>
-
-            <!-- NEW: Hidden Debug Panel -->
-            <div class="mt-16 card-bg p-4 text-xs text-gray-400 font-mono">
-                <h3 class="font-bold text-white text-lg mb-2">DEBUG INFO</h3>
-                <p><strong>Slug from URL:</strong> ${slug}</p>
-                <p><strong>Fetched Event Name:</strong> ${eventName}</p>
-                <p><strong>Fetched Event Date:</strong> ${fields['Date']}</p>
-                <p><strong>Parent Event Name:</strong> ${parentEventName || 'N/A'}</p>
-                <p><strong>Recurring Info:</strong> ${recurringInfo || 'N/A'}</p>
-                <p><strong>Total Future Instances Found:</strong> ${allFutureInstances.length}</p>
-                <p><strong>Instances to Display:</strong> ${otherInstancesToDisplay.length}</p>
-                <pre class="mt-2 text-xs whitespace-pre-wrap"><strong>Future Dates Array:</strong> ${JSON.stringify(allFutureInstances.map(i => i.Date), null, 2)}</pre>
-            </div>
         </main>
+        <!-- **FIX**: Restored the full, readable JavaScript for the calendar buttons -->
         <script>
             const calendarData = ${JSON.stringify(calendarData)};
-            // ... (rest of the script is unchanged)
-            function toICSDate(d){return new Date(d).toISOString().replace(/[-:]/g,"").split(".")[0]+"Z"}function generateGoogleLink(e){let t=new URLSearchParams({action:"TEMPLATE",text:calendarData.title,dates:toICSDate(calendarData.startTime)+"/"+toICSDate(calendarData.endTime),details:calendarData.description,location:calendarData.location});return e&&calendarData.isRecurring&&params.set("recur","RRULE:RDATE;VALUE=DATE-TIME:"+calendarData.recurringDates.map(e=>toICSDate(e)).join(",")),"https://www.google.com/calendar/render?"+t.toString()}function generateICSFile(e){let t=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//BrumOutLoud//EN","BEGIN:VEVENT","UID:"+new Date().getTime()+"@brumoutloud.co.uk","DTSTAMP:"+toICSDate(new Date),"DTSTART:"+toICSDate(calendarData.startTime),"DTEND:"+toICSDate(calendarData.endTime),"SUMMARY:"+calendarData.title,"DESCRIPTION:"+calendarData.description,"LOCATION:"+calendarData.location];e&&calendarData.isRecurring&&t.push("RDATE;VALUE=DATE-TIME:"+calendarData.recurringDates.map(e=>toICSDate(e)).join(",")),t.push("END:VEVENT","END:VCALENDAR");let a=new Blob([t.join("\\r\\n")],{type:"text/calendar;charset=utf-8"}),n=URL.createObjectURL(a),o=document.createElement("a");o.href=n,o.download=calendarData.title.replace(/ /g,"_")+".ics",document.body.appendChild(o),o.click(),document.body.removeChild(o)}document.addEventListener("DOMContentLoaded",()=>{let e=document.querySelector("#add-to-calendar-section .grid"),t="";calendarData.isRecurring?t='<a href="'+generateGoogleLink(!1)+'" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a><button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button><a href="'+generateGoogleLink(!0)+'" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a><button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>':t='<a href="'+generateGoogleLink(!1)+'" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a><button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>',e.innerHTML=t});
+            
+            function toICSDate(dateStr) { return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
+
+            function generateGoogleLink(isSeries) {
+                const params = new URLSearchParams({
+                    action: 'TEMPLATE',
+                    text: calendarData.title,
+                    dates: toICSDate(calendarData.startTime) + '/' + toICSDate(calendarData.endTime),
+                    details: calendarData.description,
+                    location: calendarData.location
+                });
+                if (isSeries && calendarData.isRecurring) {
+                    const rrule = 'RRULE:RDATE;VALUE=DATE-TIME:' + calendarData.recurringDates.map(d => toICSDate(d)).join(',');
+                    params.set('recur', rrule);
+                }
+                return 'https://www.google.com/calendar/render?' + params.toString();
+            }
+
+            function generateICSFile(isSeries) {
+                let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location];
+                if (isSeries && calendarData.isRecurring) {
+                    const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(',');
+                    icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString);
+                }
+                icsContent.push('END:VEVENT', 'END:VCALENDAR');
+                const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = calendarData.title.replace(/ /g, '_') + '.ics';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+            
+            document.addEventListener('DOMContentLoaded', () => {
+                const container = document.querySelector('#add-to-calendar-section .grid');
+                let buttonsHTML = '';
+                if (calendarData.isRecurring) {
+                    buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>' +
+                        '<a href="' + generateGoogleLink(true) + '" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>' +
+                        '<button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>';
+                } else {
+                     buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
+                }
+                container.innerHTML = buttonsHTML;
+            });
         </script>
       </body>
       </html>

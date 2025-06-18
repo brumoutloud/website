@@ -7,9 +7,6 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        // **FIX**: By removing the specific `fields` array, the query will now return all fields
-        // for the matching records, which prevents the function from crashing if a specific
-        // column like "Contact Email" doesn't exist in the Airtable base.
         const fetchEvents = base('Events').select({
             filterByFormula: "{Status} = 'Pending Review'"
         }).all();
@@ -29,7 +26,8 @@ exports.handler = async function (event, context) {
                 name: record.get('Event Name') || 'No Name',
                 description: record.get('Description'),
                 location: record.get('VenueText'),
-                contactEmail: record.get('Contact Email') // This will now safely return undefined if the field doesn't exist
+                // **FIX**: The script now checks for multiple possible field names for the email.
+                contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
             });
         });
 
@@ -40,7 +38,7 @@ exports.handler = async function (event, context) {
                 name: record.get('Name') || 'No Name',
                 description: record.get('Description'),
                 location: record.get('Address'),
-                contactEmail: record.get('Contact Email')
+                contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
             });
         });
 

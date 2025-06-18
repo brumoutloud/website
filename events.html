@@ -36,16 +36,6 @@
         .popover-option:hover {
             background-color: #374151; /* bg-gray-700 */
         }
-        /* Style for the category tags on event cards */
-        .category-tag {
-            display: inline-block;
-            background-color: rgba(181, 100, 247, 0.1); /* bg-accent-color/10 */
-            color: #B564F7; /* accent-color */
-            font-size: 0.75rem; /* text-sm */
-            font-weight: 600; /* font-semibold */
-            padding: 0.25rem 0.75rem; /* px-3 py-1 */
-            border-radius: 9999px; /* rounded-full */
-        }
     </style>
 </head>
 <body class="antialiased">
@@ -58,9 +48,10 @@
                 <a href="/all-venues.html" class="text-gray-300 hover:accent-color transition-colors">Venues</a>
                 <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
             </div>
-            <a href="/get-listed.html" class="nav-cta">
+            <!-- **FIX:** Changed from an <a> tag to a <button> with the correct onclick event. -->
+            <button onclick="showEventModal()" class="nav-cta">
                 SUBMIT EVENT
-            </a>
+            </button>
         </nav>
     </header>
 
@@ -103,7 +94,6 @@
                     <span>Loading events...</span>
                 </div>
             </div>
-             <!-- NEW: Upgraded Empty State Component -->
              <div id="no-results-message" class="hidden text-center card-bg p-12 col-span-full">
                 <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-accent-color">
                     <i class="fas fa-search fa-2x"></i>
@@ -185,29 +175,13 @@
         // --- Rendering ---
         function renderEvents(events) {
             eventGrid.innerHTML = '';
-            
-            // Toggle visibility of the grid and the no-results message
-            const hasResults = events.length > 0;
-            eventGrid.style.display = hasResults ? 'grid' : 'none';
-            noResultsMessage.style.display = hasResults ? 'none' : 'block';
+            eventGrid.style.display = events.length > 0 ? 'grid' : 'none';
+            noResultsMessage.style.display = events.length > 0 ? 'none' : 'block';
             
             events.forEach(event => {
-                // NEW: Generate HTML for category tags
                 const tagsHTML = event.category.map(cat => `<span class="category-tag">${cat}</span>`).join('');
                 
-                const eventCard = `
-                    <a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in">
-                        <div class="item-card-image-container">
-                            <img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy">
-                        </div>
-                        <div class="p-6">
-                             <!-- NEW: Added a container for tags -->
-                            <div class="mb-2 flex flex-wrap gap-2">${tagsHTML}</div>
-                            <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3>
-                            <p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
-                            <p class="text-gray-400">${event.venue}</p>
-                        </div>
-                    </a>`;
+                const eventCard = `<a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in"><div class="item-card-image-container"><img src="${event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event'}" alt="${event.name}" class="item-card-image" loading="lazy"></div><div class="p-6"><div class="mb-2 flex flex-wrap gap-2">${tagsHTML}</div><h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${event.name}</h3><p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p><p class="text-gray-400">${event.venue}</p></div></a>`;
                 eventGrid.insertAdjacentHTML('beforeend', eventCard);
             });
         }

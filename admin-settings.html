@@ -60,7 +60,11 @@
                     <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Content Tools</h2>
                     <p class="text-gray-400 mb-6">Tools for managing submissions and site data.</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <a href="/admin/approvals" class="nav-cta text-center">Go to Approval Queue</a>
+                        <!-- **FIX**: Added a span for the counter badge -->
+                        <a href="/admin/approvals" class="nav-cta text-center flex items-center justify-center gap-2">
+                            <span>Go to Approval Queue</span>
+                            <span id="approval-count-badge" class="bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center hidden">0</span>
+                        </a>
                         <a href="/admin/poster-tool" class="nav-cta text-center">Go to Poster Parser</a>
                     </div>
                 </div>
@@ -73,9 +77,28 @@
         const saveBtnText = document.getElementById('save-button-text');
         const saveLoader = document.getElementById('save-loader');
         const successMessage = document.getElementById('success-message');
+        const approvalBadge = document.getElementById('approval-count-badge');
 
         function loadSettings() {
             document.getElementById('skiddle-id').value = '15424'; 
+        }
+
+        // **NEW**: Function to fetch and display the pending count
+        async function loadPendingCount() {
+            try {
+                const response = await fetch('/.netlify/functions/get-pending-items');
+                if (!response.ok) return;
+                const items = await response.json();
+                
+                if (items.length > 0) {
+                    approvalBadge.textContent = items.length;
+                    approvalBadge.classList.remove('hidden');
+                } else {
+                    approvalBadge.classList.add('hidden');
+                }
+            } catch(error) {
+                console.error("Could not fetch pending count:", error);
+            }
         }
 
         form.addEventListener('submit', (e) => {
@@ -97,7 +120,10 @@
             }, 1500);
         });
         
-        document.addEventListener('DOMContentLoaded', loadSettings);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            loadPendingCount(); // Fetch the count when the page loads
+        });
     </script>
 </body>
 </html>

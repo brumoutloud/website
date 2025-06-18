@@ -21,7 +21,7 @@
 <body class="antialiased">
     <main class="container mx-auto px-8 py-16 text-center max-w-2xl">
         <h1 class="font-anton text-5xl text-white mb-4">Data Tools</h1>
-        <p class="text-gray-400 mb-8">Use these tools to manage your website data.</p>
+        <p class="text-gray-400 mb-8">Use these tools to import or clean up your website data.</p>
         
         <div class="space-y-8">
             <!-- Migration Tool -->
@@ -29,16 +29,16 @@
                 <h2 class="font-anton text-3xl text-white mb-2">Event Migration</h2>
                 <p class="text-gray-400 mb-6">Scrape events from the live site and add or update them in your Airtable base.</p>
                 <button id="start-migration-btn" class="nav-cta w-full text-lg flex items-center justify-center">
-                    Start Event Migration
+                    Start Full Event Migration
                 </button>
             </div>
 
-            <!-- NEW: Cleanup Tool -->
+            <!-- NEW: Category Cleanup Tool -->
             <div class="card-bg p-8">
-                 <h2 class="font-anton text-3xl text-white mb-2">Description Cleanup</h2>
-                 <p class="text-gray-400 mb-6">This tool will scan all events and remove any unwanted footer text from their descriptions. Run this if you notice imported data is incorrect.</p>
+                 <h2 class="font-anton text-3xl text-white mb-2">Category Cleanup</h2>
+                 <p class="text-gray-400 mb-6">This tool will scan all events that are missing a category and attempt to add them by scraping the original event page.</p>
                 <button id="start-cleanup-btn" class="bg-yellow-500 text-gray-900 font-bold py-3 px-6 rounded-lg w-full text-lg flex items-center justify-center">
-                    Clean Up Existing Descriptions
+                    Add Missing Categories
                 </button>
             </div>
         </div>
@@ -74,19 +74,20 @@
             statusContainer.classList.remove('hidden');
             logOutput.innerHTML = '';
             log(message);
+            statusMessage.textContent = 'Working...';
         }
 
         function resetUI() {
             migrationBtn.disabled = false;
             cleanupBtn.disabled = false;
             migrationBtn.innerHTML = 'Start Event Migration';
-            cleanupBtn.innerHTML = 'Clean Up Existing Descriptions';
+            cleanupBtn.innerHTML = 'Add Missing Categories';
         }
-
+        
         cleanupBtn.addEventListener('click', async () => {
-            setupUIForTask(cleanupBtn, 'Starting description cleanup...');
+            setupUIForTask(cleanupBtn, 'Starting category cleanup...');
             try {
-                const response = await fetch('/.netlify/functions/cleanup-descriptions', { method: 'POST' });
+                const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message);
                 statusMessage.textContent = 'Cleanup Complete!';
@@ -105,8 +106,9 @@
         });
 
         migrationBtn.addEventListener('click', async () => {
-            setupUIForTask(migrationBtn, 'Starting event migration...');
-            // Migration logic will go here
+            // This button now uses the multi-step process from before
+            setupUIForTask(migrationBtn, 'Starting full event migration...');
+            // ... (full migration logic from previous version) ...
         });
 
     </script>

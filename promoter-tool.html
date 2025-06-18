@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promoter Tools | Brum Out Loud</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body class="antialiased">
+
+    <header class="p-8">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-8 py-16">
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">PROMOTER <span class="accent-color">TOOLS</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Use these tools to quickly add your events to the site. Upload a poster or a spreadsheet and let our smart system extract the details for your review.</p>
+            </div>
+
+            <div class="space-y-8">
+                <form id="poster-form" class="card-bg p-8 md:p-12 space-y-6">
+                    <h2 class="font-anton text-3xl text-white">Parse a Poster</h2>
+                    <div>
+                        <label for="poster-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Upload Poster Image</label>
+                        <input type="file" id="poster-file" name="poster" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif" required>
+                    </div>
+                    <div id="image-preview" class="hidden"><img id="preview-img" class="rounded-lg max-h-64 mx-auto" alt="Image preview"></div>
+                    <div class="pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg w-full flex items-center justify-center">Parse Poster</button></div>
+                </form>
+
+                 <form id="bulk-upload-form" class="card-bg p-8 md:p-12 space-y-6">
+                    <h2 class="font-anton text-3xl text-white">Parse a Spreadsheet</h2>
+                    <div>
+                        <label for="spreadsheet-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Upload Spreadsheet</label>
+                        <input type="file" id="spreadsheet-file" name="spreadsheet" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
+                    </div>
+                    <div class="pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg w-full flex items-center justify-center">Parse Spreadsheet</button></div>
+                </form>
+            </div>
+
+            <div id="status-message" class="mt-8 text-center text-lg font-semibold hidden"></div>
+            <div id="results-container" class="mt-8 space-y-6">
+                <!-- Parsed event forms will be injected here -->
+            </div>
+        </section>
+    </main>
+    
+    <script>
+        const posterForm = document.getElementById('poster-form');
+        const bulkUploadForm = document.getElementById('bulk-upload-form');
+        const fileInput = document.getElementById('poster-file');
+        const imagePreviewContainer = document.getElementById('image-preview');
+        const previewImg = document.getElementById('preview-img');
+        const resultsContainer = document.getElementById('results-container');
+        const statusMessage = document.getElementById('status-message');
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => { previewImg.src = e.target.result; imagePreviewContainer.classList.remove('hidden'); };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        function renderEventForm(eventData, index) {
+            const categories = Array.isArray(eventData.categories) ? eventData.categories.join(', ') : '';
+            const formHtml = `
+                <form class="event-review-form card-bg p-6 space-y-4" data-index="${index}" enctype="multipart/form-data">
+                    <h3 class="font-anton text-2xl text-white">Review Event ${index + 1}</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Name</label><input type="text" name="name" value="${eventData.name || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label><input type="text" name="venue" value="${eventData.venue || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Date</label><input type="date" name="date" value="${eventData.date || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Time (24hr)</label><input type="time" name="time" value="${eventData.time || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Ticket Link</label><input type="url" name="ticketLink" value="${eventData.ticketLink || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Contact Email</label><input type="email" name="contactEmail" value="${eventData.contactEmail || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    </div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Recurring Info</label><input type="text" name="recurringInfo" value="" class="w-full p-2 bg-gray-900/50 rounded-md" placeholder="e.g., Every second Friday"></div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Categories (comma-separated)</label><input type="text" name="categories" value="${categories}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Promo Image</label><input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif"></div>
+                    
+                    <div class="flex justify-end gap-4 pt-2">
+                        <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
+                        <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Approve & Add</button>
+                    </div>
+                </form>
+            `;
+            resultsContainer.insertAdjacentHTML('beforeend', formHtml);
+        }
+        
+        async function handleFormSubmit(formElement, endpoint) {
+            const submitBtn = formElement.querySelector('button[type=submit]');
+            const originalBtnText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loader ml-3 w-5 h-5 border-2"></span><span class="ml-2">Processing...</span>';
+            
+            resultsContainer.innerHTML = '';
+            statusMessage.textContent = 'Contacting our smart system... This may take a moment.';
+            statusMessage.classList.remove('hidden');
+
+            try {
+                const formData = new FormData(formElement);
+                const response = await fetch(endpoint, { method: 'POST', body: formData });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'An unknown server error occurred.');
+                
+                statusMessage.textContent = `Smart system found ${result.events.length} event(s). Please review and approve.`;
+                if(result.events.length === 0) { statusMessage.textContent = "Could not find any clear event details in this file."; }
+                result.events.forEach(renderEventForm);
+
+            } catch (error) {
+                statusMessage.textContent = `Error: ${error.toString()}`;
+            } finally {
+                 submitBtn.disabled = false;
+                 submitBtn.innerHTML = originalBtnText;
+            }
+        }
+
+        posterForm.addEventListener('submit', (e) => { e.preventDefault(); handleFormSubmit(posterForm, '/.netlify/functions/process-poster'); });
+        bulkUploadForm.addEventListener('submit', (e) => { e.preventDefault(); handleFormSubmit(bulkUploadForm, '/.netlify/functions/process-spreadsheet'); });
+
+        resultsContainer.addEventListener('click', async (e) => {
+            const target = e.target;
+            const reviewForm = target.closest('.event-review-form');
+            if (!reviewForm) return;
+
+            if (target.classList.contains('reject-btn')) {
+                reviewForm.style.opacity = '0.5';
+                reviewForm.innerHTML = '<p class="text-center text-red-400 font-bold">Rejected</p>';
+            }
+
+            if (target.classList.contains('approve-btn')) {
+                e.preventDefault();
+                const approveButton = reviewForm.querySelector('.approve-btn');
+                approveButton.disabled = true;
+                approveButton.textContent = 'Adding...';
+
+                const formData = new FormData(reviewForm);
+                
+                try {
+                    const response = await fetch('/.netlify/functions/create-approved-event', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message);
+                    
+                    reviewForm.style.opacity = '0.5';
+                    const eventName = new FormData(reviewForm).get('name');
+                    reviewForm.innerHTML = `<p class="text-center text-green-400 font-bold">Approved & Added: ${eventName}</p>`;
+
+                } catch (error) {
+                    approveButton.disabled = false;
+                    approveButton.textContent = 'Approve & Add';
+                    alert(`Error adding event: ${error.toString()}`);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

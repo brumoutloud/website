@@ -42,7 +42,6 @@ async function uploadImage(file) {
     }
 }
 
-// **NEW**: Re-integrated the AI date generation logic
 async function getDatesFromAI(eventName, startDate, recurringInfo) {
     if (!GEMINI_API_KEY) {
         console.warn("GEMINI_API_KEY not set. Falling back to single date.");
@@ -80,7 +79,6 @@ exports.handler = async function (event, context) {
         let datesToCreate = [];
         const recurringInfoText = eventData.recurringInfo || null;
 
-        // **FIX**: Generate multiple dates if recurring info is provided
         if (recurringInfoText && recurringInfoText.trim() !== '') {
             datesToCreate = await getDatesFromAI(eventData.name, eventData.date, recurringInfoText);
         } else {
@@ -99,8 +97,11 @@ exports.handler = async function (event, context) {
             if (venueRecordId) fields['Venue'] = [venueRecordId];
             if (eventData.ticketLink) fields['Link'] = eventData.ticketLink;
             if (eventData.parentEventName) fields['Parent Event Name'] = eventData.parentEventName;
+            if (eventData.recurringInfo) fields['Recurring Info'] = eventData.recurringInfo;
+            if (eventData.categories && eventData.categories.length > 0) fields['Category'] = eventData.categories.split(',').map(c => c.trim());
             if (uploadedImage) fields['Promo Image'] = [{ url: uploadedImage.url }];
-            if (index === 0 && recurringInfoText) fields['Recurring Info'] = recurringInfoText;
+            // **FIX**: Add the contact email to the record
+            if (eventData.contactEmail) fields['Contact Email'] = eventData.contactEmail;
             
             return { fields };
         });

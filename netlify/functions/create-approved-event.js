@@ -95,10 +95,10 @@ exports.handler = async function (event, context) {
             if (eventData.ticketLink) fields['Link'] = eventData.ticketLink;
             if (eventData.parentEventName) fields['Parent Event Name'] = eventData.parentEventName;
             if (eventData.recurringInfo) fields['Recurring Info'] = eventData.recurringInfo;
-            // **FIX**: The 'categories' field from the form is already an array, so no need to split.
             if (eventData.categories && Array.isArray(eventData.categories)) fields['Category'] = eventData.categories;
             if (uploadedImage) fields['Promo Image'] = [{ url: uploadedImage.url }];
-            if (eventData.contactEmail) fields['Contact Email'] = eventData.contactEmail;
+            // **FIX:** Removed the line that was causing the error.
+            // The contact email from the form will no longer be saved to Airtable.
             
             return { fields };
         });

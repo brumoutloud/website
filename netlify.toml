@@ -70,8 +70,14 @@
     to = "/admin-approvals.html"
     status = 200
 
-# NEW: Rule for the Promoter Submission Page
+# Rule for the Promoter Submission Page
 [[redirects]]
     from = "/submit"
     to = "/promoter-submit.html"
+    status = 200
+
+# NEW: Rule for the admin review page
+[[redirects]]
+    from = "/admin/review"
+    to = "/admin-review.html"
     status = 200

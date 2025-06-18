@@ -43,11 +43,8 @@ async function uploadImage(file) {
 }
 
 async function getDatesFromAI(eventName, startDate, recurringInfo) {
-    if (!GEMINI_API_KEY) {
-        console.warn("GEMINI_API_KEY not set. Falling back to single date.");
-        return [startDate];
-    }
-    const prompt = `You are an event scheduling assistant. An event named "${eventName}" starts on ${startDate}. The recurrence rule is: "${recurringInfo}". Generate a list of all future dates for this event for the next 3 months, including the start date. Return a comma-separated list of YYYY-MM-DD strings.`;
+    if (!GEMINI_API_KEY) return [startDate];
+    const prompt = `For an event named "${eventName}" starting on ${startDate} with the rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format.`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
     
@@ -98,9 +95,9 @@ exports.handler = async function (event, context) {
             if (eventData.ticketLink) fields['Link'] = eventData.ticketLink;
             if (eventData.parentEventName) fields['Parent Event Name'] = eventData.parentEventName;
             if (eventData.recurringInfo) fields['Recurring Info'] = eventData.recurringInfo;
-            if (eventData.categories && eventData.categories.length > 0) fields['Category'] = eventData.categories.split(',').map(c => c.trim());
+            // **FIX**: The 'categories' field from the form is already an array, so no need to split.
+            if (eventData.categories && Array.isArray(eventData.categories)) fields['Category'] = eventData.categories;
             if (uploadedImage) fields['Promo Image'] = [{ url: uploadedImage.url }];
-            // **FIX**: Add the contact email to the record
             if (eventData.contactEmail) fields['Contact Email'] = eventData.contactEmail;
             
             return { fields };

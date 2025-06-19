@@ -2,6 +2,36 @@ const Airtable = require('airtable');
 const parser = require('lambda-multipart-parser');
 const fetch = require('node-fetch');
 const cloudinary = require('cloudinary').v2;
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin SDK
+try {
+    if (!admin.apps.length) {
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            }),
+        });
+    }
+} catch (error) {
+    console.error("Firebase Admin Initialization Error:", error);
+}
+const db = admin.firestore();
+
+// Helper to get Gemini model name from Firestore
+async function getGeminiModelName() {
+    try {
+        const doc = await db.collection('settings').doc('gemini').get();
+        if (doc.exists && doc.data().modelName) {
+            return doc.data().modelName;
+        }
+    } catch (error) {
+        console.error("Error fetching Gemini model from Firestore:", error);
+    }
+    return 'gemini-2.5-flash';
+}
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
@@ -41,19 +71,24 @@ async function uploadImage(file) {
     }
 }
 
-// **FIX**: The eventName is removed from this function and the prompt.
-async function getDatesFromAI(startDate, recurringInfo) {
+async function getDatesFromAI(startDate, recurringInfo, modelName) {
     if (!GEMINI_API_KEY) return [startDate];
-    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format.`;
+    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in format<y_bin_413>-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
     
     try {
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) return [startDate];
         const result = await response.json();
         const textResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-        return textResponse ? textResponse.trim().split(',').map(d => d.trim()) : [startDate];
+        
+        if (!textResponse) return [startDate];
+
+        const dateRegex = /\d{4}-\d{2}-\d{2}/g;
+        const dates = textResponse.match(dateRegex);
+
+        return dates && dates.length > 0 ? dates : [startDate];
     } catch (error) {
         console.error("Error calling AI for dates:", error);
         return [startDate];
@@ -62,6 +97,7 @@ async function getDatesFromAI(startDate, recurringInfo) {
 
 
 exports.handler = async function (event, context) {
+    const geminiModel = await getGeminiModelName();
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
@@ -77,7 +113,7 @@ exports.handler = async function (event, context) {
         const recurringInfoText = eventData.recurringInfo || null;
 
         if (recurringInfoText && recurringInfoText.trim() !== '') {
-            datesToCreate = await getDatesFromAI(eventData.date, recurringInfoText);
+            datesToCreate = await getDatesFromAI(eventData.date, recurringInfoText, geminiModel);
         } else {
             datesToCreate.push(eventData.date);
         }

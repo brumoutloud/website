@@ -20,7 +20,6 @@ try {
 }
 const db = admin.firestore();
 
-// Helper to get Gemini model name from Firestore
 async function getGeminiModelName() {
     try {
         const doc = await db.collection('settings').doc('gemini').get();
@@ -62,7 +61,7 @@ async function uploadImage(file) {
     if (!file || !file.content) return null;
     try {
         const base64String = file.content.toString('base64');
-        const dataUri = `data:${file.contentType};base64,${base64String}`;
+        const dataUri = `data:<span class="math-inline">\{file\.contentType\};base64,</span>{base64String}`;
         const result = await cloudinary.uploader.upload(dataUri, { folder: 'brumoutloud_events' });
         return { url: result.secure_url };
     } catch (error) {
@@ -73,9 +72,9 @@ async function uploadImage(file) {
 
 async function getDatesFromAI(startDate, recurringInfo, modelName) {
     if (!GEMINI_API_KEY) return [startDate];
-    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in format<y_bin_413>-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
+    const prompt = `Based on a start date of <span class="math-inline">\{startDate\} and the recurrence rule "</span>{recurringInfo}", provide a comma-separated list of all dates for the next 3 months in format<y_bin_413>-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/<span class="math-inline">\{modelName\}\:generateContent?key\=</span>{GEMINI_API_KEY}`;
     
     try {
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -88,70 +87,4 @@ async function getDatesFromAI(startDate, recurringInfo, modelName) {
         const dateRegex = /\d{4}-\d{2}-\d{2}/g;
         const dates = textResponse.match(dateRegex);
 
-        return dates && dates.length > 0 ? dates : [startDate];
-    } catch (error) {
-        console.error("Error calling AI for dates:", error);
-        return [startDate];
-    }
-}
-
-
-exports.handler = async function (event, context) {
-    const geminiModel = await getGeminiModelName();
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
-
-    try {
-        const eventData = await parser.parse(event);
-        
-        const venueRecordId = await findVenueRecordId(eventData.venue);
-        const promoImageFile = eventData.files.find(f => f.fieldname === 'promoImage');
-        const uploadedImage = await uploadImage(promoImageFile);
-        
-        let datesToCreate = [];
-        const recurringInfoText = eventData.recurringInfo || null;
-
-        if (recurringInfoText && recurringInfoText.trim() !== '') {
-            datesToCreate = await getDatesFromAI(eventData.date, recurringInfoText, geminiModel);
-        } else {
-            datesToCreate.push(eventData.date);
-        }
-
-        const recordsToCreate = datesToCreate.map((date, index) => {
-            const fields = {
-                'Event Name': eventData.name,
-                'Description': eventData.description || '',
-                'VenueText': eventData.venue || '',
-                'Date': `${date}T${eventData.time || '00:00'}:00.000Z`,
-                'Status': 'Pending Review'
-            };
-
-            if (venueRecordId) fields['Venue'] = [venueRecordId];
-            if (eventData.ticketLink) fields['Link'] = eventData.ticketLink;
-            if (eventData.parentEventName) fields['Parent Event Name'] = eventData.parentEventName;
-            if (eventData.recurringInfo) fields['Recurring Info'] = eventData.recurringInfo;
-            if (eventData.categories && Array.isArray(eventData.categories)) fields['Category'] = eventData.categories;
-            if (uploadedImage) fields['Promo Image'] = [{ url: uploadedImage.url }];
-            
-            return { fields };
-        });
-
-        const chunkSize = 10;
-        for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
-            await eventsTable.create(recordsToCreate.slice(i, i + chunkSize));
-        }
-        
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true, message: `Successfully created ${recordsToCreate.length} event(s) for "${eventData.name}".` }),
-        };
-
-    } catch (error) {
-        console.error("Error creating approved event:", error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ success: false, message: error.toString() }),
-        };
-    }
-};
+        return

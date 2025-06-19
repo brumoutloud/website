@@ -4,14 +4,73 @@ const fetch = require('node-fetch');
 const cloudinary = require('cloudinary').v2;
 const admin = require('firebase-admin');
 
-// ... (Firebase initialization code) ...
-// ... (getGeminiModelName helper function) ...
-// The above two blocks should be copied from the file in step 1
+// Initialize Firebase Admin SDK
+try {
+    if (!admin.apps.length) {
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            }),
+        });
+    }
+} catch (error) {
+    console.error("Firebase Admin Initialization Error:", error);
+}
+const db = admin.firestore();
+
+// Helper to get Gemini model name from Firestore
+async function getGeminiModelName() {
+    try {
+        const doc = await db.collection('settings').doc('gemini').get();
+        if (doc.exists && doc.data().modelName) {
+            return doc.data().modelName;
+        }
+    } catch (error) {
+        console.error("Error fetching Gemini model from Firestore:", error);
+    }
+    return 'gemini-2.5-flash';
+}
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
-// ... (rest of the file is the same, just with the updated getDatesFromAI below)
+const eventsTable = base('Events');
+const venuesTable = base('Venues');
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// **FIX**: Added detailed logging to debug the AI response.
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+async function findVenueRecordId(venueName) {
+    if (!venueName) return null;
+    const sanatizedVenueName = venueName.toLowerCase().replace(/"/g, '\\"');
+    const formula = `OR(LOWER({Name}) = "${sanatizedVenueName}", FIND("${sanatizedVenueName}", LOWER({Name})), FIND("${sanatizedVenueName}", LOWER({Aliases})))`;
+    try {
+        const records = await venuesTable.select({ maxRecords: 1, filterByFormula: formula }).firstPage();
+        return records.length > 0 ? records[0].id : null;
+    } catch (error) {
+        console.error("Error finding venue:", error);
+        return null;
+    }
+}
+
+async function uploadImage(file) {
+    if (!file || !file.content) return null;
+    try {
+        const base64String = file.content.toString('base64');
+        const dataUri = `data:${file.contentType};base64,${base64String}`;
+        const result = await cloudinary.uploader.upload(dataUri, { folder: 'brumoutloud_events' });
+        return { url: result.secure_url };
+    } catch (error) {
+        console.error("Error uploading to Cloudinary:", error);
+        return null;
+    }
+}
+
 async function getDatesFromAI(startDate, recurringInfo, modelName) {
     console.log(`[getDatesFromAI] INPUT - startDate: "${startDate}", recurringInfo: "${recurringInfo}"`);
     
@@ -49,4 +108,79 @@ async function getDatesFromAI(startDate, recurringInfo, modelName) {
     }
 }
 
-// ... (The rest of the file, including exports.handler, remains the same)
+
+exports.handler = async function (event, context) {
+    const geminiModel = await getGeminiModelName();
+    let submissionData;
+    let promoImageFile = null;
+    const isJson = event.headers['content-type'] === 'application/json';
+
+    if (isJson) {
+        submissionData = JSON.parse(event.body);
+    } else {
+        const parsedForm = await parser.parse(event);
+        submissionData = {
+            name: parsedForm['event-name'],
+            venue: parsedForm.venue,
+            date: parsedForm.date,
+            time: parsedForm['start-time'],
+            description: parsedForm.description,
+            link: parsedForm.link,
+            recurringInfo: parsedForm['recurring-info'],
+            contactEmail: parsedForm.email,
+        };
+        promoImageFile = parsedForm.files.find(f => f.fieldname === 'promo-image');
+    }
+
+    try {
+        const venueRecordId = await findVenueRecordId(submissionData.venue);
+        const uploadedImage = await uploadImage(promoImageFile);
+        
+        let datesToCreate = [];
+        const recurringInfoText = submissionData.recurringInfo || null;
+
+        if (recurringInfoText && recurringInfoText.trim() !== '') {
+            datesToCreate = await getDatesFromAI(submissionData.date, recurringInfoText, geminiModel);
+        } else {
+            datesToCreate.push(submissionData.date);
+        }
+
+        const recordsToCreate = datesToCreate.map((date, index) => {
+            const fields = {
+                'Event Name': submissionData.name,
+                'Description': submissionData.description || '',
+                'VenueText': submissionData.venue || '',
+                'Date': `${date}T${submissionData.time || '00:00'}:00.000Z`,
+                'Link': submissionData.link || '',
+                'Submitter Email': submissionData.contactEmail || '',
+                'Status': 'Pending Review'
+            };
+
+            if (venueRecordId) fields.Venue = [venueRecordId];
+            if (uploadedImage) fields['Promo Image'] = [{ url: uploadedImage.url }];
+            if (recurringInfoText) {
+                fields['Parent Event Name'] = submissionData.name;
+                if (index === 0) fields['Recurring Info'] = recurringInfoText;
+            }
+            return { fields };
+        });
+
+        const chunkSize = 10;
+        for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
+            await eventsTable.create(recordsToCreate.slice(i, i + chunkSize));
+        }
+
+        if (isJson) {
+            return { statusCode: 200, body: JSON.stringify({ success: true }) };
+        } else {
+            return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'text/html' },
+                body: `<!DOCTYPE html><html><head><title>Success</title><meta http-equiv="refresh" content="3;url=/events.html"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;"><h1>Thank you!</h1><p>Your event has been submitted for review.</p><p>You will be redirected shortly.</p></body></html>`
+            };
+        }
+    } catch (error) {
+        console.error("Error processing event submission:", error);
+        return { statusCode: 500, body: `Error: ${error.toString()}` };
+    }
+};

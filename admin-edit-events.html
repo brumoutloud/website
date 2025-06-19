@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Approved Events | Admin Panel</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/auth-guard.js"></script>
+</head>
+<body class="antialiased">
+
+    <header class="p-8">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+            <a href="/admin/settings" class="text-gray-300 hover:text-white">Back to Admin Settings</a>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-8 py-16">
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">EDIT <span class="accent-color">EVENTS</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Find and edit existing approved events on the site.</p>
+            </div>
+            
+            <div id="loading-state" class="text-center py-10">
+                <div class="loader inline-block"></div>
+                <p class="mt-4 text-gray-400">Loading approved events...</p>
+            </div>
+
+            <div id="event-list" class="space-y-4">
+                </div>
+        </section>
+    </main>
+
+    <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
+             <h3 class="font-anton text-3xl text-white">Edit Event</h3>
+             <div id="edit-form-fields" class="space-y-4"></div>
+             <div class="flex justify-end gap-4 pt-4">
+                <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+                <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
+             </div>
+        </form>
+    </div>
+    
+    <script>
+        const eventList = document.getElementById('event-

@@ -6,11 +6,10 @@ exports.handler = async function (event, context) {
     const isAdminView = event.queryStringParameters.view === 'admin';
     const offset = event.queryStringParameters.offset;
 
-    // This is the query that will be paginated
     const query = base('Events').select({
       filterByFormula: "AND({Status} = 'Approved', IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))",
       sort: [{ field: 'Date', direction: 'asc' }],
-      pageSize: 50, // Fetch 50 records per page
+      pageSize: 50, // We will fetch 50 records at a time
       fields: [
           'Event Name', 'Description', 'Date', 'Promo Image', 'Slug', 
           'Recurring Info', 'Venue Name', 'Venue Slug', 'Category', 
@@ -18,32 +17,25 @@ exports.handler = async function (event, context) {
       ]
     });
 
-    // Fetch a single page of records
-    const page = await query.firstPage();
-    
-    // The Airtable API provides an 'offset' for the next page, which we'll use for pagination
-    const responseData = {
-        records: page,
-        offset: page.offset,
-    };
+    // Fetch a single page of up to 50 records.
+    // The 'offset' tells Airtable which page to start from.
+    const page = await query.all({ offset: offset });
 
-    let events;
+    // We get a new offset for the *next* page, which we send to the client.
+    const newOffset = page.offset;
+    let processedRecords;
 
     if (isAdminView) {
-        events = responseData.records.map((record) => {
+        processedRecords = page.map((record) => {
             const fields = { ...record.fields };
             if (fields['Submitter Email']) {
                 fields['Contact Email'] = fields['Submitter Email'];
                 delete fields['Submitter Email'];
             }
-            return {
-                id: record.id,
-                type: 'Event',
-                fields: fields
-            };
+            return { id: record.id, type: 'Event', fields: fields };
         });
     } else {
-        events = responseData.records.map((record) => {
+        processedRecords = page.map((record) => {
             const venueDisplay = record.get('Venue Name') ? record.get('Venue Name')[0] : (record.get('VenueText') || 'TBC');
             return {
                 id: record.id,
@@ -62,8 +54,8 @@ exports.handler = async function (event, context) {
     return { 
         statusCode: 200, 
         body: JSON.stringify({
-            events: events,
-            offset: responseData.offset // Send the offset back to the client
+            events: processedRecords,
+            offset: newOffset // Send the offset for the next page back to the client
         }) 
     };
 

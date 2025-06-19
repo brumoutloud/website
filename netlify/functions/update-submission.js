@@ -74,8 +74,6 @@ exports.handler = async function (event, context) {
                 combinedData['Promo Image'] = [{ url: uploadedImage.secure_url }];
             }
 
-            // **THE FIX**: Before creating, simplify the complex attachment object 
-            // from the original record into the simple format Airtable requires for creation.
             if (combinedData['Promo Image'] && combinedData['Promo Image'][0] && combinedData['Promo Image'][0].id) {
                 const existingImageUrl = combinedData['Promo Image'][0].url;
                 combinedData['Promo Image'] = [{ url: existingImageUrl }];
@@ -97,13 +95,16 @@ exports.handler = async function (event, context) {
 
                 return { fields };
             });
+            
+            // **THE FIX**: Instead of deleting, we update the status to "Archived" to hide it.
+            console.log(`Archiving original event (ID: ${id}) instead of deleting.`);
+            await table.update(id, { "Status": "Archived", "Recurring Info": "" });
 
-            await table.destroy(id);
             const chunkSize = 10;
             for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
                 await table.create(recordsToCreate.slice(i, i + chunkSize));
             }
-            return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully regenerated recurring series for ${combinedData['Event Name']}.` }) };
+            return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully regenerated recurring series for ${combinedData['Event Name']}. The original event has been archived.` }) };
 
         } else {
             const fieldsToUpdate = {};

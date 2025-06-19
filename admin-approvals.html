@@ -32,12 +32,9 @@
                 <p class="mt-4 text-gray-400">Loading pending items...</p>
             </div>
 
-            <div id="approval-list" class="space-y-6">
-                </div>
-             <div id="no-items-message" class="hidden text-center card-bg p-12">
-                <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-green-400">
-                    <i class="fas fa-check-circle fa-2x"></i>
-                </div>
+            <div id="approval-list" class="space-y-6"></div>
+            <div id="no-items-message" class="hidden text-center card-bg p-12">
+                <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-green-400"><i class="fas fa-check-circle fa-2x"></i></div>
                 <h3 class="mt-4 text-xl font-semibold text-white">All Caught Up!</h3>
                 <p class="mt-2 text-gray-400">There are no pending submissions to review.</p>
             </div>
@@ -45,7 +42,7 @@
     </main>
 
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
-        <form id="edit-form" class="card-bg p-8 w-full max-w-2xl space-y-4">
+        <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 class="font-anton text-3xl text-white">Edit Submission</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
              <div class="flex justify-end gap-4 pt-4">
@@ -58,7 +55,7 @@
     <div id="rejection-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="card-bg p-8 w-full max-w-lg">
             <h3 class="font-anton text-3xl text-white mb-4">Reason for Rejection</h3>
-            <p class="text-gray-400 mb-6">Provide a brief reason for rejecting this submission. This will be sent to the promoter.</p>
+            <p class="text-gray-400 mb-6">This will be sent to the promoter if they provided an email. Keep it brief and helpful.</p>
             <textarea id="rejection-reason" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea>
             <div class="flex justify-end gap-4 mt-6">
                 <button id="cancel-rejection-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
@@ -71,12 +68,10 @@
         const approvalList = document.getElementById('approval-list');
         const loadingState = document.getElementById('loading-state');
         const noItemsMessage = document.getElementById('no-items-message');
-        
         const editModal = document.getElementById('edit-modal');
         const editForm = document.getElementById('edit-form');
         const editFormFields = document.getElementById('edit-form-fields');
         const cancelEditBtn = document.getElementById('cancel-edit-btn');
-        
         const rejectionModal = document.getElementById('rejection-modal');
         const rejectionReasonInput = document.getElementById('rejection-reason');
         const cancelRejectionBtn = document.getElementById('cancel-rejection-btn');
@@ -90,12 +85,16 @@
             card.dataset.id = item.id;
             card.dataset.item = JSON.stringify(item);
             
+            const name = item.type === 'Event' ? item.fields['Event Name'] : item.fields['Name'];
+            const location = item.type === 'Event' ? item.fields['VenueText'] : item.fields['Address'];
+            const description = item.fields['Description'];
+
             card.innerHTML = `
                 <div class="flex justify-between items-start flex-wrap gap-4">
                     <div>
                         <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full ${item.type === 'Event' ? 'bg-accent-color/20 text-accent-color' : 'bg-accent-color-secondary/20 text-accent-color-secondary'}">${item.type}</span>
-                        <h3 class="font-bold text-2xl mt-2 text-white">${item.name}</h3>
-                        <p class="text-gray-400 text-sm">${item.location || ''}</p>
+                        <h3 class="font-bold text-2xl mt-2 text-white">${name || 'No Name Provided'}</h3>
+                        <p class="text-gray-400 text-sm">${location || ''}</p>
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
                         <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40">Edit</button>
@@ -104,92 +103,209 @@
                     </div>
                 </div>
                 <div class="text-gray-300 mt-4 pt-4 border-t border-gray-700/50">
-                    ${item.description || 'No description provided.'}
-                </div>
-            `;
+                    ${description || 'No description provided.'}
+                </div>`;
             approvalList.appendChild(card);
         }
 
         function populateEditForm(item) {
             currentItemForAction = item;
-            editFormFields.innerHTML = `
-                 <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Name</label><input type="text" name="name" value="${item.name || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
-                 <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="4" class="w-full p-2 bg-gray-900/50 rounded-md">${item.description || ''}</textarea></div>
-                 ${item.type === 'Event' ? `<div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label><input type="text" name="VenueText" value="${item.location || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>` : ''}
-                 ${item.type === 'Venue' ? `<div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Address</label><input type="text" name="Address" value="${item.location || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>` : ''}
-            `;
+            const fields = item.fields;
+            let formHtml = '';
+
+            if (item.type === 'Event') {
+                const categories = Array.isArray(fields['Category']) ? fields['Category'].join(', ') : '';
+                const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
+                const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
+                
+                formHtml = `
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}"></div>
+                        <div><label>Venue</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}"></div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label>Date</label><input type="date" name="date" value="${eventDate}"></div>
+                        <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}"></div>
+                    </div>
+                    <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
+                        <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}"></div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}"></div>
+                        <div><label>Categories (comma-separated)</label><input type="text" name="Category" value="${categories}"></div>
+                    </div>
+                `;
+            } else { // Venue
+                formHtml = `
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div><label>Venue Name</label><input type="text" name="Name" value="${fields['Name'] || ''}"></div>
+                        <div><label>Address</label><input type="text" name="Address" value="${fields['Address'] || ''}"></div>
+                    </div>
+                    <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
+                    <div><label>Opening Hours</label><textarea name="Opening Hours" rows="3">${fields['Opening Hours'] || ''}</textarea></div>
+                    <div><label>Accessibility</label><textarea name="Accessibility" rows="3">${fields['Accessibility'] || ''}</textarea></div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                         <div><label>Website</label><input type="url" name="Website" value="${fields['Website'] || ''}"></div>
+                         <div><label>Instagram</label><input type="url" name="Instagram" value="${fields['Instagram'] || ''}"></div>
+                         <div><label>Facebook</label><input type="url" name="Facebook" value="${fields['Facebook'] || ''}"></div>
+                         <div><label>TikTok</label><input type="url" name="TikTok" value="${fields['TikTok'] || ''}"></div>
+                    </div>
+                `;
+            }
+            editFormFields.innerHTML = formHtml;
+            editFormFields.querySelectorAll('input, textarea').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700');
+            editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
             editModal.classList.remove('hidden');
         }
 
         async function processItemUpdate(item, newStatus, reason = '') {
-            // This function would call your backend to update the status
-            // For now, it just simulates the action
-            console.log(`Updating ${item.type} (${item.id}) to ${newStatus} with reason: ${reason}`);
-            // Example:
-            // await fetch('/.netlify/functions/update-submission-status', { 
-            //     method: 'POST', 
-            //     body: JSON.stringify({ id: item.id, type: item.type, newStatus, reason, name: item.name, contactEmail: item.contactEmail })
-            // });
+            const name = item.type === 'Event' ? item.fields['Event Name'] : item.fields['Name'];
+            const contactEmail = item.fields['Contact Email'];
+            try {
+                const response = await fetch('/.netlify/functions/update-and-notify', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: item.id,
+                        type: item.type,
+                        newStatus: newStatus,
+                        reason: reason,
+                        name: name,
+                        contactEmail: contactEmail
+                    })
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message || 'Server returned an error.');
+                }
+                return true;
+            } catch (error) {
+                alert(`Error updating item: ${error.toString()}`);
+                return false;
+            }
         }
-        
-        approvalList.addEventListener('click', (e) => {
+
+        approvalList.addEventListener('click', async (e) => {
             const card = e.target.closest('.review-card');
             if (!card) return;
             const item = JSON.parse(card.dataset.item);
+
+            if (e.target.classList.contains('approve-btn')) {
+                e.target.disabled = true;
+                e.target.textContent = 'Approving...';
+                const success = await processItemUpdate(item, 'Approved');
+                if (success) {
+                    card.innerHTML = `<p class="text-center text-green-400 font-bold p-4">Approved</p>`;
+                    setTimeout(() => card.remove(), 2000);
+                } else {
+                    e.target.disabled = false;
+                    e.target.textContent = 'Approve';
+                }
+            }
+
+            if (e.target.classList.contains('reject-btn')) {
+                currentItemForAction = item;
+                rejectionReasonInput.value = '';
+                rejectionModal.classList.remove('hidden');
+            }
             
             if (e.target.classList.contains('edit-btn')) {
                 populateEditForm(item);
             }
-            // ... approve/reject logic would go here ...
         });
-        
-        cancelEditBtn.addEventListener('click', () => {
-            editModal.classList.add('hidden');
-            currentItemForAction = null;
+
+        confirmRejectionBtn.addEventListener('click', async () => {
+            const reason = rejectionReasonInput.value;
+            if (!reason) { alert('Please provide a reason for rejection.'); return; }
+            
+            confirmRejectionBtn.disabled = true;
+            const success = await processItemUpdate(currentItemForAction, 'Rejected', reason);
+            
+            if (success) {
+                const card = approvalList.querySelector(`[data-id="${currentItemForAction.id}"]`);
+                if(card) {
+                     card.innerHTML = `<p class="text-center text-red-400 font-bold p-4">Rejected</p>`;
+                     setTimeout(() => card.remove(), 2000);
+                }
+                rejectionModal.classList.add('hidden');
+            }
+            confirmRejectionBtn.disabled = false;
         });
+
+        cancelRejectionBtn.addEventListener('click', () => rejectionModal.classList.add('hidden'));
+        cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
 
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(editForm);
             const updatedFields = Object.fromEntries(formData.entries());
 
-            console.log("Saving changes:", { id: currentItemForAction.id, type: currentItemForAction.type, fields: updatedFields });
-            alert('Saving changes... (check console for data)');
-            
-            editModal.classList.add('hidden');
-            currentItemForAction = null;
+            // Special handling for event date/time
+            if (currentItemForAction.type === 'Event' && updatedFields.date) {
+                updatedFields['Date'] = `${updatedFields.date}T${updatedFields.time || '00:00'}:00.000Z`;
+                delete updatedFields.date;
+                delete updatedFields.time;
+            }
+            // Special handling for categories
+            if (updatedFields.Category) {
+                updatedFields.Category = updatedFields.Category.split(',').map(s => s.trim()).filter(Boolean);
+            }
+
+            const submitBtn = editForm.querySelector('button[type=submit]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            try {
+                const response = await fetch('/.netlify/functions/update-submission', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: currentItemForAction.id,
+                        type: currentItemForAction.type,
+                        fields: updatedFields
+                    })
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.message);
+                }
+                alert('Changes saved successfully!');
+                editModal.classList.add('hidden');
+                // We could reload all items here, or just update the one card in the DOM
+                // For simplicity, we'll just close the modal. A page refresh would show the changes.
+                location.reload(); 
+
+            } catch (error) {
+                alert(`Error saving changes: ${error.toString()}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
         });
 
         async function loadPendingItems() {
-            let totalItems = 0;
+             let totalItems = 0;
             try {
-                // Step 1: Fetch and render events
                 loadingState.querySelector('p').textContent = 'Loading pending events...';
                 const eventResponse = await fetch('/.netlify/functions/get-pending-events');
                 if(eventResponse.ok) {
                     const events = await eventResponse.json();
                     events.forEach(renderItem);
                     totalItems += events.length;
-                } else {
-                   console.error("Failed to fetch pending events:", await eventResponse.text());
                 }
-
-                // Step 2: Fetch and render venues
                 loadingState.querySelector('p').textContent = 'Loading pending venues...';
                 const venueResponse = await fetch('/.netlify/functions/get-pending-venues');
                  if(venueResponse.ok) {
                     const venues = await venueResponse.json();
                     venues.forEach(renderItem);
                     totalItems += venues.length;
-                } else {
-                    console.error("Failed to fetch pending venues:", await venueResponse.text());
                 }
-
                 loadingState.style.display = 'none';
                 if (totalItems === 0) {
                     noItemsMessage.classList.remove('hidden');
                 }
-
             } catch (error) {
                 loadingState.innerHTML = '<p class="text-red-400">Failed to load items. Please try again later.</p>';
                 console.error("Failed to load pending items:", error);

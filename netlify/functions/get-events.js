@@ -1,26 +1,32 @@
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
-exports.handler = async function (event, context) {
-  try {
-    const records = await base('Events')
-      .select({
+// **FIX**: Using a robust, paginated fetch method to prevent timeouts.
+async function fetchAllApprovedRecords(fields) {
+    const allRecords = [];
+    await base('Events').select({
         filterByFormula: "AND({Status} = 'Approved', IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))",
         sort: [{ field: 'Date', direction: 'asc' }],
-        // Always fetch all fields; we'll decide how to format them below.
-        fields: [
-            'Event Name', 'Description', 'Date', 'Promo Image', 'Slug', 
-            'Recurring Info', 'Venue Name', 'Venue Slug', 'Category', 
-            'VenueText', 'Link', 'Parent Event Name', 'Submitter Email'
-        ]
-      })
-      .all();
+        fields: fields
+    }).eachPage((records, fetchNextPage) => {
+        records.forEach(record => allRecords.push(record));
+        fetchNextPage();
+    });
+    return allRecords;
+}
 
-    // Check if the admin view is requested via a URL parameter e.g., ?view=admin
+exports.handler = async function (event, context) {
+  try {
+    const records = await fetchAllApprovedRecords([
+        'Event Name', 'Description', 'Date', 'Promo Image', 'Slug', 
+        'Recurring Info', 'Venue Name', 'Venue Slug', 'Category', 
+        'VenueText', 'Link', 'Parent Event Name', 'Submitter Email'
+    ]);
+
     const isAdminView = event.queryStringParameters.view === 'admin';
 
     if (isAdminView) {
-        // If it's for the admin panel, return the full, detailed data structure
+        // Return the full data structure for the admin panel
         const events = records.map((record) => {
             const fields = { ...record.fields };
             if (fields['Submitter Email']) {
@@ -36,7 +42,7 @@ exports.handler = async function (event, context) {
         return { statusCode: 200, body: JSON.stringify(events) };
 
     } else {
-        // Otherwise, return the original, public-safe data structure for your live site
+        // Return the original, public-safe data structure for your live site
         const events = records.map((record) => {
             const venueDisplay = record.get('Venue Name') ? record.get('Venue Name')[0] : (record.get('VenueText') || 'TBC');
             return {
@@ -54,10 +60,10 @@ exports.handler = async function (event, context) {
         return { statusCode: 200, body: JSON.stringify(events) };
     }
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching events:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch events' }),
+      body: JSON.stringify({ error: 'Failed to fetch events', details: error.toString() }),
     };
   }
 };

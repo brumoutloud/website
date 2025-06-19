@@ -50,6 +50,14 @@
                                 <label for="gemini-model" class="block text-sm font-semibold mb-2 accent-color-secondary">Gemini Model Name</label>
                                 <input type="text" id="gemini-model" name="geminiModel" placeholder="loading from firestore..." class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
                             </div>
+                             <div>
+                                <label for="skiddle-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Skiddle Affiliate ID (sktag)</label>
+                                <input type="text" id="skiddle-id" name="skiddleId" placeholder="loading from firestore..." class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
+                            </div>
+                             <div>
+                                <label for="hotels-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Hotels.com Affiliate ID</label>
+                                <input type="text" id="hotels-id" name="hotelsId" placeholder="loading from firestore..." class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
+                            </div>
                         </div>
                     </div>
                     
@@ -67,7 +75,6 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        // **FIX**: Import the authentication and firestore services
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -81,38 +88,40 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        // **FIX**: Initialize auth alongside firestore. This makes the user's login session
-        // available to the firestore service.
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         const form = document.getElementById('settings-form');
         const geminiModelInput = document.getElementById('gemini-model');
+        const skiddleIdInput = document.getElementById('skiddle-id');
+        const hotelsIdInput = document.getElementById('hotels-id');
         const saveBtnText = document.getElementById('save-button-text');
         const saveLoader = document.getElementById('save-loader');
         const successMessage = document.getElementById('success-message');
 
-        const settingsDocRef = doc(db, "settings", "gemini");
+        // Reference to the single settings document in Firestore
+        const settingsDocRef = doc(db, "settings", "config");
 
         async function loadSettings() {
             try {
                 const docSnap = await getDoc(settingsDocRef);
                 if (docSnap.exists()) {
-                    geminiModelInput.value = docSnap.data().modelName;
+                    const settings = docSnap.data();
+                    geminiModelInput.value = settings.geminiModel || '';
+                    skiddleIdInput.value = settings.skiddleId || '';
+                    hotelsIdInput.value = settings.hotelsId || '';
                 } else {
-                    console.log("No such document! Creating initial setting.");
-                    geminiModelInput.placeholder = "gemini-2.5-flash";
+                    console.log("No settings document found! Please create one in Firestore.");
                 }
             } catch(error) {
                 console.error("Could not fetch settings from Firestore:", error);
-                geminiModelInput.placeholder = "Error loading setting.";
+                form.innerHTML = "<p class='text-red-400 text-center'>Could not load settings from Firestore.</p>";
             }
         }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // This ensures we don't try to save if the user isn't authenticated for some reason.
             if (!auth.currentUser) {
                 alert("Authentication error. Please log in again.");
                 return;
@@ -124,7 +133,14 @@
             form.querySelector('button[type=submit]').disabled = true;
 
             try {
-                await setDoc(settingsDocRef, { modelName: geminiModelInput.value });
+                const newSettings = {
+                    geminiModel: geminiModelInput.value,
+                    skiddleId: skiddleIdInput.value,
+                    hotelsId: hotelsIdInput.value,
+                };
+                
+                // Use setDoc to create or overwrite the document in Firestore
+                await setDoc(settingsDocRef, newSettings);
                 
                 successMessage.textContent = "Settings saved successfully!";
                 successMessage.classList.remove('hidden');

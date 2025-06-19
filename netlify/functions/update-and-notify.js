@@ -2,29 +2,35 @@ const Airtable = require('airtable');
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
-// This function assumes you have configured Netlify's email integration.
-// You will need to add your verified 'from' email address to your Netlify site settings.
 exports.handler = async function (event, context) {
     if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+        return { statusCode: 405, body: JSON.stringify({ message: 'Method Not Allowed' }) };
     }
 
     try {
-        // Now accepts a 'newStatus' of either 'Approved' or 'Rejected'
         const { id, type, name, contactEmail, newStatus, reason } = JSON.parse(event.body);
 
-        if (!id || !type || !name || !contactEmail || !newStatus) {
-            return { statusCode: 400, body: 'Missing required parameters.' };
+        // **FIX**: Only the core fields are required for the function to run. 
+        // contactEmail is optional for the notification part.
+        if (!id || !type || !name || !newStatus) {
+            return { statusCode: 400, body: JSON.stringify({ message: 'Missing required parameters.' }) };
         }
 
-        // 1. Update the status in Airtable
         const table = type === 'Event' ? base('Events') : base('Venues');
         const updatedRecords = await table.update([{
             id: id,
             fields: { "Status": newStatus }
         }]);
 
-        // 2. Prepare the correct email based on the new status
+        // **FIX**: If there's no email, just log it and move on. Don't crash.
+        if (!contactEmail) {
+            console.log(`No contactEmail provided for ${type} '${name}'. Skipping notification.`);
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ success: true, message: `Submission status set to ${newStatus}. No notification sent.` }),
+            };
+        }
+        
         let subject = '';
         let body = '';
 
@@ -33,51 +39,23 @@ exports.handler = async function (event, context) {
             const liveUrl = `https://brumoutloud.co.uk/${type.toLowerCase()}/${recordSlug}`;
             
             subject = `✅ Your submission is live! "${name}"`;
-            body = `
-                Hi there,
-
-                Great news! Your submission for "${name}" has been approved and is now live on BrumOutLoud.
-
-                You can view and share it here:
-                ${liveUrl}
-
-                Thanks for contributing to the scene!
-
-                The BrumOutLoud Team
-            `;
+            body = `Hi there,\n\nGreat news! Your submission for "${name}" has been approved and is now live on BrumOutLoud.\n\nYou can view it here: ${liveUrl}\n\nThanks for contributing!\n\nThe BrumOutLoud Team`;
         } else if (newStatus === 'Rejected') {
-             if (!reason) return { statusCode: 400, body: 'Rejection reason is required.'};
+             if (!reason) {
+                // **FIX**: Return a proper JSON error.
+                return { statusCode: 400, body: JSON.stringify({ message: 'Rejection reason is required.'})};
+             }
             
             subject = `⚠️ Action required for your submission: "${name}"`;
-            body = `
-                Hi there,
-
-                Thanks for your submission for "${name}". It needs a little more information before we can approve it.
-
-                Reason provided: ${reason}
-
-                Please feel free to correct this and resubmit using our promoter tools:
-                https://brumoutloud.co.uk/promoter-tool
-
-                If you have any questions, please feel free to reply to this email.
-
-                Thanks,
-                The BrumOutLoud Team
-            `;
+            body = `Hi there,\n\nThanks for your submission for "${name}". It needs a little more info before we can approve it.\n\nReason provided: ${reason}\n\nPlease feel free to correct this and resubmit.\n\nThanks,\nThe BrumOutLoud Team`;
         }
 
-        // 3. Send the email (or log it for now)
         if (subject && body) {
-            const mail = {
-                from: 'hello@brumoutloud.co.uk',
-                to: contactEmail,
-                subject: subject,
-                text: body,
-            };
-            
+            // This is where you would integrate with a mail service like Netlify's built-in email.
+            // For now, it logs to the console.
+            const mail = { from: 'hello@brumoutloud.co.uk', to: contactEmail, subject, text: body };
             console.log('--- EMAIL TO BE SENT ---');
             console.log(JSON.stringify(mail, null, 2));
-            console.log('------------------------');
         }
 
         return {

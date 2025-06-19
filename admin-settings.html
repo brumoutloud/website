@@ -28,20 +28,19 @@
             </div>
 
             <div class="space-y-8">
-                <!-- Content Management Card -->
                 <div class="card-bg p-8 md:p-12">
                     <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Content Management</h2>
                     <p class="text-gray-400 mb-6">Tools for managing submissions and site data.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <a href="/admin/approvals" class="nav-cta text-center flex items-center justify-center gap-2">
                             <span>Approval Queue</span>
                             <span id="approval-count-badge" class="bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center hidden">0</span>
                         </a>
                         <a href="/admin/add-venue" class="nav-cta text-center">Add New Venue</a>
+                        <a href="/admin/edit-events" class="nav-cta text-center">Edit Approved Events</a>
                     </div>
                 </div>
                 
-                <!-- Affiliate Management Card -->
                 <form id="settings-form" class="card-bg p-8 md:p-12 space-y-8">
                     <div>
                         <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Affiliate Link Management</h2>

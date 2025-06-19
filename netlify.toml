@@ -70,8 +70,14 @@
     to = "/admin-approvals.html"
     status = 200
 
-# NEW: Rule for the Add Venue admin tool
+# Rule for the Add Venue admin tool
 [[redirects]]
     from = "/admin/add-venue"
     to = "/admin-add-venue.html"
+    status = 200
+
+# Rule for the Edit Approved Events admin tool
+[[redirects]]
+    from = "/admin/edit-events"
+    to = "/admin-edit-events.html"
     status = 200

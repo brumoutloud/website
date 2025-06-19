@@ -1,17 +1,45 @@
 const Airtable = require('airtable');
 const fetch = require('node-fetch');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin SDK
+try {
+    if (!admin.apps.length) {
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            }),
+        });
+    }
+} catch (error) {
+    console.error("Firebase Admin Initialization Error:", error);
+}
+const db = admin.firestore();
+
+// Helper to get Gemini model name from Firestore
+async function getGeminiModelName() {
+    try {
+        const doc = await db.collection('settings').doc('gemini').get();
+        if (doc.exists && doc.data().modelName) {
+            return doc.data().modelName;
+        }
+    } catch (error) {
+        console.error("Error fetching Gemini model from Firestore:", error);
+    }
+    return 'gemini-2.5-flash';
+}
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// **NEW**: This function asks the Gemini AI to categorize an event
-async function getCategoriesFromAI(eventName, eventDescription) {
+async function getCategoriesFromAI(eventName, eventDescription, modelName) {
     if (!GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY environment variable not set.");
     }
     
-    // The list of valid categories you want the AI to choose from.
     const validCategories = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
 
     const prompt = `
@@ -27,7 +55,7 @@ async function getCategoriesFromAI(eventName, eventDescription) {
     `;
 
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
 
     try {
         const response = await fetch(apiUrl, {
@@ -38,17 +66,15 @@ async function getCategoriesFromAI(eventName, eventDescription) {
 
         if (!response.ok) {
             console.error(`Gemini API request failed with status ${response.status}`);
-            return []; // Return empty array on failure
+            return [];
         }
 
         const result = await response.json();
         const textResponse = result.candidates[0].content.parts[0].text;
         
-        // Clean up the response to get valid JSON
         const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
         const categories = JSON.parse(jsonString);
 
-        // Ensure the AI only returned valid categories
         return categories.filter(cat => validCategories.includes(cat));
 
     } catch (error) {
@@ -59,6 +85,7 @@ async function getCategoriesFromAI(eventName, eventDescription) {
 
 
 exports.handler = async function (event, context) {
+    const geminiModel = await getGeminiModelName();
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
@@ -67,21 +94,19 @@ exports.handler = async function (event, context) {
         console.log("Starting AI category cleanup script...");
         const recordsToUpdate = [];
         
-        // 1. Fetch all records that are missing a category
         const records = await eventsTable.select({
             filterByFormula: "NOT({Category})",
-            fields: ["Event Name", "Description"] // Fetch the fields we need
+            fields: ["Event Name", "Description"]
         }).all();
 
         console.log(`Found ${records.length} events without a category.`);
 
-        // 2. For each record, ask the AI to categorize it
         for (const record of records) {
             const eventName = record.get("Event Name");
             const description = record.get("Description");
 
             if (eventName && description) {
-                const categories = await getCategoriesFromAI(eventName, description);
+                const categories = await getCategoriesFromAI(eventName, description, geminiModel);
                 if (categories.length > 0) {
                     recordsToUpdate.push({
                         id: record.id,
@@ -96,7 +121,6 @@ exports.handler = async function (event, context) {
         
         console.log(`Prepared to update ${recordsToUpdate.length} records with new categories.`);
 
-        // 3. Update the records in Airtable in batches of 10
         const chunkSize = 10;
         for (let i = 0; i < recordsToUpdate.length; i += chunkSize) {
             const chunk = recordsToUpdate.slice(i, i + chunkSize);

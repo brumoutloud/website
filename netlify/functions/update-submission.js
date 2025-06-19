@@ -74,6 +74,13 @@ exports.handler = async function (event, context) {
                 combinedData['Promo Image'] = [{ url: uploadedImage.secure_url }];
             }
 
+            // **THE FIX**: Before creating, simplify the complex attachment object 
+            // from the original record into the simple format Airtable requires for creation.
+            if (combinedData['Promo Image'] && combinedData['Promo Image'][0] && combinedData['Promo Image'][0].id) {
+                const existingImageUrl = combinedData['Promo Image'][0].url;
+                combinedData['Promo Image'] = [{ url: existingImageUrl }];
+            }
+
             const datesToCreate = await getDatesFromAI(result.date, recurringInfo);
             
             const recordsToCreate = datesToCreate.map((date, index) => {
@@ -99,13 +106,8 @@ exports.handler = async function (event, context) {
             return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully regenerated recurring series for ${combinedData['Event Name']}.` }) };
 
         } else {
-            // **THE FIX**: Build the update object from an allow-list to ensure no invalid data is sent.
             const fieldsToUpdate = {};
-            const allowedTextFields = [
-                'Event Name', 'VenueText', 'Description', 'Link', 'Parent Event Name', 'Recurring Info',
-                'Name', 'Address', 'Opening Hours', 'Accessibility', 'Website', 'Instagram', 'Facebook', 'TikTok'
-            ];
-            
+            const allowedTextFields = [ 'Event Name', 'VenueText', 'Description', 'Link', 'Parent Event Name', 'Recurring Info', 'Name', 'Address', 'Opening Hours', 'Accessibility', 'Website', 'Instagram', 'Facebook', 'TikTok' ];
             allowedTextFields.forEach(field => {
                 if (result[field] !== undefined) {
                     fieldsToUpdate[field] = result[field];

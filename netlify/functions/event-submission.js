@@ -66,7 +66,6 @@ exports.handler = async function (event, context) {
     let promoImageFile = null;
     const isJson = event.headers['content-type'] === 'application/json';
 
-    // **FIX:** Handle both JSON and multipart form data
     if (isJson) {
         submissionData = JSON.parse(event.body);
     } else {
@@ -104,7 +103,8 @@ exports.handler = async function (event, context) {
                 'VenueText': submissionData.venue || '',
                 'Date': `${date}T${submissionData.time || '00:00'}:00.000Z`,
                 'Link': submissionData.link || '',
-                'Contact Email': submissionData.contactEmail || '',
+                // **FIX**: Using the correct 'Submitter Email' field for the Events table.
+                'Submitter Email': submissionData.contactEmail || '',
                 'Status': 'Pending Review'
             };
 

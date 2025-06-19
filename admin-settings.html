@@ -34,7 +34,6 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <a href="/admin/approvals" class="nav-cta text-center flex items-center justify-center gap-2">
                             <span>Approval Queue</span>
-                            <span id="approval-count-badge" class="bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center hidden">0</span>
                         </a>
                         <a href="/admin/add-venue" class="nav-cta text-center">Add New Venue</a>
                         <a href="/admin/edit-events" class="nav-cta text-center">Edit Approved Events</a>
@@ -43,17 +42,13 @@
                 
                 <form id="settings-form" class="card-bg p-8 md:p-12 space-y-8">
                     <div>
-                        <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Affiliate Link Management</h2>
-                        <p class="text-gray-400 mb-6">The codes entered here will be automatically appended to the relevant links across the site.</p>
+                        <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Global Site Settings</h2>
+                        <p class="text-gray-400 mb-6">These values are used by functions across the website.</p>
                         
                         <div class="space-y-6">
-                            <div>
-                                <label for="skiddle-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Skiddle Affiliate ID (sktag)</label>
-                                <input type="text" id="skiddle-id" name="skiddleId" placeholder="e.g., 15424" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
-                            </div>
-                            <div>
-                                <label for="hotels-id" class="block text-sm font-semibold mb-2 accent-color-secondary">Hotels.com Affiliate ID</label>
-                                <input type="text" id="hotels-id" name="hotelsId" placeholder="e.g., 12345" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
+                             <div>
+                                <label for="gemini-model" class="block text-sm font-semibold mb-2 accent-color-secondary">Gemini Model Name</label>
+                                <input type="text" id="gemini-model" name="geminiModel" placeholder="loading from firestore..." class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
                             </div>
                         </div>
                     </div>
@@ -64,63 +59,77 @@
                              <span id="save-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
                         </button>
                     </div>
-                    <div id="success-message" class="text-green-400 mt-4 text-center hidden">Settings saved successfully!</div>
+                    <div id="success-message" class="text-green-400 mt-4 text-center hidden"></div>
                 </form>
             </div>
         </section>
     </main>
     
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAg8EIRoDGo3uPP0oCXAtDL7xNreJQeY7k",
+            authDomain: "brumoutloud-3dd92.firebaseapp.com",
+            projectId: "brumoutloud-3dd92",
+            storageBucket: "brumoutloud-3dd92.firebasestorage.app",
+            messagingSenderId: "803476014859",
+            appId: "1:803476014859:web:660ab2967e64955b0d440e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
         const form = document.getElementById('settings-form');
+        const geminiModelInput = document.getElementById('gemini-model');
         const saveBtnText = document.getElementById('save-button-text');
         const saveLoader = document.getElementById('save-loader');
         const successMessage = document.getElementById('success-message');
-        const approvalBadge = document.getElementById('approval-count-badge');
 
-        function loadSettings() {
-            document.getElementById('skiddle-id').value = '15424'; 
-        }
+        // Reference to the settings document in Firestore
+        const settingsDocRef = doc(db, "settings", "gemini");
 
-        async function loadPendingCount() {
+        async function loadSettings() {
             try {
-                const response = await fetch('/.netlify/functions/get-pending-items');
-                if (!response.ok) return;
-                const items = await response.json();
-                
-                if (items.length > 0) {
-                    approvalBadge.textContent = items.length;
-                    approvalBadge.classList.remove('hidden');
+                const docSnap = await getDoc(settingsDocRef);
+                if (docSnap.exists()) {
+                    geminiModelInput.value = docSnap.data().modelName;
                 } else {
-                    approvalBadge.classList.add('hidden');
+                    console.log("No such document! Creating initial setting.");
+                    geminiModelInput.placeholder = "gemini-2.5-flash";
                 }
             } catch(error) {
-                console.error("Could not fetch pending count:", error);
+                console.error("Could not fetch settings from Firestore:", error);
+                geminiModelInput.placeholder = "Error loading setting.";
             }
         }
 
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             saveBtnText.textContent = 'Saving...';
             saveLoader.classList.remove('hidden');
             successMessage.classList.add('hidden');
             form.querySelector('button[type=submit]').disabled = true;
 
-            setTimeout(() => {
+            try {
+                // Use setDoc to create or overwrite the document in Firestore
+                await setDoc(settingsDocRef, { modelName: geminiModelInput.value });
+                
+                successMessage.textContent = "Settings saved successfully!";
+                successMessage.classList.remove('hidden');
+                setTimeout(() => successMessage.classList.add('hidden'), 3000);
+
+            } catch (error) {
+                 alert(`Error saving settings: ${error.toString()}`);
+            } finally {
                 saveBtnText.textContent = 'Save Settings';
                 saveLoader.classList.add('hidden');
                 form.querySelector('button[type=submit]').disabled = false;
-                successMessage.classList.remove('hidden');
-                setTimeout(() => {
-                     successMessage.classList.add('hidden');
-                }, 3000);
-
-            }, 1500);
+            }
         });
         
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSettings();
-            loadPendingCount();
-        });
+        document.addEventListener('DOMContentLoaded', loadSettings);
     </script>
 </body>
 </html>

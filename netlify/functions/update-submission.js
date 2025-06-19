@@ -14,7 +14,7 @@ cloudinary.config({
 
 async function getDatesFromAI(startDate, recurringInfo) {
     if (!GEMINI_API_KEY) return [startDate];
-    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format.`;
+    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in format YYYY-MM-DD.`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
     try {
@@ -99,15 +99,18 @@ exports.handler = async function (event, context) {
             return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully regenerated recurring series for ${combinedData['Event Name']}.` }) };
 
         } else {
-            let fieldsToUpdate = { ...result };
-            delete fieldsToUpdate.id;
-            delete fieldsToUpdate.type;
-            delete fieldsToUpdate.files;
+            // **THE FIX**: Build the update object from an allow-list to ensure no invalid data is sent.
+            const fieldsToUpdate = {};
+            const allowedTextFields = [
+                'Event Name', 'VenueText', 'Description', 'Link', 'Parent Event Name', 'Recurring Info',
+                'Name', 'Address', 'Opening Hours', 'Accessibility', 'Website', 'Instagram', 'Facebook', 'TikTok'
+            ];
             
-            // **THE FIX**: Explicitly delete the empty file properties from the update object 
-            // if no new file was uploaded. This prevents sending an invalid value to Airtable.
-            delete fieldsToUpdate.promoImage;
-            delete fieldsToUpdate.photo;
+            allowedTextFields.forEach(field => {
+                if (result[field] !== undefined) {
+                    fieldsToUpdate[field] = result[field];
+                }
+            });
 
             const imageFile = result.files.find(f => f.fieldname === 'promoImage' || f.fieldname === 'photo');
             if (imageFile && imageFile.content.length > 0) {
@@ -124,16 +127,15 @@ exports.handler = async function (event, context) {
             }
 
             if (type === 'Event') {
-                if (fieldsToUpdate.date) {
-                    fieldsToUpdate['Date'] = `${fieldsToUpdate.date}T${fieldsToUpdate.time || '00:00'}:00.000Z`;
-                    delete fieldsToUpdate.date;
-                    delete fieldsToUpdate.time;
+                if (result.date) {
+                    fieldsToUpdate['Date'] = `${result.date}T${result.time || '00:00'}:00.000Z`;
                 }
-                 if (fieldsToUpdate.Category && typeof fieldsToUpdate.Category === 'string') {
-                    fieldsToUpdate.Category = [fieldsToUpdate.Category];
+                if (result.Category) {
+                    fieldsToUpdate.Category = Array.isArray(result.Category) ? result.Category : [result.Category];
                 }
             }
             
+            console.log("Attempting to update Airtable with these fields:", JSON.stringify(fieldsToUpdate, null, 2));
             await table.update(id, fieldsToUpdate);
             return { statusCode: 200, body: JSON.stringify({ success: true, message: `Record ${id} updated successfully.` }) };
         }

@@ -4,16 +4,19 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 exports.handler = async function (event, context) {
     try {
         const records = await base('Events').select({
-            filterByFormula: "{Status} = 'Pending Review'"
+            filterByFormula: "{Status} = 'Pending Review'",
+            // Fetch all the fields we need for the edit form
+            fields: [
+                'Event Name', 'Description', 'VenueText', 'Contact Email', 'Date',
+                'Link', 'Recurring Info', 'Category', 'Promo Image', 'Parent Event Name'
+            ]
         }).all();
 
         const pendingEvents = records.map(record => ({
             id: record.id,
             type: 'Event',
-            name: record.get('Event Name') || 'No Name',
-            description: record.get('Description'),
-            location: record.get('VenueText'),
-            contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
+            // Pass all fields to the front-end
+            fields: record.fields
         }));
 
         return {

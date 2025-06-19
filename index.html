@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
-        /* Page-specific styles can go here if needed */
         .feature-card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
@@ -22,7 +21,12 @@
 </head>
 <body class="antialiased">
 
-    <header class="p-8">
+    <div class="video-background-container">
+        <div class="video-overlay"></div>
+        <div id="youtube-background-player"></div>
+    </div>
+
+    <header class="p-8 relative z-10">
         <nav class="container mx-auto flex justify-between items-center">
             <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
             <div class="hidden md:flex items-center space-x-8 font-semibold">
@@ -36,7 +40,7 @@
         </nav>
     </header>
 
-    <main class="container mx-auto px-8 py-16">
+    <main class="container mx-auto px-8 py-16 relative z-10">
         <section class="text-center mb-32">
             <h1 class="font-anton text-7xl md:text-9xl lg:text-[10rem] leading-none tracking-wider heading-gradient">
                 OUR CITY. <br><span class="accent-color">OUR</span> SCENE.
@@ -60,7 +64,7 @@
         </section>
     </main>
 
-    <footer class="border-t-2 border-gray-800 mt-32 p-8">
+    <footer class="border-t-2 border-gray-800 mt-32 p-8 relative z-10">
         <div class="container mx-auto grid md:grid-cols-2">
             <div>
                  <h3 class="font-anton text-5xl leading-tight text-white">BE SEEN,<br>BE HEARD.</h3>
@@ -89,5 +93,35 @@
             </div>
         </div>
     </footer>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        let player;
+        const videoId = '3'; // Video ID for 'Birmingham at night drone footage'
+
+        // This function is called by the YouTube API once it's loaded
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-background-player', {
+                videoId: videoId,
+                playerVars: {
+                    autoplay: 1,       // Autoplay the video
+                    controls: 0,       // Hide player controls
+                    showinfo: 0,       // Hide video title and uploader
+                    modestbranding: 1, // Use a modest YouTube logo
+                    loop: 1,           // Loop the video
+                    playlist: videoId, // Required for loop to work
+                    fs: 0,             // Disable fullscreen button
+                    iv_load_policy: 3, // Disable annotations
+                    autohide: 1
+                },
+                events: {
+                    onReady: function(e) {
+                        e.target.mute(); // Mute the video
+                        e.target.playVideo(); // Ensure it plays
+                    }
+                }
+            });
+        }
+    </script>
 </body>
 </html>

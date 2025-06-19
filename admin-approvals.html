@@ -77,6 +77,7 @@
         const cancelRejectionBtn = document.getElementById('cancel-rejection-btn');
         const confirmRejectionBtn = document.getElementById('confirm-rejection-btn');
         
+        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
         let currentItemForAction = null;
 
         function renderItem(item) {
@@ -89,7 +90,6 @@
             const location = item.type === 'Event' ? item.fields['VenueText'] : item.fields['Address'];
             const description = item.fields['Description'];
             
-            // **NEW**: Get image URL and create image HTML if it exists
             let imageHtml = '';
             const eventImage = item.fields['Promo Image'] && item.fields['Promo Image'][0];
             const venueImage = item.fields['Photo URL'];
@@ -124,13 +124,20 @@
             const fields = item.fields;
             let formHtml = '';
 
-            // **NEW**: Get image URL for the preview in the edit form
             const eventImage = fields['Promo Image'] && fields['Promo Image'][0];
             const venueImage = fields['Photo URL'];
             const imageUrl = item.type === 'Event' ? (eventImage ? eventImage.url : null) : venueImage;
 
             if (item.type === 'Event') {
-                const categories = Array.isArray(fields['Category']) ? fields['Category'].join(', ') : '';
+                const currentCategories = fields['Category'] || [];
+                // **NEW**: Generate checkboxes instead of a text input.
+                const categoryCheckboxes = VALID_CATEGORIES.map(cat => `
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color">
+                        <span class="text-white">${cat}</span>
+                    </label>
+                `).join('');
+
                 const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
                 const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
                 
@@ -148,7 +155,12 @@
                         <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
                         <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}"></div>
                     </div>
-                    <div><label>Categories (comma-separated)</label><input type="text" name="Category" value="${categories}"></div>
+                    <div>
+                        <label>Categories</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                            ${categoryCheckboxes}
+                        </div>
+                    </div>
                     <div>
                         <label class="block text-sm font-semibold mb-2">Current Image</label>
                         ${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}
@@ -156,7 +168,7 @@
                         <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
                     </div>
                 `;
-            } else { // Venue
+            } else { // Venue form remains the same
                 formHtml = `
                     <div class="grid md:grid-cols-2 gap-4">
                         <div><label>Venue Name</label><input type="text" name="Name" value="${fields['Name'] || ''}"></div>
@@ -208,7 +220,6 @@
             const card = e.target.closest('.review-card');
             if (!card) return;
             const item = JSON.parse(card.dataset.item);
-
             if (e.target.classList.contains('approve-btn')) {
                 e.target.disabled = true;
                 e.target.textContent = 'Approving...';
@@ -221,13 +232,11 @@
                     e.target.textContent = 'Approve';
                 }
             }
-
             if (e.target.classList.contains('reject-btn')) {
                 currentItemForAction = item;
                 rejectionReasonInput.value = '';
                 rejectionModal.classList.remove('hidden');
             }
-            
             if (e.target.classList.contains('edit-btn')) {
                 populateEditForm(item);
             }
@@ -236,10 +245,8 @@
         confirmRejectionBtn.addEventListener('click', async () => {
             const reason = rejectionReasonInput.value;
             if (!reason) { alert('Please provide a reason for rejection.'); return; }
-            
             confirmRejectionBtn.disabled = true;
             const success = await processItemUpdate(currentItemForAction, 'Rejected', reason);
-            
             if (success) {
                 const card = approvalList.querySelector(`[data-id="${currentItemForAction.id}"]`);
                 if(card) {
@@ -259,24 +266,20 @@
             const submitBtn = editForm.querySelector('button[type=submit]');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Saving...';
-
             const formData = new FormData(editForm);
             formData.append('id', currentItemForAction.id);
             formData.append('type', currentItemForAction.type);
-
             try {
                 const response = await fetch('/.netlify/functions/update-submission', {
                     method: 'POST',
                     body: formData
                 });
-
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.message || 'Server returned an error');
                 }
                 alert('Changes saved successfully!');
                 location.reload();
-
             } catch (error) {
                 alert(`Error saving changes: ${error.toString()}`);
                 submitBtn.disabled = false;

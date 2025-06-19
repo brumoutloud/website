@@ -80,6 +80,7 @@
             eventList.appendChild(card);
         }
 
+        // **NEW**: Fully comprehensive edit form
         function populateEditForm(item) {
             currentItemForAction = item;
             const fields = item.fields;
@@ -96,18 +97,45 @@
             const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
             
             const formHtml = `
-                <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}"></div>
-                <div><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
-                <div><label>Current Image</label>${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image.</p>'}<label>Upload New Image</label><input type="file" name="promoImage" accept="image/*"></div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}"></div>
+                    <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}"></div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Date</label><input type="date" name="date" value="${eventDate}"></div>
+                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}"></div>
+                </div>
+                <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
+                    <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
+                </div>
+                <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g. Every Friday. Updates this event only."></div>
+                <div>
+                    <label>Categories</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                        ${categoryCheckboxes}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Current Image</label>
+                    ${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}
+                    <label class="block text-sm font-semibold mb-2">Upload New Image (replaces current)</label>
+                    <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
+                </div>
             `;
+            
             editFormFields.innerHTML = formHtml;
-            editFormFields.querySelectorAll('input[type=text], input[type=file]').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700');
+            editFormFields.querySelectorAll('input[type=text], input[type=date], input[type=time], input[type=url], textarea, input[type=file]').forEach(el => {
+                if (el.type !== 'file') {
+                    el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700';
+                }
+            });
             editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
             editModal.classList.remove('hidden');
         }
         
         async function getAdminEventData() {
-            // **FIX**: Calling the get-events function with the 'admin' view parameter
             const response = await fetch('/.netlify/functions/get-events?view=admin');
             if (!response.ok) throw new Error('Could not fetch admin event data');
             return await response.json();

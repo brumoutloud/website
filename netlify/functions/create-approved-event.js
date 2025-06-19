@@ -14,7 +14,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// --- Helper Functions ---
 async function findVenueRecordId(venueName) {
     if (!venueName) return null;
     try {
@@ -42,9 +41,10 @@ async function uploadImage(file) {
     }
 }
 
-async function getDatesFromAI(eventName, startDate, recurringInfo) {
+// **FIX**: The eventName is removed from this function and the prompt.
+async function getDatesFromAI(startDate, recurringInfo) {
     if (!GEMINI_API_KEY) return [startDate];
-    const prompt = `For an event named "${eventName}" starting on ${startDate} with the rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format.`;
+    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format.`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
     
@@ -77,7 +77,7 @@ exports.handler = async function (event, context) {
         const recurringInfoText = eventData.recurringInfo || null;
 
         if (recurringInfoText && recurringInfoText.trim() !== '') {
-            datesToCreate = await getDatesFromAI(eventData.name, eventData.date, recurringInfoText);
+            datesToCreate = await getDatesFromAI(eventData.date, recurringInfoText);
         } else {
             datesToCreate.push(eventData.date);
         }
@@ -88,7 +88,6 @@ exports.handler = async function (event, context) {
                 'Description': eventData.description || '',
                 'VenueText': eventData.venue || '',
                 'Date': `${date}T${eventData.time || '00:00'}:00.000Z`,
-                // **FIX**: All submissions from this tool now go into the queue for final review.
                 'Status': 'Pending Review'
             };
 

@@ -25,16 +25,31 @@ async function fetchAllPendingRecords(tableName, fields) {
 
 exports.handler = async function (event, context) {
     try {
+        // **FIX**: Requesting all possible email fields for Venues.
         const records = await fetchAllPendingRecords('Venues', [
-            'Name', 'Description', 'Address', 'Contact Email', 'Opening Hours',
+            'Name', 'Description', 'Address', 'Contact Email', 'email', 'Submitter Email', 'Opening Hours',
             'Accessibility', 'Website', 'Instagram', 'Facebook', 'TikTok', 'Photo URL'
         ]);
 
-        const pendingVenues = records.map(record => ({
-            id: record.id,
-            type: 'Venue',
-            fields: record.fields
-        }));
+        const pendingVenues = records.map(record => {
+            const newFields = { ...record.fields };
+            
+            // **FIX**: Find the first available email and map it to a consistent 'Contact Email' property.
+            const email = newFields['Contact Email'] || newFields['email'] || newFields['Submitter Email'];
+            if (email) {
+                newFields['Contact Email'] = email;
+            }
+
+            // Clean up the original email fields to avoid confusion
+            if (newFields.email) delete newFields.email;
+            if (newFields['Submitter Email']) delete newFields['Submitter Email'];
+
+            return {
+                id: record.id,
+                type: 'Venue',
+                fields: newFields
+            };
+        });
 
         return {
             statusCode: 200,

@@ -88,6 +88,16 @@
             const name = item.type === 'Event' ? item.fields['Event Name'] : item.fields['Name'];
             const location = item.type === 'Event' ? item.fields['VenueText'] : item.fields['Address'];
             const description = item.fields['Description'];
+            
+            // **NEW**: Get image URL and create image HTML if it exists
+            let imageHtml = '';
+            const eventImage = item.fields['Promo Image'] && item.fields['Promo Image'][0];
+            const venueImage = item.fields['Photo URL'];
+            const imageUrl = item.type === 'Event' ? (eventImage ? eventImage.url : null) : venueImage;
+
+            if (imageUrl) {
+                imageHtml = `<div class="mt-4"><p class="text-sm font-semibold mb-2 accent-color-secondary">Submitted Image</p><img src="${imageUrl}" alt="Image for ${name}" class="rounded-lg max-h-48 w-auto"></div>`;
+            }
 
             card.innerHTML = `
                 <div class="flex justify-between items-start flex-wrap gap-4">
@@ -104,6 +114,7 @@
                 </div>
                 <div class="text-gray-300 mt-4 pt-4 border-t border-gray-700/50">
                     ${description || 'No description provided.'}
+                    ${imageHtml}
                 </div>`;
             approvalList.appendChild(card);
         }
@@ -112,6 +123,11 @@
             currentItemForAction = item;
             const fields = item.fields;
             let formHtml = '';
+
+            // **NEW**: Get image URL for the preview in the edit form
+            const eventImage = fields['Promo Image'] && fields['Promo Image'][0];
+            const venueImage = fields['Photo URL'];
+            const imageUrl = item.type === 'Event' ? (eventImage ? eventImage.url : null) : venueImage;
 
             if (item.type === 'Event') {
                 const categories = Array.isArray(fields['Category']) ? fields['Category'].join(', ') : '';
@@ -132,9 +148,12 @@
                         <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
                         <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}"></div>
                     </div>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}"></div>
-                        <div><label>Categories (comma-separated)</label><input type="text" name="Category" value="${categories}"></div>
+                    <div><label>Categories (comma-separated)</label><input type="text" name="Category" value="${categories}"></div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-2">Current Image</label>
+                        ${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}
+                        <label class="block text-sm font-semibold mb-2">Upload New Image (replaces current)</label>
+                        <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
                     </div>
                 `;
             } else { // Venue
@@ -144,18 +163,20 @@
                         <div><label>Address</label><input type="text" name="Address" value="${fields['Address'] || ''}"></div>
                     </div>
                     <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
-                    <div><label>Opening Hours</label><textarea name="Opening Hours" rows="3">${fields['Opening Hours'] || ''}</textarea></div>
-                    <div><label>Accessibility</label><textarea name="Accessibility" rows="3">${fields['Accessibility'] || ''}</textarea></div>
                     <div class="grid md:grid-cols-2 gap-4">
                          <div><label>Website</label><input type="url" name="Website" value="${fields['Website'] || ''}"></div>
                          <div><label>Instagram</label><input type="url" name="Instagram" value="${fields['Instagram'] || ''}"></div>
-                         <div><label>Facebook</label><input type="url" name="Facebook" value="${fields['Facebook'] || ''}"></div>
-                         <div><label>TikTok</label><input type="url" name="TikTok" value="${fields['TikTok'] || ''}"></div>
+                    </div>
+                     <div>
+                        <label class="block text-sm font-semibold mb-2">Current Image</label>
+                        ${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}
+                        <label class="block text-sm font-semibold mb-2">Upload New Image (replaces current)</label>
+                        <input type="file" name="photo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
                     </div>
                 `;
             }
             editFormFields.innerHTML = formHtml;
-            editFormFields.querySelectorAll('input, textarea').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700');
+            editFormFields.querySelectorAll('input[type=text], input[type=date], input[type=time], input[type=url], textarea').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700');
             editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
             editModal.classList.remove('hidden');
         }
@@ -168,12 +189,8 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        id: item.id,
-                        type: item.type,
-                        newStatus: newStatus,
-                        reason: reason,
-                        name: name,
-                        contactEmail: contactEmail
+                        id: item.id, type: item.type, newStatus: newStatus,
+                        reason: reason, name: name, contactEmail: contactEmail
                     })
                 });
                 if (!response.ok) {
@@ -239,47 +256,29 @@
 
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(editForm);
-            const updatedFields = Object.fromEntries(formData.entries());
-
-            // Special handling for event date/time
-            if (currentItemForAction.type === 'Event' && updatedFields.date) {
-                updatedFields['Date'] = `${updatedFields.date}T${updatedFields.time || '00:00'}:00.000Z`;
-                delete updatedFields.date;
-                delete updatedFields.time;
-            }
-            // Special handling for categories
-            if (updatedFields.Category) {
-                updatedFields.Category = updatedFields.Category.split(',').map(s => s.trim()).filter(Boolean);
-            }
-
             const submitBtn = editForm.querySelector('button[type=submit]');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Saving...';
 
+            const formData = new FormData(editForm);
+            formData.append('id', currentItemForAction.id);
+            formData.append('type', currentItemForAction.type);
+
             try {
                 const response = await fetch('/.netlify/functions/update-submission', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        id: currentItemForAction.id,
-                        type: currentItemForAction.type,
-                        fields: updatedFields
-                    })
+                    body: formData
                 });
+
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.message);
+                    throw new Error(err.message || 'Server returned an error');
                 }
                 alert('Changes saved successfully!');
-                editModal.classList.add('hidden');
-                // We could reload all items here, or just update the one card in the DOM
-                // For simplicity, we'll just close the modal. A page refresh would show the changes.
-                location.reload(); 
+                location.reload();
 
             } catch (error) {
                 alert(`Error saving changes: ${error.toString()}`);
-            } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Save Changes';
             }

@@ -25,16 +25,28 @@ async function fetchAllPendingRecords(tableName, fields) {
 
 exports.handler = async function (event, context) {
     try {
+        // **FIX**: Requesting 'Submitter Email' instead of 'Contact Email' for Events.
         const records = await fetchAllPendingRecords('Events', [
-            'Event Name', 'Description', 'VenueText', 'Contact Email', 'Date',
+            'Event Name', 'Description', 'VenueText', 'Submitter Email', 'Date',
             'Link', 'Recurring Info', 'Category', 'Promo Image', 'Parent Event Name'
         ]);
 
-        const pendingEvents = records.map(record => ({
-            id: record.id,
-            type: 'Event',
-            fields: record.fields
-        }));
+        const pendingEvents = records.map(record => {
+            const newFields = { ...record.fields };
+            
+            // **FIX**: To keep the frontend consistent, we map the value from 'Submitter Email' 
+            // to a 'Contact Email' property, which the frontend expects.
+            if (newFields['Submitter Email']) {
+                newFields['Contact Email'] = newFields['Submitter Email'];
+                delete newFields['Submitter Email'];
+            }
+
+            return {
+                id: record.id,
+                type: 'Event',
+                fields: newFields
+            };
+        });
 
         return {
             statusCode: 200,

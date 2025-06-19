@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Approved Events | Admin Panel</title>
+    <title>Manage Events | Admin Panel</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -22,9 +22,14 @@
 
     <main class="container mx-auto px-8 py-16">
         <section class="max-w-4xl mx-auto">
-            <div class="text-center mb-16">
-                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">EDIT <span class="accent-color">EVENTS</span></h1>
-                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Find and edit existing approved events on the site.</p>
+            <div class="flex justify-between items-center mb-16">
+                <div class="text-left">
+                    <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">EVENTS</span></h1>
+                    <p class="mt-4 text-xl text-gray-300 max-w-2xl">Edit existing approved events or create a new one.</p>
+                </div>
+                <button id="add-event-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0">
+                    <i class="fas fa-plus mr-2"></i> Add New Event
+                </button>
             </div>
             
             <div id="loading-state" class="text-center py-10">
@@ -39,7 +44,7 @@
 
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
-             <h3 class="font-anton text-3xl text-white">Edit Event</h3>
+             <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
              <div class="flex justify-end gap-4 pt-4">
                 <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
@@ -51,142 +56,11 @@
     <script>
         const eventList = document.getElementById('event-list');
         const loadingState = document.getElementById('loading-state');
+        const addEventBtn = document.getElementById('add-event-btn');
         const editModal = document.getElementById('edit-modal');
+        const modalTitle = document.getElementById('modal-title');
         const editForm = document.getElementById('edit-form');
         const editFormFields = document.getElementById('edit-form-fields');
         const cancelEditBtn = document.getElementById('cancel-edit-btn');
         
-        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
-        let currentItemForAction = null;
-
-        function renderEvent(item) {
-            const fields = item.fields;
-            const eventDate = new Date(fields.Date);
-            const card = document.createElement('div');
-            card.className = 'card-bg p-4 flex justify-between items-center';
-            card.innerHTML = `
-                <div class="flex items-center gap-4">
-                    <div class="text-center w-16 flex-shrink-0">
-                        <p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p>
-                        <p class="text-lg text-gray-400">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-xl text-white">${fields['Event Name']}</h3>
-                        <p class="text-sm text-gray-400">${fields['VenueText'] || 'Venue TBC'}</p>
-                    </div>
-                </div>
-                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40" data-item='${JSON.stringify(item)}'>Edit</button>
-            `;
-            eventList.appendChild(card);
-        }
-
-        // **NEW**: Fully comprehensive edit form
-        function populateEditForm(item) {
-            currentItemForAction = item;
-            const fields = item.fields;
-            const eventImage = fields['Promo Image'] && fields['Promo Image'][0];
-            const imageUrl = eventImage ? eventImage.url : null;
-            const currentCategories = fields['Category'] || [];
-            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `
-                <label class="inline-flex items-center gap-2">
-                    <input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color">
-                    <span class="text-white">${cat}</span>
-                </label>
-            `).join('');
-            const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
-            const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
-            
-            const formHtml = `
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}"></div>
-                    <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}"></div>
-                </div>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Date</label><input type="date" name="date" value="${eventDate}"></div>
-                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}"></div>
-                </div>
-                <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
-                    <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
-                </div>
-                <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g. Every Friday. Updates this event only."></div>
-                <div>
-                    <label>Categories</label>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
-                        ${categoryCheckboxes}
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold mb-2">Current Image</label>
-                    ${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}
-                    <label class="block text-sm font-semibold mb-2">Upload New Image (replaces current)</label>
-                    <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
-                </div>
-            `;
-            
-            editFormFields.innerHTML = formHtml;
-            editFormFields.querySelectorAll('input[type=text], input[type=date], input[type=time], input[type=url], textarea, input[type=file]').forEach(el => {
-                if (el.type !== 'file') {
-                    el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700';
-                }
-            });
-            editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
-            editModal.classList.remove('hidden');
-        }
-        
-        async function getAdminEventData() {
-            const response = await fetch('/.netlify/functions/get-events?view=admin');
-            if (!response.ok) throw new Error('Could not fetch admin event data');
-            return await response.json();
-        }
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const approvedEvents = await getAdminEventData();
-                loadingState.style.display = 'none';
-                
-                if (approvedEvents.length === 0) {
-                    eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
-                } else {
-                    approvedEvents.forEach(renderEvent);
-                }
-            } catch (error) {
-                loadingState.innerHTML = `<p class="text-red-400">Error loading events: ${error.message}</p>`;
-            }
-        });
-
-        eventList.addEventListener('click', (e) => {
-            if (e.target.classList.contains('edit-btn')) {
-                const item = JSON.parse(e.target.dataset.item);
-                populateEditForm(item);
-            }
-        });
-
-        cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
-
-        editForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = editForm.querySelector('button[type=submit]');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Saving...';
-            const formData = new FormData(editForm);
-            formData.append('id', currentItemForAction.id);
-            formData.append('type', 'Event');
-            try {
-                const response = await fetch('/.netlify/functions/update-submission', { method: 'POST', body: formData });
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.message || 'Server returned an error');
-                }
-                alert('Changes saved successfully!');
-                location.reload();
-            } catch (error) {
-                alert(`Error saving changes: ${error.toString()}`);
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Save Changes';
-            }
-        });
-    </script>
-</body>
-</html>
+        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing

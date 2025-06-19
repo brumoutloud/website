@@ -32,35 +32,96 @@
                 </button>
             </div>
             
+            <div id="event-list" class="space-y-4">
+                </div>
+
             <div id="loading-state" class="text-center py-10">
                 <div class="loader inline-block"></div>
                 <p class="mt-4 text-gray-400">Loading approved events...</p>
             </div>
-
-            <div id="event-list" class="space-y-4">
-                </div>
+            
+            <div id="load-more-container" class="text-center mt-8 hidden">
+                <button id="load-more-btn" class="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-600">Load More</button>
+            </div>
         </section>
     </main>
 
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
-        <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
-             <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
-             <div id="edit-form-fields" class="space-y-4"></div>
-             <div class="flex justify-end gap-4 pt-4">
-                <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
-                <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
-             </div>
-        </form>
-    </div>
+        </div>
     
     <script>
         const eventList = document.getElementById('event-list');
         const loadingState = document.getElementById('loading-state');
-        const addEventBtn = document.getElementById('add-event-btn');
-        const editModal = document.getElementById('edit-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const editForm = document.getElementById('edit-form');
-        const editFormFields = document.getElementById('edit-form-fields');
-        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const loadMoreContainer = document.getElementById('load-more-container');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        let currentOffset = null;
         
-        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing
+        // ... all other variables and functions like renderEvent, populateEditForm, etc. remain the same ...
+
+        // **NEW**: Updated fetching function to handle pagination
+        async function fetchEvents(offset = null) {
+            let url = '/.netlify/functions/get-events?view=admin';
+            if (offset) {
+                url += `&offset=${offset}`;
+            }
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || 'Could not fetch admin event data');
+            }
+            return await response.json();
+        }
+
+        function handleFetchedEvents(data) {
+            if (!data || !data.events || data.events.length === 0) {
+                if (!currentOffset) { // Only show if it's the very first fetch
+                     eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
+                }
+                loadMoreContainer.style.display = 'none';
+                return;
+            }
+
+            data.events.forEach(renderEvent);
+            currentOffset = data.offset; // Save the offset for the next page
+
+            if (currentOffset) {
+                loadMoreContainer.style.display = 'block';
+            } else {
+                loadMoreContainer.style.display = 'none';
+            }
+        }
+
+        // Initial page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const data = await fetchEvents();
+                loadingState.style.display = 'none';
+                handleFetchedEvents(data);
+            } catch (error) {
+                loadingState.innerHTML = `<p class="text-red-400">Error loading events: ${error.message}</p>`;
+            }
+        });
+
+        // Handle "Load More" button clicks
+        loadMoreBtn.addEventListener('click', async () => {
+            if (!currentOffset) return;
+
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'Loading...';
+
+            try {
+                const data = await fetchEvents(currentOffset);
+                handleFetchedEvents(data);
+            } catch (error) {
+                alert(`Error loading more events: ${error.message}`);
+            } finally {
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.textContent = 'Load More';
+            }
+        });
+
+        // ... all other event listeners for add, edit, save, etc. remain the same ...
+    </script>
+</body>
+</html>

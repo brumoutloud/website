@@ -23,7 +23,10 @@
 
     <div class="video-background-container">
         <div class="video-overlay"></div>
-        <div id="youtube-background-player"></div>
+        <video autoplay loop muted playsinline class="background-video">
+            <source src="/276650887-birmingham-awakening-drone-aer.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
     </div>
 
     <header class="p-8 relative z-10">
@@ -94,27 +97,5 @@
         </div>
     </footer>
 
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <script>
-        let player;
-        // Using a generic city nightlife video ID as an example
-        const videoId = '3';
-
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtube-background-player', {
-                videoId: videoId,
-                playerVars: {
-                    autoplay: 1, controls: 0, showinfo: 0, modestbranding: 1,
-                    loop: 1, playlist: videoId, fs: 0, iv_load_policy: 3, autohide: 1
-                },
-                events: {
-                    onReady: function(e) {
-                        e.target.mute();
-                        e.target.playVideo();
-                    }
-                }
-            });
-        }
-    </script>
 </body>
 </html>

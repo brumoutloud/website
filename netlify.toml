@@ -33,6 +33,12 @@
   to = "/community.html"
   status = 200
 
+# NEW: Rule for the CONTACT page
+[[redirects]]
+  from = "/contact"
+  to = "/contact.html"
+  status = 200
+
 # Rule for the GET LISTED form page
 [[redirects]]
   from = "/get-listed"

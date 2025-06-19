@@ -1,8 +1,10 @@
 const Airtable = require('airtable');
 const parser = require('lambda-multipart-parser');
 const cloudinary = require('cloudinary').v2;
+const fetch = require('node-fetch');
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -10,22 +12,37 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Helper function to get dates from AI (for recurring events)
+async function getDatesFromAI(eventName, startDate, recurringInfo) {
+    if (!GEMINI_API_KEY) return [startDate];
+    const prompt = `For an event named "${eventName}" starting on ${startDate} with the rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format.`;
+    const payload = { contents: [{ parts: [{ text: prompt }] }] };
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    try {
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) return [startDate];
+        const result = await response.json();
+        const textResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        return textResponse ? textResponse.trim().split(',').map(d => d.trim()) : [startDate];
+    } catch (error) {
+        console.error("Error calling AI for dates:", error);
+        return [startDate];
+    }
+}
+
 // Helper function to upload an image to Cloudinary
 async function uploadImage(file, folder) {
     if (!file) return null;
     try {
         const base64String = file.content.toString('base64');
         const dataUri = `data:${file.contentType};base64,${base64String}`;
-        
         const result = await cloudinary.uploader.upload(dataUri, {
             folder: folder,
-            // Eager transformations for venues
             eager: folder === 'brumoutloud_venues' ? [
                 { width: 800, height: 600, crop: 'fill', gravity: 'auto', fetch_format: 'auto', quality: 'auto' },
                 { width: 400, height: 400, crop: 'fill', gravity: 'auto', fetch_format: 'auto', quality: 'auto' }
             ] : []
         });
-        
         return result;
     } catch (error) {
         console.error("!!! Cloudinary Upload Error:", error);
@@ -40,56 +57,86 @@ exports.handler = async function (event, context) {
 
     try {
         const result = await parser.parse(event);
-        const { id, type } = result;
+        const { id, type, 'Recurring Info': recurringInfo } = result;
 
         if (!id || !type) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Missing required ID or Type.' }) };
         }
 
         const table = type === 'Event' ? base('Events') : base('Venues');
-        let fieldsToUpdate = { ...result };
-        
-        // Remove non-Airtable fields from the update object
-        delete fieldsToUpdate.id;
-        delete fieldsToUpdate.type;
-        delete fieldsToUpdate.files;
 
-        // Handle file upload if a new file is present
-        const imageFile = result.files.length > 0 ? result.files[0] : null;
-        if (imageFile && imageFile.content.length > 0) {
-            if (type === 'Event') {
+        // **NEW**: If Recurring Info is provided for an event, regenerate the series.
+        if (type === 'Event' && recurringInfo && recurringInfo.trim() !== '') {
+            console.log(`Regenerating recurring series for event ID: ${id}`);
+            const originalRecord = await table.find(id);
+            const combinedData = { ...originalRecord.fields, ...result };
+            
+            const imageFile = result.files.length > 0 ? result.files[0] : null;
+            if (imageFile && imageFile.content.length > 0) {
                 const uploadedImage = await uploadImage(imageFile, 'brumoutloud_events');
-                fieldsToUpdate['Promo Image'] = [{ url: uploadedImage.secure_url }];
-            } else { // Venue
-                const uploadedImage = await uploadImage(imageFile, 'brumoutloud_venues');
-                fieldsToUpdate['Photo'] = [{ url: uploadedImage.secure_url }];
-                fieldsToUpdate['Photo URL'] = uploadedImage.secure_url;
-                fieldsToUpdate['Photo Medium URL'] = uploadedImage.eager[0].secure_url;
-                fieldsToUpdate['Photo Thumbnail URL'] = uploadedImage.eager[1].secure_url;
+                combinedData['Promo Image'] = [{ url: uploadedImage.secure_url }];
             }
-        }
-        
-        // Handle Event-specific field transformations
-        if (type === 'Event') {
-            // Combine date and time into a single Airtable datetime field
-            if (fieldsToUpdate.date) {
-                fieldsToUpdate['Date'] = `${fieldsToUpdate.date}T${fieldsToUpdate.time || '00:00'}:00.000Z`;
-                delete fieldsToUpdate.date;
-                delete fieldsToUpdate.time;
-            }
-            // Convert comma-separated categories string into an array
-            if (typeof fieldsToUpdate.Category === 'string') {
-                fieldsToUpdate.Category = fieldsToUpdate.Category.split(',').map(s => s.trim()).filter(Boolean);
-            }
-        }
-        
-        await table.update(id, fieldsToUpdate);
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true, message: `Record ${id} updated successfully.` }),
-        };
+            const datesToCreate = await getDatesFromAI(combinedData['Event Name'], result.date, recurringInfo);
+            
+            const recordsToCreate = datesToCreate.map((date, index) => {
+                let fields = { ...combinedData };
+                fields.Date = `${date}T${result.time || '00:00'}:00.000Z`;
+                fields['Recurring Info'] = index === 0 ? recurringInfo : '';
+                fields.Status = 'Approved';
+                if (result.Category) {
+                    fields.Category = Array.isArray(result.Category) ? result.Category : [result.Category];
+                }
 
+                // Delete fields that Airtable auto-generates to avoid errors
+                const autoGeneratedFields = ['id', 'Slug', 'Created', 'Venue Name', 'Venue Slug', 'files', 'date', 'time', 'Contact Email'];
+                autoGeneratedFields.forEach(f => delete fields[f]);
+
+                return { fields };
+            });
+
+            await table.destroy(id);
+            const chunkSize = 10;
+            for (let i = 0; i < recordsToCreate.length; i += chunkSize) {
+                await table.create(recordsToCreate.slice(i, i + chunkSize));
+            }
+            return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully regenerated recurring series for ${combinedData['Event Name']}.` }) };
+
+        } else {
+            // **ORIGINAL LOGIC**: For simple, single-record updates.
+            let fieldsToUpdate = { ...result };
+            delete fieldsToUpdate.id;
+            delete fieldsToUpdate.type;
+            delete fieldsToUpdate.files;
+
+            const imageFile = result.files.length > 0 ? result.files[0] : null;
+            if (imageFile && imageFile.content.length > 0) {
+                 if (type === 'Event') {
+                    const uploadedImage = await uploadImage(imageFile, 'brumoutloud_events');
+                    fieldsToUpdate['Promo Image'] = [{ url: uploadedImage.secure_url }];
+                } else { // Venue
+                    const uploadedImage = await uploadImage(imageFile, 'brumoutloud_venues');
+                    fieldsToUpdate['Photo'] = [{ url: uploadedImage.secure_url }];
+                    fieldsToUpdate['Photo URL'] = uploadedImage.secure_url;
+                    fieldsToUpdate['Photo Medium URL'] = uploadedImage.eager[0].secure_url;
+                    fieldsToUpdate['Photo Thumbnail URL'] = uploadedImage.eager[1].secure_url;
+                }
+            }
+
+            if (type === 'Event') {
+                if (fieldsToUpdate.date) {
+                    fieldsToUpdate['Date'] = `${fieldsToUpdate.date}T${fieldsToUpdate.time || '00:00'}:00.000Z`;
+                    delete fieldsToUpdate.date;
+                    delete fieldsToUpdate.time;
+                }
+                if (typeof fieldsToUpdate.Category === 'string') {
+                    fieldsToUpdate.Category = fieldsToUpdate.Category.split(',').map(s => s.trim()).filter(Boolean);
+                }
+            }
+            
+            await table.update(id, fieldsToUpdate);
+            return { statusCode: 200, body: JSON.stringify({ success: true, message: `Record ${id} updated successfully.` }) };
+        }
     } catch (error) {
         console.error("Error updating submission:", error);
         return {

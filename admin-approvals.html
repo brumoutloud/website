@@ -33,8 +33,7 @@
             </div>
 
             <div id="approval-list" class="space-y-6">
-                <!-- Pending items will be injected here by JS -->
-            </div>
+                </div>
              <div id="no-items-message" class="hidden text-center card-bg p-12">
                 <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-green-400">
                     <i class="fas fa-check-circle fa-2x"></i>
@@ -45,11 +44,9 @@
         </section>
     </main>
 
-    <!-- NEW: Edit Modal -->
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <form id="edit-form" class="card-bg p-8 w-full max-w-2xl space-y-4">
              <h3 class="font-anton text-3xl text-white">Edit Submission</h3>
-             <!-- Form fields will be dynamically inserted here -->
              <div id="edit-form-fields" class="space-y-4"></div>
              <div class="flex justify-end gap-4 pt-4">
                 <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
@@ -100,7 +97,6 @@
                         <h3 class="font-bold text-2xl mt-2 text-white">${item.name}</h3>
                         <p class="text-gray-400 text-sm">${item.location || ''}</p>
                     </div>
-                    <!-- **NEW**: Added an Edit button -->
                     <div class="flex gap-2 flex-shrink-0">
                         <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40">Edit</button>
                         <button class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg hover:bg-red-600/40">Reject</button>
@@ -125,7 +121,16 @@
             editModal.classList.remove('hidden');
         }
 
-        async function processItemUpdate(item, newStatus, reason = '') { /* ... existing logic ... */ }
+        async function processItemUpdate(item, newStatus, reason = '') {
+            // This function would call your backend to update the status
+            // For now, it just simulates the action
+            console.log(`Updating ${item.type} (${item.id}) to ${newStatus} with reason: ${reason}`);
+            // Example:
+            // await fetch('/.netlify/functions/update-submission-status', { 
+            //     method: 'POST', 
+            //     body: JSON.stringify({ id: item.id, type: item.type, newStatus, reason, name: item.name, contactEmail: item.contactEmail })
+            // });
+        }
         
         approvalList.addEventListener('click', (e) => {
             const card = e.target.closest('.review-card');
@@ -135,7 +140,7 @@
             if (e.target.classList.contains('edit-btn')) {
                 populateEditForm(item);
             }
-            // ... existing approve/reject logic ...
+            // ... approve/reject logic would go here ...
         });
         
         cancelEditBtn.addEventListener('click', () => {
@@ -148,8 +153,6 @@
             const formData = new FormData(editForm);
             const updatedFields = Object.fromEntries(formData.entries());
 
-            // Here we would call a new function to save the updated data
-            // For now, just log it and close the modal
             console.log("Saving changes:", { id: currentItemForAction.id, type: currentItemForAction.type, fields: updatedFields });
             alert('Saving changes... (check console for data)');
             
@@ -157,7 +160,41 @@
             currentItemForAction = null;
         });
 
-        async function loadPendingItems() { /* ... existing logic ... */ }
+        async function loadPendingItems() {
+            let totalItems = 0;
+            try {
+                // Step 1: Fetch and render events
+                loadingState.querySelector('p').textContent = 'Loading pending events...';
+                const eventResponse = await fetch('/.netlify/functions/get-pending-events');
+                if(eventResponse.ok) {
+                    const events = await eventResponse.json();
+                    events.forEach(renderItem);
+                    totalItems += events.length;
+                } else {
+                   console.error("Failed to fetch pending events:", await eventResponse.text());
+                }
+
+                // Step 2: Fetch and render venues
+                loadingState.querySelector('p').textContent = 'Loading pending venues...';
+                const venueResponse = await fetch('/.netlify/functions/get-pending-venues');
+                 if(venueResponse.ok) {
+                    const venues = await venueResponse.json();
+                    venues.forEach(renderItem);
+                    totalItems += venues.length;
+                } else {
+                    console.error("Failed to fetch pending venues:", await venueResponse.text());
+                }
+
+                loadingState.style.display = 'none';
+                if (totalItems === 0) {
+                    noItemsMessage.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                loadingState.innerHTML = '<p class="text-red-400">Failed to load items. Please try again later.</p>';
+                console.error("Failed to load pending items:", error);
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', loadPendingItems);
     </script>

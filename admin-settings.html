@@ -67,6 +67,8 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        // **FIX**: Import the authentication and firestore services
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -79,6 +81,9 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        // **FIX**: Initialize auth alongside firestore. This makes the user's login session
+        // available to the firestore service.
+        const auth = getAuth(app);
         const db = getFirestore(app);
 
         const form = document.getElementById('settings-form');
@@ -87,7 +92,6 @@
         const saveLoader = document.getElementById('save-loader');
         const successMessage = document.getElementById('success-message');
 
-        // Reference to the settings document in Firestore
         const settingsDocRef = doc(db, "settings", "gemini");
 
         async function loadSettings() {
@@ -107,13 +111,19 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // This ensures we don't try to save if the user isn't authenticated for some reason.
+            if (!auth.currentUser) {
+                alert("Authentication error. Please log in again.");
+                return;
+            }
+
             saveBtnText.textContent = 'Saving...';
             saveLoader.classList.remove('hidden');
             successMessage.classList.add('hidden');
             form.querySelector('button[type=submit]').disabled = true;
 
             try {
-                // Use setDoc to create or overwrite the document in Firestore
                 await setDoc(settingsDocRef, { modelName: geminiModelInput.value });
                 
                 successMessage.textContent = "Settings saved successfully!";

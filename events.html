@@ -10,41 +10,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
-        .popover {
-            display: none;
-            position: absolute;
-            margin-top: 0.5rem;
-            width: 18rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            padding: 1rem;
-            z-index: 20;
-            background-color: #1e1e1e;
-            border: 1px solid #2e2e2e;
-        }
-        .popover.show {
-            display: block;
-        }
-        .popover-option {
-            display: block;
-            width: 100%;
-            text-align: left;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            color: #D1D5DB;
-        }
-        .popover-option:hover {
-            background-color: #374151;
-        }
-        .category-tag {
-            display: inline-block;
-            background-color: rgba(181, 100, 247, 0.1);
-            color: #B564F7;
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-        }
+        .popover { display: none; position: absolute; margin-top: 0.5rem; width: 18rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); padding: 1rem; z-index: 20; background-color: #1e1e1e; border: 1px solid #2e2e2e; }
+        .popover.show { display: block; }
+        .popover-option { display: block; width: 100%; text-align: left; padding: 0.5rem 1rem; border-radius: 0.5rem; color: #D1D5DB; }
+        .popover-option:hover { background-color: #374151; }
+        .category-tag { display: inline-block; background-color: rgba(181, 100, 247, 0.1); color: #B564F7; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 9999px; }
     </style>
 </head>
 <body class="antialiased">
@@ -120,24 +90,26 @@
                 <h3 class="font-anton text-4xl text-center heading-gradient mb-6">Submit an <span class="accent-color">Event</span></h3>
                 <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
                     <div class="space-y-6">
-                        <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" id="event-name" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                        <div><label for="venue" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="venue" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                        <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="8" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                        <div><label for="event-name-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" id="event-name-modal" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                        <div><label for="venue-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="venue-modal" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                        <div><label for="description-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description-modal" name="description" rows="8" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
                     </div>
                     <div class="space-y-6">
                         <div class="grid grid-cols-2 gap-4">
-                            <div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" id="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                            <div><label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" id="start-time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                            <div><label for="date-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" id="date-modal" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                            <div><label for="start-time-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" id="start-time-modal" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
                         </div>
-                        <div><label for="link" class="block text-sm font-semibold mb-2 accent-color-secondary">Ticket Link (Optional)</label><input type="url" id="link" name="link" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="https://"></div>
-                        <div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday, or First Sunday of the month"></div>
-                        <div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div>
+                        <div><label for="link-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Ticket Link (Optional)</label><input type="url" id="link-modal" name="link" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="https://"></div>
+                        <div><label for="recurring-info-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info-modal" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday"></div>
+                        <div><label for="promo-image-modal" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" id="promo-image-modal" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div>
                     </div>
                 </div>
                 <div class="text-right pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
             </form>
         </div>
     </div>
+
+    <div id="footer-placeholder"></div>
 
     <script>
         // --- Global State ---
@@ -212,7 +184,6 @@
                 const tagsHTML = event.category.map(cat => `<span class="category-tag">${cat}</span>`).join('');
                 const imageUrl = event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
 
-                // **FIX:** Using the simpler HTML structure for the image card
                 const eventCard = `
                     <a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in">
                         <div class="item-card-image-container">
@@ -305,7 +276,8 @@
         async function initializePage() {
             try {
                 const eventsResponse = await fetch('/.netlify/functions/get-events');
-                allEvents = await eventsResponse.json();
+                const responseData = await eventsResponse.json();
+                allEvents = Array.isArray(responseData) ? responseData : responseData.events;
                 renderEvents(allEvents);
                 renderCategoryOptions();
                 setupEventListeners();
@@ -317,7 +289,6 @@
         
         document.addEventListener('DOMContentLoaded', initializePage);
     </script>
-    <div id="footer-placeholder"></div>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             fetch('/global/footer.html')

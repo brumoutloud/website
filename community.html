@@ -10,6 +10,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script src="/js/main.js" defer></script>
+    <style>
+        /* Add a transition for the rotation of the plus icon */
+        details summary::-webkit-details-marker {
+            display: none;
+        }
+        details .plus-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+        details[open] .plus-icon {
+            transform: rotate(45deg);
+        }
+    </style>
 </head>
 <body class="antialiased">
 
@@ -19,12 +31,61 @@
         <section class="max-w-4xl mx-auto">
             <div class="text-center mb-16">
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">ALRIGHT, <span class="accent-color">BAB</span>?</h1>
-                <p class="mt-4 text-xl text-gray-300 max-w-3xl mx-auto">Get ready to fall head over heels for the West Midlands' queer scene, it's bostin'!</p>
+                <p class="mt-4 text-xl text-gray-300 max-w-3xl mx-auto">Get ready to fall head over heels for the West Midlands' queer scene, it's bostin'! Birmingham's the beating heart, but the LGBTQ+ love spreads right across the region. We're a region that's bold, brash, and full to the brim with queer joy.</p>
             </div>
 
             <div class="card-bg p-8 md:p-12 space-y-4">
                 <h2 class="font-anton text-4xl text-center text-white mb-4">FREQUENTLY ASKED QUESTIONS</h2>
-                </div>
+                
+                <details class="group border-b border-gray-700/50 py-4">
+                    <summary class="flex items-center justify-between cursor-pointer list-none">
+                        <span class="font-semibold text-lg text-white">Where is Birmingham's Gay Village located?</span>
+                        <span class="text-2xl accent-color plus-icon">+</span>
+                    </summary>
+                    <p class="text-gray-300 mt-2 text-lg">Right in the city centre, bab! It's centred around Hurst Street, just a hop, skip, and a jump away from New Street Station.</p>
+                </details>
+
+                <details class="group border-b border-gray-700/50 py-4">
+                    <summary class="flex items-center justify-between cursor-pointer list-none">
+                        <span class="font-semibold text-lg text-white">What are the best gay bars and clubs in Birmingham?</span>
+                        <span class="text-2xl accent-color plus-icon">+</span>
+                    </summary>
+                    <p class="text-gray-300 mt-2 text-lg">Where do we start? The Village Inn, The Fox, The Nightingale Club... the list goes on! Check out our <a href="/all-venues.html" class="font-semibold underline hover:text-white">venues page</a> for all the deets.</p>
+                </details>
+                
+                <details class="group border-b border-gray-700/50 py-4">
+                    <summary class="flex items-center justify-between cursor-pointer list-none">
+                        <span class="font-semibold text-lg text-white">Are there any LGBTQ+ sports teams or social groups?</span>
+                        <span class="text-2xl accent-color plus-icon">+</span>
+                    </summary>
+                    <p class="text-gray-300 mt-2 text-lg">Absolutely! Birmingham has a thriving scene for LGBTQ+ sports and social clubs. From the Birmingham Bulls RFC (inclusive rugby) to the Swifts (running club) and various hiking and social groups, there are plenty of ways to get involved and meet new people outside of the bar scene. We're working on a dedicated section for this!</p>
+                </details>
+
+                <details class="group border-b border-gray-700/50 py-4">
+                    <summary class="flex items-center justify-between cursor-pointer list-none">
+                        <span class="font-semibold text-lg text-white">Is there a gay sauna in Birmingham?</span>
+                        <span class="text-2xl accent-color plus-icon">+</span>
+                    </summary>
+                    <p class="text-gray-300 mt-2 text-lg">None in the city centre but there are a few options if you don't mind a short journey. The Greenhouse in Darlaston and Spartan in Erdington are popular choices.</p>
+                </details>
+                
+                <details class="group border-b border-gray-700/50 py-4">
+                    <summary class="flex items-center justify-between cursor-pointer list-none">
+                        <span class="font-semibold text-lg text-white">How can I support BrumOutLoud?</span>
+                        <span class="text-2xl accent-color plus-icon">+</span>
+                    </summary>
+                    <p class="text-gray-300 mt-2 text-lg">The best way to support us is by using the site and spreading the word! You can also help keep our listings up-to-date by submitting events and venues using the 'Get Listed' button. As a community project, every bit of engagement helps.</p>
+                </details>
+                
+                <details class="group border-b border-gray-700/50 py-4">
+                    <summary class="flex items-center justify-between cursor-pointer list-none">
+                        <span class="font-semibold text-lg text-white">How does Birmingham's gay scene compare to other UK cities?</span>
+                        <span class="text-2xl accent-color plus-icon">+</span>
+                    </summary>
+                    <p class="text-gray-300 mt-2 text-lg">Let's set the record straight: Birmingham's queer scene is a force to be reckoned with! Our Gay Village boasts a vibrant array of bars and clubs, rivaling the likes of Manchester's Canal Street or London's Soho. We might not always get the spotlight, but we're proud to be a hidden gem of LGBTQ+ life in the UK.</p>
+                </details>
+
+            </div>
         </section>
     </main>
     

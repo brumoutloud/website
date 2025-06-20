@@ -160,7 +160,7 @@ exports.handler = async function (event, context) {
             .suggested-carousel::-webkit-scrollbar-thumb { background: #B564F7; border-radius: 10px; }
 
             .suggested-card {
-                width: 180px; /* Base width for portrait card */
+                width: 360px; /* Double width to accommodate double height with 2:3 ratio */
                 aspect-ratio: 2 / 3; /* Portrait aspect ratio */
                 border-radius: 1.25rem; /* Equivalent to card-bg border-radius */
                 overflow: hidden;
@@ -223,8 +223,6 @@ exports.handler = async function (event, context) {
                         ${description.replace(/\n/g, '<br>')}
                     </div>
                     ${(parentEventName || recurringInfo) && otherInstancesHTML ? `<div class="mt-16"><h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Events</span> in this Series</h2><div class="space-y-4">${otherInstancesHTML}</div></div>` : ''}
-                    
-                    ${suggestedEventsHtml}
                 </div>
                 <div class="lg:col-span-1">
                     <div class="card-bg p-8 sticky top-8 space-y-6">
@@ -246,6 +244,7 @@ exports.handler = async function (event, context) {
                     </div>
                 </div>
             </div>
+            ${suggestedEventsHtml}
         </main>
         <div id="footer-placeholder"></div>
         <script>

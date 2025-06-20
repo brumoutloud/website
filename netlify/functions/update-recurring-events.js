@@ -1,6 +1,5 @@
 const Airtable = require('airtable');
 
-// Helper function to find the Nth weekday of a month, using UTC to be timezone-safe
 const getNthWeekdayOfMonth = (year, month, week, dayOfWeek) => {
     const date = new Date(Date.UTC(year, month, 1));
     if (week > 0) {
@@ -15,7 +14,6 @@ const getNthWeekdayOfMonth = (year, month, week, dayOfWeek) => {
         let diff = (dayOfWeek - day + 7) % 7;
         date.setUTCDate(date.getUTCDate() - diff);
     }
-    // Ensure we haven't spilled into the next month
     if (date.getUTCMonth() !== month) return null;
     return date;
 };
@@ -41,10 +39,7 @@ exports.handler = async (event, context) => {
         const futureEventsToArchive = await base('Events').select({
             filterByFormula: `AND({Parent Event Name} = "${parentEventName.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), {Status} = 'Approved')`
         }).all();
-        const archivePayload = futureEventsToArchive.map(record => ({
-            id: record.id,
-            fields: { 'Status': 'Archived' }
-        }));
+        const archivePayload = futureEventsToArchive.map(record => ({ id: record.id, fields: { 'Status': 'Archived' } }));
         if (archivePayload.length > 0) {
             for (let i = 0; i < archivePayload.length; i += 10) {
                 await base('Events').update(archivePayload.slice(i, i + 10));
@@ -53,12 +48,23 @@ exports.handler = async (event, context) => {
         
         const newDates = [];
         const startDate = new Date(sourceEvent.fields.Date + 'T00:00:00Z');
-        const iterations = 24; // Create events for the next 2 years
-        const interval = recurrenceRule.monthly_interval > 0 ? recurrenceRule.monthly_interval : 1;
-
-        for (let i = 0; i < iterations; i++) {
-            let nextDate;
-            if (recurrenceRule.type === 'monthly') {
+        
+        if (recurrenceRule.type === 'weekly') {
+            const daysOfWeek = recurrenceRule.weekly_days.map(d => parseInt(d, 10));
+            if(daysOfWeek.length > 0) {
+                let currentDate = new Date(startDate);
+                currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Start checking from the day after the source event
+                for (let i = 0; i < 365; i++) { // Generate for the next year
+                    if (daysOfWeek.includes(currentDate.getUTCDay())) {
+                        newDates.push(new Date(currentDate));
+                    }
+                    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+                }
+            }
+        } else if (recurrenceRule.type === 'monthly') {
+            const interval = recurrenceRule.monthly_interval > 0 ? recurrenceRule.monthly_interval : 1;
+            for (let i = 0; i < 24; i++) { // Generate for the next 2 years
+                let nextDate;
                 const monthOffset = (i + 1) * interval;
                 const currentTargetMonth = startDate.getUTCMonth() + monthOffset;
                 const targetYear = startDate.getUTCFullYear() + Math.floor(currentTargetMonth / 12);
@@ -77,7 +83,7 @@ exports.handler = async (event, context) => {
             const newFields = { ...sourceEvent.fields };
             delete newFields.id;
             delete newFields.createdTime;
-            delete newFields['Auto-description']; // Example of a computed field to remove
+            delete newFields['Auto-description'];
             newFields.Date = date.toISOString().split('T')[0];
             return { fields: newFields };
         });

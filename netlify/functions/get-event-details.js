@@ -66,9 +66,9 @@ exports.handler = async function (event, context) {
                 const suggEventSlug = suggEvent.get('Slug');
 
                 return `
-                    <a href="/event/${suggEventSlug}" class="suggested-card flex-shrink-0">
+                    <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-1/3 flex-shrink-0">
                         <div class="suggested-card-image-container" style="background-image: url('${suggImageUrl}')">
-                            <div class="suggested-card-overlay"></div>
+                            <div class="suggested-card-overlay bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
                             <div class="suggested-card-content">
                                 <h4 class="font-bold text-white text-lg">${suggEventName}</h4>
                                 <p class="text-gray-200 text-sm">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -81,7 +81,7 @@ exports.handler = async function (event, context) {
             suggestedEventsHtml = `
                 <div class="mt-16 suggested-events-section">
                     <h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2>
-                    <div class="suggested-carousel">
+                    <div class="suggested-carousel flex overflow-x-auto no-scrollbar gap-6">
                         ${suggestedCardsHtml}
                     </div>
                 </div>
@@ -145,41 +145,26 @@ exports.handler = async function (event, context) {
             .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; }
             .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); }
 
-            /* NEW: Suggested Events Carousel Styles (Static Version) */
-            .suggested-carousel {
-                display: flex;
-                overflow-x: auto;
-                gap: 1.5rem; /* Equivalent to Tailwind 'gap-6' */
-                padding-bottom: 1rem; /* Space for scrollbar */
-                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-                scrollbar-width: thin; /* Firefox */
-                scrollbar-color: #B564F7 #1e1e1e; /* Firefox thumb and track */
-                /* Removed scroll-snap for static version */
-            }
-            .suggested-carousel::-webkit-scrollbar { height: 8px; }
-            .suggested-carousel::-webkit-scrollbar-track { background: #1e1e1e; border-radius: 10px; }
-            .suggested-carousel::-webkit-scrollbar-thumb { background: #B564F7; border-radius: 10px; }
+            /* Scrollbar hiding styles */
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; /* IE and Edge */ scrollbar-width: none; /* Firefox */ }
 
+            /* Suggested Card base styles (retain only what's not covered by Tailwind) */
             .suggested-card {
-                width: 180px; /* Consistent width for all static cards */
-                aspect-ratio: 2 / 3; /* Consistent portrait aspect ratio for all static cards */
-                border-radius: 1.25rem; /* Equivalent to card-bg border-radius */
+                border-radius: 1.25rem;
                 overflow: hidden;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3); /* Equivalent to card-bg shadow */
-                background-color: #1e1e1e; /* Fallback/background for image */
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                background-color: #1e1e1e;
                 position: relative;
-                transition: transform 0.3s ease, box-shadow 0.3s ease; /* Retain hover transition */
-                flex-shrink: 0; /* Prevent cards from shrinking */
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
                 display: flex;
                 flex-direction: column;
-                justify-content: flex-end; /* Align content to bottom */
-                /* Removed scroll-snap-align for static version */
+                justify-content: flex-end; /* This aligns content to bottom */
             }
             .suggested-card:hover {
                 transform: translateY(-5px);
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
             }
-            /* Removed .suggested-card.is-active styles */
 
             .suggested-card-image-container {
                 position: absolute;
@@ -189,27 +174,18 @@ exports.handler = async function (event, context) {
                 height: 100%;
                 background-size: cover;
                 background-position: center;
-                transition: transform 0.4s ease; /* For hover zoom effect */
+                transition: transform 0.4s ease;
             }
             .suggested-card:hover .suggested-card-image-container {
                 transform: scale(1.05);
             }
 
-            .suggested-card-overlay {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 40%, transparent 100%);
-            }
-
             .suggested-card-content {
-                position: relative; /* Stays above overlay */
+                position: relative;
                 z-index: 1;
                 padding: 1rem;
                 color: white;
-                text-align: left; /* Explicitly align text to the left */
+                text-align: left;
             }
         </style>
       </head>
@@ -314,6 +290,6 @@ exports.handler = async function (event, context) {
 
   } catch (error) {
     console.error(error);
-    return { statusCode: 500, body: 'Server error fetching event details.' };
+    return { statusCode: 500, body: 'Server error building venue page.' };
   }
 };

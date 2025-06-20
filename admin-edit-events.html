@@ -22,21 +22,7 @@
             margin-right: 0.5rem;
             margin-bottom: 0.5rem;
         }
-        .filter-button {
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: background-color 0.2s, color 0.2s;
-            background-color: rgba(255, 255, 255, 0.05);
-            color: #d1d5db; /* text-gray-300 */
-        }
-        .filter-button.active {
-            background-color: #E83A99; /* accent-color */
-            color: white;
-        }
-        .filter-button:hover:not(.active) {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
+        /* The custom .filter-button CSS has been removed as we now use utility classes from the design system. */
     </style>
 </head>
 <body class="antialiased">
@@ -60,21 +46,19 @@
                 <div id="status-message" class="text-green-400 mt-6 text-center hidden font-semibold"></div>
             </div>
 
-            <div class="card-bg p-6 mb-8">
-                <div class="flex flex-wrap justify-between items-center gap-4">
-                    <div id="filter-bar" class="flex flex-wrap items-center gap-2">
-                        <span class="font-semibold text-gray-400 mr-2">Filter:</span>
-                        <button class="filter-button active" data-filter="all">All</button>
-                        <button class="filter-button" data-filter="missing-image">Missing Image</button>
-                        <button class="filter-button" data-filter="missing-desc">No Description</button>
-                        <button class="filter-button" data-filter="missing-cat">No Category</button>
+            <div class="card-bg p-4 mb-8">
+                <div class="flex flex-wrap justify-between items-center gap-6">
+                    <div id="filter-bar" class="flex items-center gap-2 p-1 rounded-full bg-gray-900/50">
+                        <button data-filter="all" class="pill active">All</button>
+                        <button data-filter="missing-image" class="pill">Missing Image</button>
+                        <button data-filter="missing-desc" class="pill">No Description</button>
+                        <button data-filter="missing-cat" class="pill">No Category</button>
                     </div>
-                     <button id="add-event-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0">
+                     <button id="add-event-btn" class="btn btn-primary-green flex-shrink-0">
                         <i class="fas fa-plus mr-2"></i> Add New Event
                     </button>
                 </div>
             </div>
-
             <div id="loading-state" class="text-center py-10">
                 <div class="loader inline-block"></div>
                 <p class="mt-4 text-gray-400">Loading approved events...</p>
@@ -140,17 +124,17 @@
                 <div class="flex-grow">
                     <div class="flex items-center gap-4">
                         <div class="text-center w-16 flex-shrink-0">
-                            <p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p>
-                            <p class="text-lg text-gray-400">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
+                            <p class="text-2xl font-bold text-white"><span class="math-inline">\{eventDate\.toLocaleDateString\('en\-GB', \{ day\: 'numeric' \}\)\}</p\>
+<p class\="text\-lg text\-gray\-400"\></span>{eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
                         </div>
                         <div>
-                            <h3 class="font-bold text-xl text-white">${fields['Event Name']}</h3>
-                            <p class="text-sm text-gray-400">${fields['VenueText'] || 'Venue TBC'}</p>
+                            <h3 class="font-bold text-xl text-white"><span class="math-inline">\{fields\['Event Name'\]\}</h3\>
+<p class\="text\-sm text\-gray\-400"\></span>{fields['VenueText'] || 'Venue TBC'}</p>
                         </div>
                     </div>
-                    <div class="mt-2 pl-[80px] flex gap-2 flex-wrap">${tagsHtml}</div>
-                </div>
-                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0 ml-4" data-item='${JSON.stringify(item)}'>Edit</button>
+                    <div class="mt-2 pl-[80px] flex gap-2 flex-wrap"><span class="math-inline">\{tagsHtml\}</div\>
+</div\>
+<button class\="edit\-btn bg\-blue\-600/20 text\-blue\-300 font\-bold py\-2 px\-4 rounded\-lg hover\:bg\-blue\-600/40 flex\-shrink\-0 ml\-4" data\-item\='</span>{JSON.stringify(item)}'>Edit</button>
             `;
             return card;
         }
@@ -191,7 +175,6 @@
                 button.textContent = 'Loading...';
                 button.disabled = true;
             } else {
-                // This is the initial load, so show the main loading state
                 loadingState.style.display = 'block';
                 eventList.innerHTML = '';
                 allAdminEvents = [];
@@ -261,137 +244,4 @@
 
             const imageUrl = fields['Promo Image'] && fields['Promo Image'][0] ? fields['Promo Image'][0].url : null;
             const currentCategories = fields['Category'] || [];
-            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
-            const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
-            const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
-
-            const formHtml = `
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
-                    <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}" required></div>
-                </div>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
-                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
-                </div>
-                <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
-                    <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
-                </div>
-                <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g. Every Friday. Updates this event only."></div>
-                <div><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
-                <div>
-                    ${!isAdding ? `<label class="block text-sm font-semibold mb-2">Current Image</label>${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}` : ''}
-                    <label class="block text-sm font-semibold mb-2">${isAdding ? 'Promo Image' : 'Upload New Image (replaces current)'}</label>
-                    <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
-                </div>
-            `;
-            
-            editFormFields.innerHTML = formHtml;
-            editForm.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea').forEach(el => {
-                el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white';
-            });
-            editForm.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
-            editModal.classList.remove('hidden');
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchAndRenderEvents(null);
-
-            loadMoreBtn.addEventListener('click', () => {
-                fetchAndRenderEvents(currentOffset);
-            });
-            
-            filterBar.addEventListener('click', (e) => {
-                const button = e.target.closest('.filter-button');
-                if (button) {
-                    filterBar.querySelector('.active').classList.remove('active');
-                    button.classList.add('active');
-                    currentFilter = button.dataset.filter;
-                    applyFilters();
-                }
-            });
-
-            cleanupBtn.addEventListener('click', async () => {
-                if (!confirm('This will process all uncategorized events and may take a while. Are you sure?')) return;
-                
-                cleanupBtn.disabled = true;
-                cleanupBtnText.textContent = 'Processing...';
-                cleanupLoader.classList.remove('hidden');
-                statusMessage.classList.add('hidden');
-
-                try {
-                    const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
-                    const result = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error(result.message || 'An unknown error occurred.');
-                    }
-                    
-                    statusMessage.textContent = result.message + " Updating event list...";
-                    statusMessage.classList.remove('text-red-400', 'hidden');
-                    statusMessage.classList.add('text-green-400');
-
-                    refreshAllEvents();
-
-                } catch (error) {
-                    statusMessage.textContent = `Error: ${error.toString()}`;
-                    statusMessage.classList.remove('text-green-400', 'hidden');
-                    statusMessage.classList.add('text-red-400');
-                } finally {
-                    setTimeout(() => {
-                        cleanupBtnText.textContent = 'AI Category Cleanup';
-                        cleanupLoader.classList.add('hidden');
-                        cleanupBtn.disabled = false;
-                        statusMessage.classList.add('hidden');
-                    }, 4000);
-                }
-            });
-
-            addEventBtn.addEventListener('click', () => populateEditForm(null));
-
-            eventList.addEventListener('click', (e) => {
-                const editButton = e.target.closest('.edit-btn');
-                if (editButton) {
-                    const item = JSON.parse(editButton.dataset.item);
-                    populateEditForm(item);
-                }
-            });
-
-            cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
-
-            editForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const isAdding = !currentItemForAction;
-                const submitBtn = editForm.querySelector('button[type=submit]');
-                const originalBtnText = submitBtn.textContent;
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Saving...';
-                
-                const formData = new FormData(editForm);
-                
-                let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
-                if (!isAdding) {
-                    formData.append('id', currentItemForAction.id);
-                    formData.append('type', 'Event'); 
-                }
-
-                try {
-                    const response = await fetch(endpoint, { method: 'POST', body: formData });
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.message || 'Server returned an error');
-                    }
-                    alert('Success!');
-                    location.reload();
-                } catch (error) {
-                    alert(`Error saving changes: ${error.toString()}`);
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalBtnText;
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+            const categoryCheckboxes = VALID

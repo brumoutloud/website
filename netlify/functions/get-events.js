@@ -9,14 +9,13 @@ exports.handler = async (event, context) => {
 
         if (isAdminView) {
             // --- ADMIN PANEL LOGIC ---
-            // This logic is for the admin panel, which requires paginated results.
             
             let selectOptions = {
-                view: "Approved Events",
+                // **THE FIX**: Using the correct view name for the admin panel.
+                view: "Approved Upcoming", 
                 sort: [{ field: 'Date', direction: 'desc' }],
             };
 
-            // **THE FIX**: Only add the offset to the options if it's actually provided in the URL.
             if (offset) {
                 selectOptions.offset = offset;
             }
@@ -36,15 +35,12 @@ exports.handler = async (event, context) => {
 
         } else {
             // --- PUBLIC SITE LOGIC ---
-            // This logic is for the public events.html page.
-            // It fetches all events from the 'Approved Upcoming' view first.
             
             let allRecords = await base('Events').select({
                 view: "Approved Upcoming",
                 sort: [{ field: 'Date', direction: 'asc' }],
             }).all();
 
-            // Then, if URL filters are present, it filters the results.
             if (category) {
                 allRecords = allRecords.filter(record => {
                     const categories = record.get('Category') || [];
@@ -69,7 +65,6 @@ exports.handler = async (event, context) => {
                 });
             }
 
-            // Map the final list of records to the format the page expects.
             const events = allRecords.map(record => ({
                 id: record.id,
                 fields: record.fields

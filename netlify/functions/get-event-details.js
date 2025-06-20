@@ -9,7 +9,7 @@ exports.handler = async function (event, context) {
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${slug}"`,
-        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText']
+        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText', 'Category']
     }).firstPage();
 
     if (!eventRecords || eventRecords.length === 0) {
@@ -40,6 +40,56 @@ exports.handler = async function (event, context) {
         allFutureInstances = futureInstanceRecords.map(rec => rec.fields);
     }
     
+    // NEW LOGIC: Fetch Suggested Events
+    let suggestedEventsHtml = '';
+    const primaryEventCategories = fields['Category'] || []; 
+    const currentEventId = eventRecord.id;
+
+    if (primaryEventCategories.length > 0) {
+        // Construct filter for categories: find events that share at least one category
+        const categoryFilterString = primaryEventCategories.map(cat => `FIND("${cat.replace(/"/g, '\\"')}", ARRAYJOIN({Category}, ","))`).join(', ');
+        
+        const suggestedEventsFilter = `AND({Status} = 'Approved', IS_AFTER({Date}, TODAY()), NOT(RECORD_ID() = '${currentEventId}'), OR(${categoryFilterString}))`;
+
+        const suggestedRecords = await base('Events').select({
+            filterByFormula: suggestedEventsFilter,
+            sort: [{ field: 'Date', direction: 'asc' }],
+            maxRecords: 6, // Limit to 6 suggested events
+            fields: ['Event Name', 'Date', 'Promo Image', 'Slug', 'Venue Name', 'VenueText']
+        }).all();
+
+        if (suggestedRecords.length > 0) {
+            const suggestedCardsHtml = suggestedRecords.map(suggEvent => {
+                const suggEventName = suggEvent.get('Event Name');
+                const suggEventDate = new Date(suggEvent.get('Date'));
+                const suggImageUrl = suggEvent.get('Promo Image') ? suggEvent.get('Promo Image')[0].url : 'https://placehold.co/400x600/1e1e1e/EAEAEA?text=Event'; // Default placeholder for portrait
+                const suggEventSlug = suggEvent.get('Slug');
+
+                return `
+                    <a href="/event/${suggEventSlug}" class="suggested-card flex-shrink-0">
+                        <div class="suggested-card-image-container" style="background-image: url('${suggImageUrl}')">
+                            <div class="suggested-card-overlay"></div>
+                            <div class="suggested-card-content">
+                                <h4 class="font-bold text-white text-lg">${suggEventName}</h4>
+                                <p class="text-gray-200 text-sm">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            </div>
+                        </div>
+                    </a>
+                `;
+            }).join('');
+
+            suggestedEventsHtml = `
+                <div class="mt-16 suggested-events-section">
+                    <h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2>
+                    <div class="suggested-carousel">
+                        ${suggestedCardsHtml}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    // END NEW LOGIC
+
     const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : (fields['VenueText'] || 'TBC');
     const venueSlug = fields['Venue Slug'] ? fields['Venue Slug'][0] : null;
@@ -94,6 +144,68 @@ exports.handler = async function (event, context) {
             .hero-image-container:hover .hero-image-bg { opacity: 1; }
             .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; }
             .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); }
+
+            /* NEW: Suggested Events Carousel Styles */
+            .suggested-carousel {
+                display: flex;
+                overflow-x: auto;
+                gap: 1.5rem; /* Equivalent to Tailwind 'gap-6' */
+                padding-bottom: 1rem; /* Space for scrollbar */
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+                scrollbar-width: thin; /* Firefox */
+                scrollbar-color: #B564F7 #1e1e1e; /* Firefox thumb and track */
+            }
+            .suggested-carousel::-webkit-scrollbar { height: 8px; }
+            .suggested-carousel::-webkit-scrollbar-track { background: #1e1e1e; border-radius: 10px; }
+            .suggested-carousel::-webkit-scrollbar-thumb { background: #B564F7; border-radius: 10px; }
+
+            .suggested-card {
+                width: 180px; /* Base width for portrait card */
+                aspect-ratio: 2 / 3; /* Portrait aspect ratio */
+                border-radius: 1.25rem; /* Equivalent to card-bg border-radius */
+                overflow: hidden;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3); /* Equivalent to card-bg shadow */
+                background-color: #1e1e1e; /* Fallback/background for image */
+                position: relative;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end; /* Align content to bottom */
+            }
+            .suggested-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            }
+
+            .suggested-card-image-container {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-size: cover;
+                background-position: center;
+                transition: transform 0.4s ease; /* For hover zoom effect */
+            }
+            .suggested-card:hover .suggested-card-image-container {
+                transform: scale(1.05);
+            }
+
+            .suggested-card-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 40%, transparent 100%);
+            }
+
+            .suggested-card-content {
+                position: relative; /* Stays above overlay */
+                z-index: 1;
+                padding: 1rem;
+                color: white;
+            }
         </style>
       </head>
       <body class="antialiased">
@@ -111,6 +223,8 @@ exports.handler = async function (event, context) {
                         ${description.replace(/\n/g, '<br>')}
                     </div>
                     ${(parentEventName || recurringInfo) && otherInstancesHTML ? `<div class="mt-16"><h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Events</span> in this Series</h2><div class="space-y-4">${otherInstancesHTML}</div></div>` : ''}
+                    
+                    ${suggestedEventsHtml}
                 </div>
                 <div class="lg:col-span-1">
                     <div class="card-bg p-8 sticky top-8 space-y-6">

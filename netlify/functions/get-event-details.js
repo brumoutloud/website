@@ -359,7 +359,7 @@ exports.handler = async function (event, context) {
                         if (currentIndex >= originalCards.length) {
                             suggestedCarousel.scrollTo({ left: 0, behavior: 'auto' });
                             currentIndex = 0;
-                            // Immediately update active card after a jump
+                            // Immediately update active card after a jump, give browser a moment
                             setTimeout(updateActiveCard, 50); 
                         } else {
                             const targetScrollLeft = allCards[currentIndex].offsetLeft;
@@ -380,11 +380,22 @@ exports.handler = async function (event, context) {
                         autoScrolling = false;
                     };
 
-                    // Pause auto-scroll on user interaction
-                    suggestedCarousel.addEventListener('mouseenter', stopAutoscroll);
-                    suggestedCarousel.addEventListener('mouseleave', startAutoscroll);
+                    // Add hover listeners to individual cards
+                    allCards.forEach(card => {
+                        card.addEventListener('mouseenter', () => {
+                            stopAutoscroll(); // Pause auto-scrolling
+                            // Remove active class from any other card that might be active by scroll
+                            allCards.forEach(c => c.classList.remove('is-active'));
+                            card.classList.add('is-active'); // Make hovered card active
+                        });
+                        card.addEventListener('mouseleave', () => {
+                            card.classList.remove('is-active'); // Revert hovered card
+                            updateActiveCard(); // Immediately re-evaluate active card based on scroll position
+                            startAutoscroll(); // Resume auto-scrolling
+                        });
+                    });
 
-                    // For touch devices
+                    // For touch devices (on carousel container)
                     let touchTimeout;
                     suggestedCarousel.addEventListener('touchstart', () => {
                         stopAutoscroll();

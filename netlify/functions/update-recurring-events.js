@@ -1,20 +1,22 @@
 const Airtable = require('airtable');
 
+// Helper function to find the Nth weekday of a month, using UTC to be timezone-safe
 const getNthWeekdayOfMonth = (year, month, week, dayOfWeek) => {
     const date = new Date(Date.UTC(year, month, 1));
-    let count = 0;
     if (week > 0) {
-        while (date.getUTCDay() !== dayOfWeek) {
-            date.setUTCDate(date.getUTCDate() + 1);
-        }
+        let day = date.getUTCDay();
+        let diff = (dayOfWeek - day + 7) % 7;
+        date.setUTCDate(date.getUTCDate() + diff);
         date.setUTCDate(date.getUTCDate() + (week - 1) * 7);
     } else {
         date.setUTCMonth(date.getUTCMonth() + 1);
         date.setUTCDate(0);
-        while (date.getUTCDay() !== dayOfWeek) {
-            date.setUTCDate(date.getUTCDate() - 1);
-        }
+        let day = date.getUTCDay();
+        let diff = (dayOfWeek - day + 7) % 7;
+        date.setUTCDate(date.getUTCDate() - diff);
     }
+    // Ensure we haven't spilled into the next month
+    if (date.getUTCMonth() !== month) return null;
     return date;
 };
 
@@ -29,11 +31,13 @@ exports.handler = async (event, context) => {
         if (!eventId || !recurrenceRule) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Missing eventId or recurrenceRule' }) };
         }
+        
         const sourceEvent = await base('Events').find(eventId);
         const parentEventName = sourceEvent.fields['Parent Event Name'];
         if (!parentEventName) {
             return { statusCode: 400, body: JSON.stringify({ message: 'Source event must have a "Parent Event Name" to update its series.' }) };
         }
+
         const futureEventsToArchive = await base('Events').select({
             filterByFormula: `AND({Parent Event Name} = "${parentEventName.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), {Status} = 'Approved')`
         }).all();
@@ -43,22 +47,23 @@ exports.handler = async (event, context) => {
         }));
         if (archivePayload.length > 0) {
             for (let i = 0; i < archivePayload.length; i += 10) {
-                const chunk = archivePayload.slice(i, i + 10);
-                await base('Events').update(chunk);
+                await base('Events').update(archivePayload.slice(i, i + 10));
             }
         }
         
         const newDates = [];
         const startDate = new Date(sourceEvent.fields.Date + 'T00:00:00Z');
-        const iterations = 24; // Create events for roughly the next 2 years
-        const interval = recurrenceRule.monthly_interval || 1;
+        const iterations = 24; // Create events for the next 2 years
+        const interval = recurrenceRule.monthly_interval > 0 ? recurrenceRule.monthly_interval : 1;
 
         for (let i = 0; i < iterations; i++) {
             let nextDate;
             if (recurrenceRule.type === 'monthly') {
                 const monthOffset = (i + 1) * interval;
-                const targetMonth = startDate.getUTCMonth() + monthOffset;
-                const targetYear = startDate.getUTCFullYear();
+                const currentTargetMonth = startDate.getUTCMonth() + monthOffset;
+                const targetYear = startDate.getUTCFullYear() + Math.floor(currentTargetMonth / 12);
+                const targetMonth = currentTargetMonth % 12;
+
                 if (recurrenceRule.monthly_type === 'date') {
                     nextDate = new Date(Date.UTC(targetYear, targetMonth, recurrenceRule.monthly_day_of_month));
                 } else if (recurrenceRule.monthly_type === 'day') {
@@ -72,15 +77,14 @@ exports.handler = async (event, context) => {
             const newFields = { ...sourceEvent.fields };
             delete newFields.id;
             delete newFields.createdTime;
-            delete newFields.row_id;
+            delete newFields['Auto-description']; // Example of a computed field to remove
             newFields.Date = date.toISOString().split('T')[0];
             return { fields: newFields };
         });
 
         if (newEventRecords.length > 0) {
-            for (let i = 0; i < newEventRecords.length; i += 10) {
-                const chunk = newEventRecords.slice(i, i + 10);
-                await base('Events').create(chunk);
+             for (let i = 0; i < newEventRecords.length; i += 10) {
+                await base('Events').create(newEventRecords.slice(i, i + 10));
             }
         }
         return {

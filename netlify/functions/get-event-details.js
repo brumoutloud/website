@@ -160,21 +160,13 @@ exports.handler = async function (event, context) {
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
             }
 
-            /* Enable drag to scroll by adding `cursor: grab` and `scroll-snap-type` if not already present on container */
+            /* Carousel styling for scroll behavior */
             .suggested-carousel {
-                cursor: grab;
                 scroll-snap-type: x mandatory;
                 -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
                 overflow-x: auto; /* Ensure horizontal scrolling is enabled */
                 padding-bottom: 1rem; /* Add some padding at the bottom for scrollbar if visible */
             }
-            .suggested-carousel:active {
-                cursor: grabbing;
-            }
-
-            /* Gradient styling (now applied directly via Tailwind, but keeping for reference if customisation needed) */
-            /* The gradient is now applied via Tailwind classes directly in the HTML for better control */
-            /* `bg-gradient-to-t from-black/90 via-black/70 to-transparent` */
         </style>
       </head>
       <body class="antialiased">

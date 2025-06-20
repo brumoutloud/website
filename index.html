@@ -69,16 +69,19 @@
 
     <div id="footer-placeholder" class="relative z-10"></div>
 
+    <div class="text-center text-gray-500 text-sm py-6 relative z-10">
+        <p>Background video credit: 
+            <a href="https://www.instagram.com/_houseofallure_/" target="_blank" rel="noopener noreferrer" class="underline hover:text-white">House of Allure</a> 
+            produced by 
+            <a href="https://www.instagram.com/dominus_von_vexo/" target="_blank" rel="noopener noreferrer" class="underline hover:text-white">Dominus Von Vexo</a>.
+        </p>
+    </div>
+
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             fetch('/global/footer.html')
-                .then(response => {
-                    if (response.ok) return response.text();
-                    throw new Error('Footer not found.');
-                })
-                .then(data => {
-                    document.getElementById('footer-placeholder').innerHTML = data;
-                })
+                .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
+                .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
                 .catch(error => console.error('Error loading footer:', error));
         });
     </script>

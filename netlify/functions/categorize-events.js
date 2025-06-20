@@ -31,7 +31,6 @@ async function getGeminiModelName() {
     } catch (error) {
         console.error("Error fetching Gemini model from Firestore:", error);
     }
-    // Fallback to a default model if not found or on error
     return 'gemini-1.5-flash';
 }
 
@@ -40,8 +39,10 @@ async function getCategoriesFromAI(eventName, eventDescription, modelName) {
     
     const validCategories = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
     const prompt = `
-        You are an event categorization assistant. Based on the event name and description, select the most appropriate categories from this list: ${validCategories.join(', ')}.
-        Return your answer as a JSON array of strings. For example: ["Drag", "Party"]. If no category seems appropriate, return an empty array.
+        You are an event categorization assistant for a city events guide. Your task is to select the most appropriate categories for an event based on its name and description.
+        You MUST select at least one category from this list: ${validCategories.join(', ')}.
+        If you are unsure, make your best guess based on the available text. Do not leave the category blank.
+        Return your answer as a JSON array of strings. For example: ["Drag", "Party"].
         Event Name: "${eventName}"
         Event Description: "${eventDescription}"
     `;
@@ -59,10 +60,8 @@ async function getCategoriesFromAI(eventName, eventDescription, modelName) {
         }
         const result = await response.json();
         const textResponse = result.candidates[0].content.parts[0].text;
-        // Clean the response to ensure it's valid JSON
         const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
         const categories = JSON.parse(jsonString);
-        // Ensure all returned categories are from the valid list
         return categories.filter(cat => validCategories.includes(cat));
     } catch (error) {
         console.error("Error parsing categories with AI:", error);
@@ -78,6 +77,9 @@ exports.handler = async function (event, context) {
         const geminiModel = await getGeminiModelName();
         let recordsToUpdate = [];
         let skippedCount = 0;
+        let defaultCount = 0;
+        let aiCount = 0;
+        let lookupCount = 0;
 
         const recordsMissingCategory = await eventsTable.select({
             filterByFormula: "NOT({Category})",
@@ -88,32 +90,56 @@ exports.handler = async function (event, context) {
             const eventName = record.get("Event Name");
             const description = record.get("Description");
             
-            // **MODIFICATION**: Process if event has a name OR a description.
-            if (eventName || description) {
-                const categories = await getCategoriesFromAI(eventName, description, geminiModel);
-                if (categories.length > 0) {
-                    recordsToUpdate.push({
-                        id: record.id,
-                        fields: { "Category": categories }
-                    });
+            // **MODIFICATION**: First, try to find a match by name.
+            if (eventName) {
+                try {
+                    const existingRecords = await eventsTable.select({
+                        filterByFormula: `AND({Event Name} = "${eventName.replace(/"/g, '\\"')}", NOT({Category} = ''))`,
+                        fields: ["Category"],
+                        maxRecords: 1
+                    }).firstPage();
+
+                    if (existingRecords && existingRecords.length > 0) {
+                        const categories = existingRecords[0].get("Category");
+                        if (categories && categories.length > 0) {
+                            recordsToUpdate.push({ id: record.id, fields: { "Category": categories } });
+                            lookupCount++;
+                            continue; // Skip to the next record
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error during Airtable lookup:", e);
                 }
+            }
+            
+            // **Fallback**: If lookup fails or no name, use AI/Default logic.
+            if (eventName || description) {
+                let categories = await getCategoriesFromAI(eventName, description, geminiModel);
+                
+                if (!categories || categories.length === 0) {
+                    categories = ["Social"];
+                    defaultCount++;
+                } else {
+                    aiCount++;
+                }
+                
+                recordsToUpdate.push({ id: record.id, fields: { "Category": categories } });
+
             } else {
                 skippedCount++;
             }
         }
         
         if (recordsToUpdate.length > 0) {
-            // Airtable's update method can handle up to 10 records at a time.
             const chunkSize = 10;
             for (let i = 0; i < recordsToUpdate.length; i += chunkSize) {
                 await eventsTable.update(recordsToUpdate.slice(i, i + chunkSize));
             }
         }
 
-        // **MODIFICATION**: More descriptive summary message.
-        let summary = `Cleanup complete. Added categories to ${recordsToUpdate.length} of ${recordsMissingCategory.length} events found without a category.`;
+        let summary = `Cleanup complete. Of ${recordsMissingCategory.length} events, ${recordsToUpdate.length} were updated: ${lookupCount} via name lookup, ${aiCount} via AI, and ${defaultCount} with a default.`;
         if (skippedCount > 0) {
-            summary += ` Skipped ${skippedCount} events because they had no name or description.`;
+            summary += ` Skipped ${skippedCount} events due to missing data.`;
         }
 
         return {

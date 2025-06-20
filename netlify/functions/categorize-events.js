@@ -2,7 +2,7 @@ const Airtable = require('airtable');
 const fetch = require('node-fetch');
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK for fetching settings
 try {
     if (!admin.apps.length) {
         admin.initializeApp({
@@ -13,12 +13,15 @@ try {
             }),
         });
     }
-} catch (error) {
-    console.error("Firebase Admin Initialization Error:", error);
-}
+} catch (error) { console.error("Firebase Admin Initialization Error:", error); }
 const db = admin.firestore();
 
-// Helper to get Gemini model name from Firestore
+// Initialize Airtable
+const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
+const eventsTable = base('Events');
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// Helper to get the Gemini model name from Firestore
 async function getGeminiModelName() {
     try {
         const doc = await db.collection('settings').doc('gemini').get();
@@ -31,25 +34,13 @@ async function getGeminiModelName() {
     return 'gemini-2.5-flash';
 }
 
-const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
-const eventsTable = base('Events');
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
 async function getCategoriesFromAI(eventName, eventDescription, modelName) {
-    if (!GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY environment variable not set.");
-    }
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set.");
     
     const validCategories = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
-
     const prompt = `
-        You are an event categorization assistant for an LGBTQ+ listings website.
-        Based on the event name and description, please select the most appropriate categories from the provided list.
-        Return your answer as a JSON array of strings. For example: ["Drag", "Comedy"].
-        If no category seems appropriate, return an empty array.
-
-        Valid Categories: ${validCategories.join(', ')}
-
+        You are an event categorization assistant. Based on the event name and description, select the most appropriate categories from this list: ${validCategories.join(', ')}.
+        Return your answer as a JSON array of strings. For example: ["Drag", "Party"]. If no category seems appropriate, return an empty array.
         Event Name: "${eventName}"
         Event Description: "${eventDescription}"
     `;
@@ -59,52 +50,35 @@ async function getCategoriesFromAI(eventName, eventDescription, modelName) {
 
     try {
         const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
-
-        if (!response.ok) {
-            console.error(`Gemini API request failed with status ${response.status}`);
-            return [];
-        }
-
+        if (!response.ok) { return []; }
         const result = await response.json();
         const textResponse = result.candidates[0].content.parts[0].text;
-        
         const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
         const categories = JSON.parse(jsonString);
-
         return categories.filter(cat => validCategories.includes(cat));
-
     } catch (error) {
         console.error("Error parsing categories with AI:", error);
         return [];
     }
 }
 
-
 exports.handler = async function (event, context) {
-    const geminiModel = await getGeminiModelName();
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
-
     try {
-        console.log("Starting AI category cleanup script...");
+        const geminiModel = await getGeminiModelName();
         const recordsToUpdate = [];
-        
-        const records = await eventsTable.select({
+        const recordsMissingCategory = await eventsTable.select({
             filterByFormula: "NOT({Category})",
             fields: ["Event Name", "Description"]
         }).all();
 
-        console.log(`Found ${records.length} events without a category.`);
-
-        for (const record of records) {
+        for (const record of recordsMissingCategory) {
             const eventName = record.get("Event Name");
             const description = record.get("Description");
-
             if (eventName && description) {
                 const categories = await getCategoriesFromAI(eventName, description, geminiModel);
                 if (categories.length > 0) {
@@ -112,27 +86,21 @@ exports.handler = async function (event, context) {
                         id: record.id,
                         fields: { "Category": categories }
                     });
-                     console.log(`Categorized "${eventName}" as: ${categories.join(', ')}`);
-                } else {
-                     console.log(`Could not categorize "${eventName}".`);
                 }
             }
         }
         
-        console.log(`Prepared to update ${recordsToUpdate.length} records with new categories.`);
-
-        const chunkSize = 10;
-        for (let i = 0; i < recordsToUpdate.length; i += chunkSize) {
-            const chunk = recordsToUpdate.slice(i, i + chunkSize);
-            await eventsTable.update(chunk);
+        if (recordsToUpdate.length > 0) {
+            const chunkSize = 10;
+            for (let i = 0; i < recordsToUpdate.length; i += chunkSize) {
+                await eventsTable.update(recordsToUpdate.slice(i, i + chunkSize));
+            }
         }
-
         const summary = `Cleanup complete. Added categories to ${recordsToUpdate.length} events.`;
         return {
             statusCode: 200,
             body: JSON.stringify({ success: true, message: summary }),
         };
-
     } catch (error) {
         console.error("Categorization Error:", error);
         return {

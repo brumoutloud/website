@@ -12,6 +12,24 @@ function escapeForAirtableValue(str) {
     return JSON.stringify(str).slice(1, -1);
 }
 
+// Helper function to escape HTML characters that could break page rendering
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return unsafe;
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Helper function to safely encode URL components
+function encodeSlug(slug) {
+    if (typeof slug !== 'string') return '';
+    return encodeURIComponent(slug);
+}
+
+
 exports.handler = async function (event, context) {
   const slug = event.path.split("/").pop();
   if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
@@ -54,15 +72,14 @@ exports.handler = async function (event, context) {
     
     const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : (fields['VenueText'] || 'TBC');
-    const venueSlug = fields['Venue Slug'] ? fields['Venue Slug'][0] : null;
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
     const imageUrl = fields['Promo Image'] ? fields['Promo Image'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Brum+Out+Loud';
 
     const calendarData = {
-        title: eventName,
-        description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
-        location: venueName,
+        title: escapeHtml(eventName),
+        description: `${escapeHtml(description).replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
+        location: escapeHtml(venueName),
         startTime: eventDate.toISOString(),
         endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
         isRecurring: (parentEventName || recurringInfo) && allFutureInstances.length > 1,
@@ -75,13 +92,13 @@ exports.handler = async function (event, context) {
         const d = new Date(instance.Date);
         const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
         const month = d.toLocaleDateString('en-GB', { month: 'short' });
-        return `<a href="/event/${instance.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
+        return `<a href="/event/${encodeSlug(instance.Slug)}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
                     <div class="text-center w-20 flex-shrink-0">
                         <p class="text-2xl font-bold text-white">${day}</p>
                         <p class="text-lg text-gray-400">${month}</p>
                     </div>
                     <div class="flex-grow">
-                        <h4 class="font-bold text-white text-xl">${instance['Event Name']}</h4>
+                        <h4 class="font-bold text-white text-xl">${escapeHtml(instance['Event Name'])}</h4>
                         <p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
                     </div>
                     <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
@@ -103,7 +120,7 @@ exports.handler = async function (event, context) {
                 OR(${categoryFilter})
             )`,
             sort: [{ field: 'Date', direction: 'asc' }],
-            maxRecords: 6, // Increased maxRecords from 3 to 6
+            maxRecords: 6, // Increased maxRecords to 6 as requested
             fields: ['Event Name', 'Date', 'Promo Image', 'Slug', 'VenueText']
         }).all();
 
@@ -119,10 +136,10 @@ exports.handler = async function (event, context) {
                 const sImageUrl = sFields['Promo Image'] && sFields['Promo Image'][0] ? sFields['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
                 
                 suggestedEventsHTML += `
-                    <a href="/event/${sFields.Slug}" class="carousel-card group">
-                        <img src="${sImageUrl}" alt="${sFields['Event Name']}" class="card-image">
+                    <a href="/event/${encodeSlug(sFields.Slug)}" class="carousel-card group">
+                        <img src="${sImageUrl}" alt="${escapeHtml(sFields['Event Name'])}" class="card-image">
                         <div class="card-overlay">
-                            <h4 class="card-title">${sFields['Event Name']}</h4>
+                            <h4 class="card-title">${escapeHtml(sFields['Event Name'])}</h4>
                             <p class="card-date">${sDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} - ${sDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
                         </div>
                     </a>
@@ -143,7 +160,7 @@ exports.handler = async function (event, context) {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${eventName} | Brum Out Loud</title>
+        <title>${escapeHtml(eventName)} | Brum Out Loud</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -250,7 +267,7 @@ exports.handler = async function (event, context) {
                 margin-bottom: 2rem; /* Equivalent to mb-8 */
             }
             .suggested-events-heading .accent-color {
-                color: #6d28d9; /* Assuming this is the accent color from your main.css */
+                color: #B564F7; /* Changed from #6d28d9 for consistency with main.css */
             }
         </style>
       </head>
@@ -261,12 +278,12 @@ exports.handler = async function (event, context) {
                 <div class="lg:col-span-2">
                      <div class="hero-image-container mb-8">
                         <img src="${imageUrl}" alt="" class="hero-image-bg" aria-hidden="true">
-                        <img src="${imageUrl}" alt="${eventName}" class="hero-image-fg">
+                        <img src="${imageUrl}" alt="${escapeHtml(eventName)}" class="hero-image-fg">
                      </div>
                     <p class="font-semibold accent-color mb-2">EVENT DETAILS</p>
-                    <h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${eventName}</h1>
+                    <h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${escapeHtml(eventName)}</h1>
                     <div class="prose prose-invert prose-lg max-w-none text-gray-300">
-                        ${description.replace(/\n/g, '<br>')}
+                        ${escapeHtml(description).replace(/\n/g, '<br>')}
                     </div>
                     ${(parentEventName || recurringInfo) && otherInstancesHTML ? `<div class="mt-16"><h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Events</span> in this Series</h2><div class="space-y-4">${otherInstancesHTML}</div></div>` : ''}
                     ${suggestedEventsHTML}
@@ -277,11 +294,11 @@ exports.handler = async function (event, context) {
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Date & Time</h3>
                             <p class="text-2xl font-semibold">${eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                             <p class="text-xl text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
-                            ${recurringInfo ? `<p class="mt-2 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${recurringInfo}</p>` : ''}
+                            ${recurringInfo ? `<p class="mt-2 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${escapeHtml(recurringInfo)}</p>` : ''}
                         </div>
                          <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
-                            ${venueSlug ? `<a href="/venue/${venueSlug}" class="text-2xl font-semibold hover:text-white underline">${venueName}</a>` : `<p class="text-2xl font-semibold">${venueName}</p>`}
+                            ${fields['Venue Slug'] ? `<a href="/venue/${encodeSlug(fields['Venue Slug'][0])}" class="text-2xl font-semibold hover:text-white underline">${escapeHtml(venueName)}</a>` : `<p class="text-2xl font-semibold">${escapeHtml(venueName)}</p>`}
                          </div>
                         ${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
                         <div id="add-to-calendar-section" class="border-t border-gray-700 pt-6">

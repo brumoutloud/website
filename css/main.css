@@ -119,3 +119,15 @@ body {
     object-fit: cover;
     z-index: 0;
 }
+
+.tag-missing {
+    display: inline-block;
+    background-color: rgba(239, 68, 68, 0.1); /* Red-ish background */
+    color: #F87171; /* Red-ish text */
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}

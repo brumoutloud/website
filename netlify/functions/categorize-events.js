@@ -76,7 +76,9 @@ exports.handler = async function (event, context) {
     }
     try {
         const geminiModel = await getGeminiModelName();
-        const recordsToUpdate = [];
+        let recordsToUpdate = [];
+        let skippedCount = 0;
+
         const recordsMissingCategory = await eventsTable.select({
             filterByFormula: "NOT({Category})",
             fields: ["Event Name", "Description"]
@@ -85,7 +87,8 @@ exports.handler = async function (event, context) {
         for (const record of recordsMissingCategory) {
             const eventName = record.get("Event Name");
             const description = record.get("Description");
-            // Only process if we have something to work with
+            
+            // **MODIFICATION**: Process if event has a name OR a description.
             if (eventName || description) {
                 const categories = await getCategoriesFromAI(eventName, description, geminiModel);
                 if (categories.length > 0) {
@@ -94,6 +97,8 @@ exports.handler = async function (event, context) {
                         fields: { "Category": categories }
                     });
                 }
+            } else {
+                skippedCount++;
             }
         }
         
@@ -104,7 +109,13 @@ exports.handler = async function (event, context) {
                 await eventsTable.update(recordsToUpdate.slice(i, i + chunkSize));
             }
         }
-        const summary = `Cleanup complete. Added categories to ${recordsToUpdate.length} of ${recordsMissingCategory.length} events found without a category.`;
+
+        // **MODIFICATION**: More descriptive summary message.
+        let summary = `Cleanup complete. Added categories to ${recordsToUpdate.length} of ${recordsMissingCategory.length} events found without a category.`;
+        if (skippedCount > 0) {
+            summary += ` Skipped ${skippedCount} events because they had no name or description.`;
+        }
+
         return {
             statusCode: 200,
             body: JSON.stringify({ success: true, message: summary }),

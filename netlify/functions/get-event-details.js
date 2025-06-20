@@ -102,7 +102,8 @@ exports.handler = async function (event, context) {
                 OR(${categoryFilter})
             )`,
             sort: [{ field: 'Date', direction: 'asc' }],
-            maxRecords: 3,
+            // Increased maxRecords from 3 to 6 as per request
+            maxRecords: 6, 
             fields: ['Event Name', 'Date', 'Promo Image', 'Slug', 'VenueText']
         }).all();
 
@@ -173,7 +174,8 @@ exports.handler = async function (event, context) {
             .carousel-card {
                 flex: 0 0 auto; /* Do not grow, do not shrink, base on content */
                 width: calc((100% / 1.5) - 0.66rem); /* 1.5 cards on mobile, accounting for gap */
-                height: 300px; /* Fixed height for consistent cards */
+                /* Changed height to create a 2:3 portrait aspect ratio */
+                height: calc(((100% / 1.5) - 0.66rem) * 1.5); 
                 position: relative;
                 overflow: hidden;
                 border-radius: 0.75rem; /* Equivalent to rounded-lg */
@@ -204,7 +206,8 @@ exports.handler = async function (event, context) {
                 left: 0;
                 width: 100%;
                 padding: 1rem;
-                background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0)); /* Scrim effect */
+                /* Adjusted gradient for darker coverage and starts from bottom covering 40% */
+                background: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 40%, rgba(0, 0, 0, 0) 100%); 
                 color: white;
                 z-index: 10;
             }
@@ -227,11 +230,13 @@ exports.handler = async function (event, context) {
             @media (min-width: 768px) { /* md breakpoint for desktop */
                 .carousel-card {
                     width: calc((100% / 2) - 0.5rem); /* Show 2 cards on desktop */
+                    height: calc(((100% / 2) - 0.5rem) * 1.5); /* Maintain 2:3 ratio */
                 }
             }
             @media (min-width: 1024px) { /* lg breakpoint for desktop */
                 .carousel-card {
                     width: calc((100% / 3) - 0.66rem); /* Show 3 cards on larger desktop */
+                    height: calc(((100% / 3) - 0.66rem) * 1.5); /* Maintain 2:3 ratio */
                 }
             }
 

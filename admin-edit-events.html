@@ -102,4 +102,296 @@
     <div id="footer-placeholder"></div>
     <script src="/js/main.js" defer></script>
     <script>
-        const eventList = document.getElementById
+        const eventList = document.getElementById('event-list');
+        const loadingState = document.getElementById('loading-state');
+        const loadMoreContainer = document.getElementById('load-more-container');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        const addEventBtn = document.getElementById('add-event-btn');
+        const editModal = document.getElementById('edit-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const editForm = document.getElementById('edit-form');
+        const editFormFields = document.getElementById('edit-form-fields');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const cleanupBtn = document.getElementById('start-cleanup-btn');
+        const cleanupBtnText = document.getElementById('cleanup-btn-text');
+        const cleanupLoader = document.getElementById('cleanup-loader');
+        const statusMessage = document.getElementById('status-message');
+        const filterBar = document.getElementById('filter-bar');
+        
+        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
+        
+        let allAdminEvents = [];
+        let currentItemForAction = null;
+        let currentOffset = null;
+        let isFetching = false;
+        let currentFilter = 'all';
+
+        function renderEvent(item) {
+            const fields = item.fields;
+            const eventDate = new Date(fields.Date);
+            let tagsHtml = '';
+            if (!fields['Promo Image']) tagsHtml += '<span class="tag-missing">No Image</span>';
+            if (!fields.Description) tagsHtml += '<span class="tag-missing">No Description</span>';
+            if (!fields.Category || fields.Category.length === 0) tagsHtml += '<span class="tag-missing">No Category</span>';
+
+            const card = document.createElement('div');
+            card.className = 'card-bg p-4 flex justify-between items-start';
+            card.innerHTML = `
+                <div class="flex-grow">
+                    <div class="flex items-center gap-4">
+                        <div class="text-center w-16 flex-shrink-0">
+                            <p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p>
+                            <p class="text-lg text-gray-400">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-xl text-white">${fields['Event Name']}</h3>
+                            <p class="text-sm text-gray-400">${fields['VenueText'] || 'Venue TBC'}</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 pl-[80px] flex gap-2 flex-wrap">${tagsHtml}</div>
+                </div>
+                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0 ml-4" data-item='${JSON.stringify(item)}'>Edit</button>
+            `;
+            return card;
+        }
+        
+        function applyFilters() {
+            eventList.innerHTML = '';
+            const filtered = allAdminEvents.filter(item => {
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'missing-image') return !item.fields['Promo Image'];
+                if (currentFilter === 'missing-desc') return !item.fields.Description;
+                if (currentFilter === 'missing-cat') return !item.fields.Category || item.fields.Category.length === 0;
+                return true;
+            });
+
+            if(filtered.length > 0) {
+                 filtered.forEach(item => eventList.appendChild(renderEvent(item)));
+            } else {
+                 eventList.innerHTML = `<p class="text-center text-gray-400">No events match the current filter.</p>`;
+            }
+             
+            if (currentFilter !== 'all') {
+                loadMoreContainer.style.display = 'none';
+            } else {
+                if (currentOffset) {
+                    loadMoreContainer.style.display = 'block';
+                }
+            }
+        }
+        
+        async function fetchAndRenderEvents(offset) {
+            if (isFetching) return;
+            isFetching = true;
+
+            const button = loadMoreBtn;
+            const originalButtonText = button.textContent;
+            
+            if (offset) {
+                button.textContent = 'Loading...';
+                button.disabled = true;
+            } else {
+                // This is the initial load, so show the main loading state
+                loadingState.style.display = 'block';
+                eventList.innerHTML = '';
+                allAdminEvents = [];
+            }
+
+            try {
+                let url = '/.netlify/functions/get-events?view=admin';
+                if (offset) {
+                    url += `&offset=${offset}`;
+                }
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({details: 'Server returned an invalid response'}));
+                    throw new Error(errorData.details || 'Failed to fetch events.');
+                }
+                const data = await response.json();
+                
+                loadingState.style.display = 'none';
+                
+                if (data.events && data.events.length > 0) {
+                    allAdminEvents = allAdminEvents.concat(data.events);
+                    data.events.forEach(item => {
+                        eventList.appendChild(renderEvent(item));
+                    });
+                }
+                
+                if (allAdminEvents.length === 0) {
+                     eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
+                }
+                
+                currentOffset = data.offset; 
+
+                if (currentOffset) {
+                    loadMoreContainer.style.display = 'block';
+                } else {
+                    loadMoreContainer.style.display = 'none';
+                }
+
+            } catch (error) {
+                loadingState.innerHTML = `<p class="text-red-400 text-center">${error.message}</p>`;
+            } finally {
+                isFetching = false;
+                if (offset) {
+                    button.textContent = originalButtonText;
+                    button.disabled = false;
+                }
+            }
+        }
+        
+        function refreshAllEvents() {
+            allAdminEvents = [];
+            currentOffset = null;
+            filterBar.querySelector('.active')?.classList.remove('active');
+            const allButton = filterBar.querySelector('[data-filter="all"]');
+            allButton.classList.add('active');
+            currentFilter = 'all';
+
+            fetchAndRenderEvents(null);
+        }
+
+        function populateEditForm(item) {
+            currentItemForAction = item;
+            const isAdding = !item;
+            const fields = isAdding ? {} : item.fields;
+
+            modalTitle.textContent = isAdding ? 'Add New Event' : 'Edit Event';
+
+            const imageUrl = fields['Promo Image'] && fields['Promo Image'][0] ? fields['Promo Image'][0].url : null;
+            const currentCategories = fields['Category'] || [];
+            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
+            const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
+            const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
+
+            const formHtml = `
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
+                    <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}" required></div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
+                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
+                </div>
+                <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
+                    <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
+                </div>
+                <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g. Every Friday. Updates this event only."></div>
+                <div><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
+                <div>
+                    ${!isAdding ? `<label class="block text-sm font-semibold mb-2">Current Image</label>${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}` : ''}
+                    <label class="block text-sm font-semibold mb-2">${isAdding ? 'Promo Image' : 'Upload New Image (replaces current)'}</label>
+                    <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
+                </div>
+            `;
+            
+            editFormFields.innerHTML = formHtml;
+            editForm.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea').forEach(el => {
+                el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white';
+            });
+            editForm.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
+            editModal.classList.remove('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAndRenderEvents(null);
+
+            loadMoreBtn.addEventListener('click', () => {
+                fetchAndRenderEvents(currentOffset);
+            });
+            
+            filterBar.addEventListener('click', (e) => {
+                const button = e.target.closest('.filter-button');
+                if (button) {
+                    filterBar.querySelector('.active').classList.remove('active');
+                    button.classList.add('active');
+                    currentFilter = button.dataset.filter;
+                    applyFilters();
+                }
+            });
+
+            cleanupBtn.addEventListener('click', async () => {
+                if (!confirm('This will process all uncategorized events and may take a while. Are you sure?')) return;
+                
+                cleanupBtn.disabled = true;
+                cleanupBtnText.textContent = 'Processing...';
+                cleanupLoader.classList.remove('hidden');
+                statusMessage.classList.add('hidden');
+
+                try {
+                    const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.message || 'An unknown error occurred.');
+                    }
+                    
+                    statusMessage.textContent = result.message + " Updating event list...";
+                    statusMessage.classList.remove('text-red-400', 'hidden');
+                    statusMessage.classList.add('text-green-400');
+
+                    refreshAllEvents();
+
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.toString()}`;
+                    statusMessage.classList.remove('text-green-400', 'hidden');
+                    statusMessage.classList.add('text-red-400');
+                } finally {
+                    setTimeout(() => {
+                        cleanupBtnText.textContent = 'AI Category Cleanup';
+                        cleanupLoader.classList.add('hidden');
+                        cleanupBtn.disabled = false;
+                        statusMessage.classList.add('hidden');
+                    }, 4000);
+                }
+            });
+
+            addEventBtn.addEventListener('click', () => populateEditForm(null));
+
+            eventList.addEventListener('click', (e) => {
+                const editButton = e.target.closest('.edit-btn');
+                if (editButton) {
+                    const item = JSON.parse(editButton.dataset.item);
+                    populateEditForm(item);
+                }
+            });
+
+            cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const isAdding = !currentItemForAction;
+                const submitBtn = editForm.querySelector('button[type=submit]');
+                const originalBtnText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+                
+                const formData = new FormData(editForm);
+                
+                let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
+                if (!isAdding) {
+                    formData.append('id', currentItemForAction.id);
+                    formData.append('type', 'Event'); 
+                }
+
+                try {
+                    const response = await fetch(endpoint, { method: 'POST', body: formData });
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.message || 'Server returned an error');
+                    }
+                    alert('Success!');
+                    location.reload();
+                } catch (error) {
+                    alert(`Error saving changes: ${error.toString()}`);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

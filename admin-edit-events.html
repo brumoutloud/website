@@ -11,8 +11,17 @@
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
     <style>
-        .tag-missing { display: inline-block; background-color: rgba(239, 68, 68, 0.1); color: #F87171; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 9999px; margin-right: 0.5rem; margin-bottom: 0.5rem; }
-        .recurrence-options { background-color: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.375rem; margin-top: 0.5rem; }
+        .tag-missing {
+            display: inline-block;
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #F87171;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -109,7 +118,10 @@
                 if (!fields['Promo Image']) tagsHtml += '<span class="tag-missing">No Image</span>';
                 if (!fields.Description) tagsHtml += '<span class="tag-missing">No Description</span>';
                 if (!fields.Category || fields.Category.length === 0) tagsHtml += '<span class="tag-missing">No Category</span>';
+                
+                // Escape single quotes in the JSON string to prevent breaking the data-item attribute
                 const itemString = JSON.stringify(item).replace(/'/g, '&apos;');
+
                 const card = document.createElement('div');
                 card.className = 'card-bg p-4 flex justify-between items-start';
                 card.innerHTML = `
@@ -140,11 +152,13 @@
                     if (currentFilter === 'missing-cat') return !item.fields.Category || item.fields.Category.length === 0;
                     return true;
                 });
+
                 if(filtered.length > 0) {
                      filtered.forEach(item => eventList.appendChild(renderEvent(item)));
                 } else {
                      eventList.innerHTML = `<p class="text-center text-gray-400">No events match the current filter.</p>`;
                 }
+                 
                 if (currentFilter !== 'all' || !currentOffset) {
                     loadMoreContainer.style.display = 'none';
                 } else {
@@ -155,8 +169,10 @@
             async function fetchAndRenderEvents(offset) {
                 if (isFetching) return;
                 isFetching = true;
+
                 const button = loadMoreBtn;
                 const originalButtonText = button.textContent;
+                
                 if (offset) {
                     button.textContent = 'Loading...';
                     button.disabled = true;
@@ -165,30 +181,42 @@
                     eventList.innerHTML = '';
                     allAdminEvents = [];
                 }
+
                 try {
                     let url = '/.netlify/functions/get-events?view=admin';
-                    if (offset) url += `&offset=${offset}`;
+                    if (offset) {
+                        url += `&offset=${offset}`;
+                    }
                     const response = await fetch(url);
                     if (!response.ok) {
                         const errorData = await response.json().catch(() => ({details: 'Server returned an invalid response'}));
                         throw new Error(errorData.details || 'Failed to fetch events.');
                     }
                     const data = await response.json();
+                    
                     loadingState.style.display = 'none';
+                    
                     const events = data.events || [];
+
                     if (events.length > 0) {
                         allAdminEvents = allAdminEvents.concat(events);
-                        events.forEach(item => eventList.appendChild(renderEvent(item)));
+                        events.forEach(item => {
+                            eventList.appendChild(renderEvent(item));
+                        });
                     }
+                    
                     if (allAdminEvents.length === 0) {
-                        eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
+                         eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
                     }
+                    
                     currentOffset = data.offset; 
+
                     if (currentOffset) {
                         loadMoreContainer.style.display = 'block';
                     } else {
                         loadMoreContainer.style.display = 'none';
                     }
+
                 } catch (error) {
                     loadingState.innerHTML = `<p class="text-red-400 text-center">${error.message}</p>`;
                 } finally {
@@ -220,7 +248,6 @@
                 const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
                 const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
 
-                // **MODIFICATION**: Updated HTML for recurrence options
                 const formHtml = `
                     <div class="grid md:grid-cols-2 gap-4">
                         <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
@@ -233,40 +260,6 @@
                     </div>
                     <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
                     <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
-                    
-                    <div class="border-t border-gray-700 pt-4">
-                        <label class="block text-lg font-semibold mb-2 accent-color-secondary">Recurrence Rules</label>
-                        <p class="text-sm text-gray-400 mb-4">NOTE: Saving with a recurrence rule will archive and recreate all future approved events with the same 'Parent Event Name'.</p>
-                        <label>Repeats</label>
-                        <select name="recurrence_type" id="recurrence-type">
-                            <option value="none">Does not repeat</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                        <div id="recurrence-weekly-options" class="recurrence-options hidden">
-                           <p class="text-sm text-gray-400">Weekly recurrence is not yet supported. Please use the monthly option.</p>
-                        </div>
-                        <div id="recurrence-monthly-options" class="recurrence-options hidden">
-                             <div class="flex flex-col gap-4">
-                                <div class="flex items-center gap-3">
-                                    <input type="radio" name="recurrence_monthly_type" value="date" checked>
-                                    <span class="text-white">On day ${new Date(eventDate).getUTCDate()}</span>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <input type="radio" name="recurrence_monthly_type" value="day">
-                                    <span class="text-white">On the</span>
-                                    <select name="recurrence_monthly_week"><option value="1">First</option><option value="2">Second</option><option value="3">Third</option><option value="4">Fourth</option><option value="-1">Last</option></select>
-                                    <select name="recurrence_monthly_day_of_week"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select>
-                                </div>
-                                <div class="flex items-center gap-3 border-t border-gray-700 pt-4">
-                                     <span class="text-white font-semibold">Every</span>
-                                     <input type="number" name="recurrence_monthly_interval" value="1" min="1" max="12" class="w-20 p-1 bg-gray-900/50 rounded-md border border-gray-700 text-white">
-                                     <span class="text-white font-semibold">month(s)</span>
-                                </div>
-                             </div>
-                        </div>
-                    </div>
-
                     <div class="border-t border-gray-700 pt-4"><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
                     <div class="border-t border-gray-700 pt-4">
                         ${!isAdding ? `<label class="block text-sm font-semibold mb-2">Current Image</label>${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image.</p>'}` : ''}
@@ -276,93 +269,55 @@
                 `;
                 
                 editFormFields.innerHTML = formHtml;
-                editForm.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select').forEach(el => {
+                editForm.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => {
                     el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white';
                 });
                 editForm.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
-                const recurrenceTypeSelect = document.getElementById('recurrence-type');
-                const weeklyOptions = document.getElementById('recurrence-weekly-options');
-                const monthlyOptions = document.getElementById('recurrence-monthly-options');
-                recurrenceTypeSelect.addEventListener('change', (e) => {
-                    weeklyOptions.classList.toggle('hidden', e.target.value !== 'weekly');
-                    monthlyOptions.classList.toggle('hidden', e.target.value !== 'monthly');
-                });
                 editModal.classList.remove('hidden');
             }
 
             // --- EVENT LISTENERS ---
-            fetchAndRenderEvents(null);
-            loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
             
-            eventList.addEventListener('click', (e) => { /* ... existing listener ... */ });
-            filterBar.addEventListener('click', (e) => { /* ... existing listener ... */ });
-            cleanupBtn.addEventListener('click', async () => { /* ... existing listener ... */ });
-            addEventBtn.addEventListener('click', () => populateEditForm(null));
-            cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
-            
-            editForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const submitBtn = editForm.querySelector('button[type=submit]');
-                const originalBtnText = submitBtn.textContent;
-                submitBtn.disabled = true;
-                const formData = new FormData(editForm);
-                const recurrenceType = formData.get('recurrence_type');
+            document.addEventListener('DOMContentLoaded', () => {
+                fetchAndRenderEvents(null);
+                loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
                 
-                // **MODIFICATION**: Check if a recurrence rule is active
-                if (recurrenceType && recurrenceType !== 'none') {
-                    if (!confirm("You've set a recurrence rule. This will archive and recreate all future events in this series. Are you sure?")) {
-                        submitBtn.disabled = false;
-                        return;
-                    }
-                    submitBtn.textContent = 'Updating Series...';
-                    
-                    // Construct the rule object
-                    const recurrenceRule = { type: recurrenceType };
-                    if (recurrenceType === 'monthly') {
-                        recurrenceRule.monthly_type = formData.get('recurrence_monthly_type');
-                        recurrenceRule.monthly_interval = parseInt(formData.get('recurrence_monthly_interval'), 10) || 1;
-                        if (recurrenceRule.monthly_type === 'date') {
-                            recurrenceRule.monthly_day_of_month = new Date(formData.get('date') + 'T00:00:00Z').getUTCDate();
-                        } else {
-                            recurrenceRule.monthly_week = formData.get('recurrence_monthly_week');
-                            recurrenceRule.monthly_day_of_week = formData.get('recurrence_monthly_day_of_week');
+                eventList.addEventListener('click', (e) => {
+                    const editButton = e.target.closest('.edit-btn');
+                    if (editButton) {
+                        try {
+                            const itemData = editButton.dataset.item.replace(/&apos;/g, "'");
+                            const item = JSON.parse(itemData);
+                            populateEditForm(item);
+                        } catch (error) {
+                            console.error("Failed to parse event data:", error);
+                            alert("Could not open the editor for this event due to a data error.");
                         }
                     }
+                });
 
-                    try {
-                        // We must have an ID to update a series
-                        if (!currentItemForAction?.id) {
-                            throw new Error("You must save an event before you can set its recurrence.");
-                        }
-
-                        // First, update the main event itself to save any changes to its details
-                        const updateData = new FormData(editForm);
-                        updateData.append('id', currentItemForAction.id);
-                        updateData.append('type', 'Event'); 
-                        await fetch('/.netlify/functions/update-submission', { method: 'POST', body: updateData });
-                        
-                        // Then, trigger the series update
-                        const response = await fetch('/.netlify/functions/update-recurring-events', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ eventId: currentItemForAction.id, recurrenceRule })
-                        });
-                        if (!response.ok) {
-                            const err = await response.json();
-                            throw new Error(err.message || 'Failed to update recurring series.');
-                        }
-                        const result = await response.json();
-                        alert(result.message);
-                        location.reload();
-                    } catch (error) {
-                        alert(`Error updating series: ${error.toString()}`);
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = originalBtnText;
+                filterBar.addEventListener('click', (e) => {
+                    const button = e.target.closest('.pill');
+                    if (button && !button.classList.contains('active')) {
+                        filterBar.querySelector('.active')?.classList.remove('active');
+                        button.classList.add('active');
+                        currentFilter = button.dataset.filter;
+                        applyFilters();
                     }
-                } else {
-                    // Standard single event update/create
-                    submitBtn.textContent = 'Saving...';
+                });
+
+                cleanupBtn.addEventListener('click', async () => { /* ... existing cleanup logic ... */ });
+                addEventBtn.addEventListener('click', () => populateEditForm(null));
+                cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+                
+                editForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
                     const isAdding = !currentItemForAction;
+                    const submitBtn = editForm.querySelector('button[type=submit]');
+                    const originalBtnText = submitBtn.textContent;
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Saving...';
+                    const formData = new FormData(editForm);
                     let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
                     if (!isAdding) {
                         formData.append('id', currentItemForAction.id);
@@ -381,7 +336,7 @@
                         submitBtn.disabled = false;
                         submitBtn.textContent = originalBtnText;
                     }
-                }
+                });
             });
         });
     </script>

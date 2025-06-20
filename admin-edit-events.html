@@ -10,6 +10,34 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
+    <style>
+        .tag-missing {
+            display: inline-block;
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #F87171;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s, color 0.2s;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #d1d5db; /* text-gray-300 */
+        }
+        .filter-button.active {
+            background-color: #E83A99; /* accent-color */
+            color: white;
+        }
+        .filter-button:hover:not(.active) {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
 </head>
 <body class="antialiased">
 
@@ -17,63 +45,62 @@
 
     <main class="container mx-auto px-8 py-16">
         <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">EVENTS</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Add, edit, and bulk-process events on the site.</p>
+            </div>
             
-            <div class="flex justify-between items-start mb-8 gap-8">
-                <div class="text-left">
-                    <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">EVENTS</span></h1>
-                    <p class="mt-4 text-xl text-gray-300 max-w-2xl">Edit existing approved events, create new ones, or use the data tools to clean up entries.</p>
-                </div>
-                <div class="card-bg p-4 rounded-lg flex-shrink-0">
-                    <h3 class="font-bold text-white mb-2 text-lg">Data Tools</h3>
-                    <button id="start-cleanup-btn" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-500 transition-colors w-full flex items-center justify-center gap-2">
-                        <i id="cleanup-loader" class="fas fa-spinner fa-spin hidden"></i>
-                        <span id="cleanup-btn-text">AI Category Cleanup</span>
+            <div class="card-bg p-8 md:p-12 mb-8">
+                <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools</h2>
+                <p class="text-gray-400 mb-6">Run tools to process and clean up existing event data.</p>
+                <button id="start-cleanup-btn" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity w-full flex items-center justify-center">
+                     <span id="cleanup-btn-text">AI Category Cleanup</span>
+                     <span id="cleanup-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
+                </button>
+                <div id="status-message" class="text-green-400 mt-6 text-center hidden font-semibold"></div>
+            </div>
+
+            <div class="card-bg p-6 mb-8">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                    <div id="filter-bar" class="flex flex-wrap items-center gap-2">
+                        <span class="font-semibold text-gray-400 mr-2">Filter:</span>
+                        <button class="filter-button active" data-filter="all">All</button>
+                        <button class="filter-button" data-filter="missing-image">Missing Image</button>
+                        <button class="filter-button" data-filter="missing-desc">No Description</button>
+                        <button class="filter-button" data-filter="missing-cat">No Category</button>
+                    </div>
+                     <button id="add-event-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0">
+                        <i class="fas fa-plus mr-2"></i> Add New Event
                     </button>
-                    <p id="status-message" class="text-xs text-green-400 mt-2 hidden"></p>
                 </div>
             </div>
 
-            <div id="filter-bar" class="card-bg p-2 rounded-lg flex items-center justify-between mb-8 gap-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-gray-400 font-bold px-2">Filter:</span>
-                    <button data-filter="all" class="filter-btn active">All</button>
-                    <button data-filter="missing-image" class="filter-btn">Missing Image</button>
-                    <button data-filter="missing-desc" class="filter-btn">No Description</button>
-                    <button data-filter="missing-cat" class="filter-btn">No Category</button>
-                </div>
-                <button id="add-event-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0">
-                    <i class="fas fa-plus mr-2"></i> Add New Event
-                </button>
-            </div>
-            
-            <div id="event-list" class="space-y-4">
-                </div>
-            
             <div id="loading-state" class="text-center py-10">
                 <div class="loader inline-block"></div>
                 <p class="mt-4 text-gray-400">Loading approved events...</p>
             </div>
 
-            <div id="load-more-container" class="text-center mt-8" style="display: none;">
+            <div id="event-list" class="space-y-4">
+            </div>
+            <div id="load-more-container" class="text-center mt-8 hidden">
                 <button id="load-more-btn" class="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-600">Load More</button>
             </div>
         </section>
     </main>
-    
-    <div id="footer-placeholder"></div>
 
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
              <div class="flex justify-end gap-4 pt-4">
-                 <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
-                 <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
+                <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+                <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
              </div>
         </form>
     </div>
     
-    <script type="module" src="/js/main.js"></script>
+    <div id="footer-placeholder"></div>
+    <script src="/js/main.js" defer></script>
     <script>
         const eventList = document.getElementById('event-list');
         const loadingState = document.getElementById('loading-state');
@@ -246,25 +273,17 @@
             editModal.classList.remove('hidden');
         }
 
-
         document.addEventListener('DOMContentLoaded', () => {
             fetchAndRenderEvents(null);
 
             loadMoreBtn.addEventListener('click', () => {
-                const allFilterBtn = filterBar.querySelector('[data-filter="all"]');
-                if (!allFilterBtn.classList.contains('active')) {
-                    filterBar.querySelector('.active')?.classList.remove('active');
-                    allFilterBtn.classList.add('active');
-                    currentFilter = 'all';
-                    applyFilters();
-                }
                 fetchAndRenderEvents(currentOffset);
             });
             
             filterBar.addEventListener('click', (e) => {
-                const button = e.target.closest('button[data-filter]');
+                const button = e.target.closest('.filter-button');
                 if (button) {
-                    filterBar.querySelector('.active')?.classList.remove('active');
+                    filterBar.querySelector('.active').classList.remove('active');
                     button.classList.add('active');
                     currentFilter = button.dataset.filter;
                     applyFilters();
@@ -273,29 +292,41 @@
 
             cleanupBtn.addEventListener('click', async () => {
                 if (!confirm('This will process all uncategorized events and may take a while. Are you sure?')) return;
+                
                 cleanupBtn.disabled = true;
                 cleanupBtnText.textContent = 'Processing...';
                 cleanupLoader.classList.remove('hidden');
                 statusMessage.classList.add('hidden');
+
                 try {
                     const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.message || 'Unknown error');
-                    statusMessage.textContent = result.message + " Please refresh the page to see changes.";
-                    statusMessage.classList.remove('text-red-400');
+                    const result = await response.json(); // This should now work
+                    
+                    if (!response.ok) {
+                        throw new Error(result.message || 'An unknown error occurred.');
+                    }
+                    
+                    statusMessage.textContent = result.message + " Refreshing page to see changes...";
+                    statusMessage.classList.remove('text-red-400', 'hidden');
                     statusMessage.classList.add('text-green-400');
+
+                    // Automatically refresh to show the new categories
+                    setTimeout(() => location.reload(), 3000);
+
                 } catch (error) {
                     statusMessage.textContent = `Error: ${error.toString()}`;
-                    statusMessage.classList.remove('text-green-400');
+                    statusMessage.classList.remove('text-green-400', 'hidden');
                     statusMessage.classList.add('text-red-400');
                 } finally {
-                    statusMessage.classList.remove('hidden');
-                    cleanupBtnText.textContent = 'AI Category Cleanup';
-                    cleanupLoader.classList.add('hidden');
-                    cleanupBtn.disabled = false;
+                    // Re-enable the button after a delay unless we are refreshing
+                    setTimeout(() => {
+                        cleanupBtnText.textContent = 'AI Category Cleanup';
+                        cleanupLoader.classList.add('hidden');
+                        cleanupBtn.disabled = false;
+                    }, 3000);
                 }
             });
-            
+
             addEventBtn.addEventListener('click', () => populateEditForm(null));
 
             eventList.addEventListener('click', (e) => {

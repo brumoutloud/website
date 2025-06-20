@@ -161,14 +161,15 @@ exports.handler = async function (event, context) {
             .suggested-carousel::-webkit-scrollbar-thumb { background: #B564F7; border-radius: 10px; }
 
             .suggested-card {
-                width: 360px; /* Double width to accommodate double height with 2:3 ratio */
-                aspect-ratio: 2 / 3; /* Portrait aspect ratio */
+                width: 180px; /* Base size for non-active cards (50% smaller) */
+                aspect-ratio: 1 / 1; /* Square aspect ratio for non-active cards */
                 border-radius: 1.25rem; /* Equivalent to card-bg border-radius */
                 overflow: hidden;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.3); /* Equivalent to card-bg shadow */
                 background-color: #1e1e1e; /* Fallback/background for image */
                 position: relative;
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                transition: all 0.5s ease-in-out; /* Smoother transition for size/shape changes */
+                flex-shrink: 0; /* Prevent cards from shrinking */
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-end; /* Align content to bottom */
@@ -180,7 +181,9 @@ exports.handler = async function (event, context) {
             }
             /* Style for the active (highlighted) card */
             .suggested-card.is-active {
-                transform: scale(1.05); /* Slightly larger */
+                width: 360px; /* Desired width for active card */
+                aspect-ratio: 2 / 3; /* Desired portrait aspect ratio for active card */
+                transform: none; /* No additional scaling as width/aspect-ratio dictate size */
                 box-shadow: 0 20px 50px rgba(0,0,0,0.7); /* More prominent shadow */
                 z-index: 10; /* Ensure active card is on top */
             }
@@ -308,28 +311,40 @@ exports.handler = async function (event, context) {
                 }
                 container.innerHTML = buttonsHTML;
 
-                // NEW: Suggested Carousel Active Card Logic
+                // NEW: Suggested Carousel Auto-Scroll and Active Card Logic
                 const suggestedCarousel = document.querySelector('.suggested-carousel');
                 if (suggestedCarousel) {
-                    const suggestedCards = suggestedCarousel.querySelectorAll('.suggested-card');
+                    let scrollInterval;
+                    let autoScrolling = true;
+                    const originalCards = Array.from(suggestedCarousel.querySelectorAll('.suggested-card'));
+                    
+                    // Clone cards for seamless looping
+                    const numClones = originalCards.length > 0 ? Math.min(originalCards.length, 3) : 0; // Clone first few cards
+                    for (let i = 0; i < numClones; i++) {
+                        suggestedCarousel.appendChild(originalCards[i].cloneNode(true));
+                    }
+                    const allCards = suggestedCarousel.querySelectorAll('.suggested-card'); // Get all cards including clones
+
+                    let currentIndex = 0; // Current card index for auto-scrolling
 
                     const updateActiveCard = () => {
                         let activeCardIndex = -1;
-                        let minScrollDistance = Infinity;
+                        let minDistance = Infinity;
+                        const carouselRect = suggestedCarousel.getBoundingClientRect();
 
-                        suggestedCards.forEach((card, index) => {
-                            const cardLeft = card.offsetLeft; 
-                            const scrollLeft = suggestedCarousel.scrollLeft;
+                        allCards.forEach((card, index) => {
+                            const cardRect = card.getBoundingClientRect();
+                            // Distance from the card's left edge to the carousel's visible left edge
+                            const distance = Math.abs(cardRect.left - carouselRect.left);
 
-                            const distance = Math.abs(cardLeft - scrollLeft);
-
-                            if (distance < minScrollDistance) {
-                                minScrollDistance = distance;
+                            // The card closest to the carousel's left edge is considered active
+                            if (distance < minDistance) {
+                                minDistance = distance;
                                 activeCardIndex = index;
                             }
                         });
 
-                        suggestedCards.forEach((card, index) => {
+                        allCards.forEach((card, index) => {
                             if (index === activeCardIndex) {
                                 card.classList.add('is-active');
                             } else {
@@ -338,18 +353,57 @@ exports.handler = async function (event, context) {
                         });
                     };
 
-                    // Set initial active card
-                    updateActiveCard();
+                    const scrollToNextCard = () => {
+                        currentIndex++;
+                        // If we scrolled past the original cards, jump back to the start
+                        if (currentIndex >= originalCards.length) {
+                            suggestedCarousel.scrollTo({ left: 0, behavior: 'auto' });
+                            currentIndex = 0;
+                            // Immediately update active card after a jump
+                            setTimeout(updateActiveCard, 50); 
+                        } else {
+                            const targetScrollLeft = allCards[currentIndex].offsetLeft;
+                            suggestedCarousel.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+                        }
+                    };
 
-                    // Debounce the scroll event for performance
-                    let scrollTimeout;
-                    suggestedCarousel.addEventListener('scroll', () => {
-                        clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(updateActiveCard, 150); // Update after 150ms of no scrolling
+                    const startAutoscroll = () => {
+                        stopAutoscroll(); // Clear any existing interval
+                        autoScrolling = true;
+                        scrollInterval = setInterval(() => {
+                            scrollToNextCard();
+                        }, 4000); // Scroll every 4 seconds
+                    };
+
+                    const stopAutoscroll = () => {
+                        clearInterval(scrollInterval);
+                        autoScrolling = false;
+                    };
+
+                    // Pause auto-scroll on user interaction
+                    suggestedCarousel.addEventListener('mouseenter', stopAutoscroll);
+                    suggestedCarousel.addEventListener('mouseleave', startAutoscroll);
+
+                    // For touch devices
+                    let touchTimeout;
+                    suggestedCarousel.addEventListener('touchstart', () => {
+                        stopAutoscroll();
+                        clearTimeout(touchTimeout);
+                    });
+                    suggestedCarousel.addEventListener('touchend', () => {
+                        touchTimeout = setTimeout(startAutoscroll, 3000); // Resume after 3 seconds of no touch
                     });
 
-                    // Also update on resize to handle layout changes
-                    window.addEventListener('resize', updateActiveCard);
+                    // Update active card on any scroll (manual or automatic)
+                    let scrollDebounceTimer;
+                    suggestedCarousel.addEventListener('scroll', () => {
+                        clearTimeout(scrollDebounceTimer);
+                        scrollDebounceTimer = setTimeout(updateActiveCard, 100); 
+                    });
+
+                    // Initial setup
+                    updateActiveCard();
+                    startAutoscroll();
                 }
             });
         </script>

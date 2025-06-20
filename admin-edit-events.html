@@ -208,7 +208,8 @@
                 }
                 
                 allAdminEvents = allAdminEvents.concat(data.events);
-                data.events.forEach(item => eventList.appendChild(renderEvent(item)));
+                // **MODIFICATION**: We call applyFilters here to ensure the correct filter is applied on load/refresh.
+                applyFilters();
                 
                 currentOffset = data.offset; 
 
@@ -229,6 +230,19 @@
             }
         }
         
+        // **MODIFICATION**: New function to handle a full refresh of the event list.
+        function refreshAllEvents() {
+            allAdminEvents = [];
+            currentOffset = null;
+            // Set the active filter back to 'all' visually
+            filterBar.querySelector('.active')?.classList.remove('active');
+            const allButton = filterBar.querySelector('[data-filter="all"]');
+            allButton.classList.add('active');
+            currentFilter = 'all';
+
+            fetchAndRenderEvents(null);
+        }
+
         function populateEditForm(item) {
             currentItemForAction = item;
             const isAdding = !item;
@@ -290,6 +304,7 @@
                 }
             });
 
+            // **MODIFICATION**: Updated click handler
             cleanupBtn.addEventListener('click', async () => {
                 if (!confirm('This will process all uncategorized events and may take a while. Are you sure?')) return;
                 
@@ -300,30 +315,31 @@
 
                 try {
                     const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
-                    const result = await response.json(); // This should now work
+                    const result = await response.json();
                     
                     if (!response.ok) {
                         throw new Error(result.message || 'An unknown error occurred.');
                     }
                     
-                    statusMessage.textContent = result.message + " Refreshing page to see changes...";
+                    statusMessage.textContent = result.message + " Updating event list...";
                     statusMessage.classList.remove('text-red-400', 'hidden');
                     statusMessage.classList.add('text-green-400');
 
-                    // Automatically refresh to show the new categories
-                    setTimeout(() => location.reload(), 3000);
+                    // Refresh the event list on the page to show the changes
+                    refreshAllEvents();
 
                 } catch (error) {
                     statusMessage.textContent = `Error: ${error.toString()}`;
                     statusMessage.classList.remove('text-green-400', 'hidden');
                     statusMessage.classList.add('text-red-400');
                 } finally {
-                    // Re-enable the button after a delay unless we are refreshing
+                    // Re-enable the button and hide the status message after a delay
                     setTimeout(() => {
                         cleanupBtnText.textContent = 'AI Category Cleanup';
                         cleanupLoader.classList.add('hidden');
                         cleanupBtn.disabled = false;
-                    }, 3000);
+                        statusMessage.classList.add('hidden');
+                    }, 4000);
                 }
             });
 

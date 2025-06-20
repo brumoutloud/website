@@ -22,6 +22,13 @@
             margin-right: 0.5rem;
             margin-bottom: 0.5rem;
         }
+        /* Style for the recurrence options */
+        .recurrence-options {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 0.375rem;
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -77,8 +84,8 @@
              <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
              <div class="flex justify-end gap-4 pt-4">
-                <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
-                <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
+                <button type="button" id="cancel-edit-btn" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
              </div>
         </form>
     </div>
@@ -118,14 +125,9 @@
                 if (!fields['Promo Image']) tagsHtml += '<span class="tag-missing">No Image</span>';
                 if (!fields.Description) tagsHtml += '<span class="tag-missing">No Description</span>';
                 if (!fields.Category || fields.Category.length === 0) tagsHtml += '<span class="tag-missing">No Category</span>';
-
+                const itemString = JSON.stringify(item).replace(/'/g, '&apos;');
                 const card = document.createElement('div');
                 card.className = 'card-bg p-4 flex justify-between items-start';
-                
-                // Using single quotes for data-item attribute and escaping the stringified JSON
-                // to handle potential quotes in the data itself.
-                const itemString = JSON.stringify(item).replace(/'/g, '&apos;');
-
                 card.innerHTML = `
                     <div class="flex-grow">
                         <div class="flex items-center gap-4">
@@ -154,13 +156,11 @@
                     if (currentFilter === 'missing-cat') return !item.fields.Category || item.fields.Category.length === 0;
                     return true;
                 });
-
                 if(filtered.length > 0) {
-                    filtered.forEach(item => eventList.appendChild(renderEvent(item)));
+                     filtered.forEach(item => eventList.appendChild(renderEvent(item)));
                 } else {
-                    eventList.innerHTML = `<p class="text-center text-gray-400">No events match the current filter.</p>`;
+                     eventList.innerHTML = `<p class="text-center text-gray-400">No events match the current filter.</p>`;
                 }
-                
                 if (currentFilter !== 'all' || !currentOffset) {
                     loadMoreContainer.style.display = 'none';
                 } else {
@@ -173,7 +173,6 @@
                 isFetching = true;
                 const button = loadMoreBtn;
                 const originalButtonText = button.textContent;
-                
                 if (offset) {
                     button.textContent = 'Loading...';
                     button.disabled = true;
@@ -182,7 +181,6 @@
                     eventList.innerHTML = '';
                     allAdminEvents = [];
                 }
-
                 try {
                     let url = '/.netlify/functions/get-events?view=admin';
                     if (offset) url += `&offset=${offset}`;
@@ -194,7 +192,6 @@
                     const data = await response.json();
                     loadingState.style.display = 'none';
                     const events = data.events || [];
-
                     if (events.length > 0) {
                         allAdminEvents = allAdminEvents.concat(events);
                         events.forEach(item => eventList.appendChild(renderEvent(item)));
@@ -203,7 +200,6 @@
                         eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
                     }
                     currentOffset = data.offset; 
-
                     if (currentOffset) {
                         loadMoreContainer.style.display = 'block';
                     } else {
@@ -243,20 +239,73 @@
                 const formHtml = `
                     <div class="grid md:grid-cols-2 gap-4">
                         <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
-                        <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}" required></div>
+                        <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
                     </div>
+                    <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}" required></div>
                     <div class="grid md:grid-cols-2 gap-4">
                         <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
                         <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
                     </div>
                     <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
-                        <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
+                    <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
+                    
+                    <div class="border-t border-gray-700 pt-4">
+                        <label class="block text-lg font-semibold mb-2 accent-color-secondary">Recurrence Rules</label>
+                        <p class="text-sm text-gray-400 mb-4">Editing these rules for an event will archive and recreate all future events in the series.</p>
+                        
+                        <label>Repeats</label>
+                        <select name="recurrence_type" id="recurrence-type">
+                            <option value="none">Does not repeat</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+
+                        <div id="recurrence-weekly-options" class="recurrence-options hidden">
+                            <label class="block font-semibold mb-2">On these days:</label>
+                            <div class="grid grid-cols-4 gap-2">
+                                <label class="inline-flex items-center gap-2"><input type="checkbox" name="recurrence_weekly_day" value="1"><span class="text-white">Mon</span></label>
+                                <label class="inline-flex items-center gap-2"><input type="checkbox" name="recurrence_weekly_day" value="2"><span class="text-white">Tue</span></label>
+                                <label class="inline-flex items-center gap-2"><input type="checkbox" name="recurrence_weekly_day" value="3"><span class="text-white">Wed</span></label>
+                                <label class="inline-flex items-center gap-2"><input type="checkbox" name="recurrence_weekly_day" value="4"><span class="text-white">Thu</span></label>
+                                <label class="inline-flex items-center gap-2"><input type="checkbox" name="recurrence_weekly_day" value="5"><span class="text-white">Fri</span></label>
+                                <label class="inline-flex items-center gap-2"><input type="checkbox" name="recurrence_weekly_day" value="6"><span class="text-white">Sat</span></label>
+                                <label class="inline-flex items-center gap-2"><input type="checkbox" name="recurrence_weekly_day" value="0"><span class="text-white">Sun</span></label>
+                            </div>
+                        </div>
+
+                        <div id="recurrence-monthly-options" class="recurrence-options hidden">
+                             <div class="flex flex-col gap-2">
+                                <label class="flex items-center gap-3">
+                                    <input type="radio" name="recurrence_monthly_type" value="date" checked>
+                                    <span class="text-white">On day</span>
+                                    <input type="number" name="recurrence_monthly_day_of_month" min="1" max="31" class="w-20 p-1 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+                                    <span class="text-white">of the month</span>
+                                </label>
+                                <label class="flex items-center gap-3">
+                                    <input type="radio" name="recurrence_monthly_type" value="day">
+                                    <span class="text-white">On the</span>
+                                    <select name="recurrence_monthly_week">
+                                        <option value="1">First</option>
+                                        <option value="2">Second</option>
+                                        <option value="3">Third</option>
+                                        <option value="4">Fourth</option>
+                                        <option value="-1">Last</option>
+                                    </select>
+                                    <select name="recurrence_monthly_day_of_week">
+                                        <option value="1">Monday</option>
+                                        <option value="2">Tuesday</option>
+                                        <option value="3">Wednesday</option>
+                                        <option value="4">Thursday</option>
+                                        <option value="5">Friday</option>
+                                        <option value="6">Saturday</option>
+                                        <option value="0">Sunday</option>
+                                    </select>
+                                </label>
+                             </div>
+                        </div>
                     </div>
-                    <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g. Every Friday."></div>
-                    <div><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
-                    <div>
+                    <div class="border-t border-gray-700 pt-4"><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
+                    <div class="border-t border-gray-700 pt-4">
                         ${!isAdding ? `<label class="block text-sm font-semibold mb-2">Current Image</label>${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image.</p>'}` : ''}
                         <label class="block text-sm font-semibold mb-2">${isAdding ? 'Promo Image' : 'Upload New Image'}</label>
                         <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
@@ -264,10 +313,21 @@
                 `;
                 
                 editFormFields.innerHTML = formHtml;
-                editForm.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea').forEach(el => {
+                editForm.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select').forEach(el => {
                     el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white';
                 });
                 editForm.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
+                
+                // Add event listener for the new recurrence dropdown
+                const recurrenceTypeSelect = document.getElementById('recurrence-type');
+                const weeklyOptions = document.getElementById('recurrence-weekly-options');
+                const monthlyOptions = document.getElementById('recurrence-monthly-options');
+                
+                recurrenceTypeSelect.addEventListener('change', (e) => {
+                    weeklyOptions.classList.toggle('hidden', e.target.value !== 'weekly');
+                    monthlyOptions.classList.toggle('hidden', e.target.value !== 'monthly');
+                });
+                
                 editModal.classList.remove('hidden');
             }
 
@@ -275,8 +335,7 @@
             
             fetchAndRenderEvents(null);
             loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
-
-            // **THE FIX**: Added error handling to the edit button's click listener.
+            
             eventList.addEventListener('click', (e) => {
                 const editButton = e.target.closest('.edit-btn');
                 if (editButton) {
@@ -300,6 +359,7 @@
                     applyFilters();
                 }
             });
+
             cleanupBtn.addEventListener('click', async () => {
                 if (!confirm('This will process all uncategorized events. Are you sure?')) return;
                 cleanupBtn.disabled = true;
@@ -327,10 +387,14 @@
                     }, 4000);
                 }
             });
+
             addEventBtn.addEventListener('click', () => populateEditForm(null));
             cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+            
             editForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                // This is where the new logic will go.
+                // For now, it just uses the existing simple update.
                 const isAdding = !currentItemForAction;
                 const submitBtn = editForm.querySelector('button[type=submit]');
                 const originalBtnText = submitBtn.textContent;

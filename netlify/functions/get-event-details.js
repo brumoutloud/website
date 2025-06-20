@@ -38,7 +38,6 @@ exports.handler = async function (event, context) {
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${escapeForAirtableValue(slug)}"`,
-        // Added 'Category' field to the initial event query
         fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText', 'Category']
     }).firstPage();
 
@@ -72,6 +71,7 @@ exports.handler = async function (event, context) {
     
     const eventDate = new Date(fields['Date']);
     const venueName = fields['Venue Name'] ? fields['Venue Name'][0] : (fields['VenueText'] || 'TBC');
+    const venueSlug = fields['Venue Slug'] ? fields['Venue Slug'][0] : null;
     const description = fields['Description'] || 'No description provided.';
     const pageUrl = `https://brumoutloud.co.uk${event.path}`;
     const imageUrl = fields['Promo Image'] ? fields['Promo Image'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Brum+Out+Loud';
@@ -129,7 +129,7 @@ exports.handler = async function (event, context) {
                 OR(${categoryFilter})
             )`,
             sort: [{ field: 'Date', direction: 'asc' }],
-            maxRecords: 6, // Increased maxRecords to 6 as requested
+            maxRecords: 6, // Set maxRecords to 6 as requested
             fields: ['Event Name', 'Date', 'Promo Image', 'Slug', 'VenueText']
         }).all();
 
@@ -209,7 +209,7 @@ exports.handler = async function (event, context) {
             .carousel-card {
                 flex: 0 0 auto; /* Do not grow, do not shrink, base on content */
                 width: calc((100% / 1.5) - 0.66rem); /* 1.5 cards on mobile, accounting for gap */
-                /* Changed height to create a 2:3 portrait aspect ratio */
+                /* Changed height to create a 2:3 portrait aspect ratio dynamically */
                 height: calc(((100% / 1.5) - 0.66rem) * 1.5); 
                 position: relative;
                 overflow: hidden;
@@ -285,7 +285,7 @@ exports.handler = async function (event, context) {
                 margin-bottom: 2rem; /* Equivalent to mb-8 */
             }
             .suggested-events-heading .accent-color {
-                color: #B564F7; /* Changed from #6d28d9 for consistency with main.css */
+                color: #B564F7; /* Changed from #6d28d9 for consistency with main.css and design system */
             }
         </style>
       </head>
@@ -316,7 +316,7 @@ exports.handler = async function (event, context) {
                         </div>
                          <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
-                            ${fields['Venue Slug'] ? `<a href="/venue/${encodeSlug(fields['Venue Slug'][0])}" class="text-2xl font-semibold hover:text-white underline">${escapeHtml(venueName)}</a>` : `<p class="text-2xl font-semibold">${escapeHtml(venueName)}</p>`}
+                            ${venueSlug ? `<a href="/venue/${encodeSlug(venueSlug)}" class="text-2xl font-semibold hover:text-white underline">${escapeHtml(venueName)}</a>` : `<p class="text-2xl font-semibold">${escapeHtml(venueName)}</p>`}
                          </div>
                         ${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
                         <div id="add-to-calendar-section" class="border-t border-gray-700 pt-6">

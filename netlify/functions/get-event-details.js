@@ -84,7 +84,7 @@ exports.handler = async function (event, context) {
             suggestedEventsHtml = `
                 <div class="mt-16 suggested-events-section">
                     <h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2>
-                    <div class="suggested-carousel flex overflow-x-auto no-scrollbar gap-6 snap-x snap-mandatory">
+                    <div class="suggested-carousel flex overflow-x-auto no-scrollbar gap-6 snap-x snap-mandatory pr-6">
                         ${suggestedCardsHtml}
                     </div>
                 </div>

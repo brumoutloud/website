@@ -28,7 +28,11 @@
                 </div>
             </div>
              <div id="no-results-message" class="hidden text-center card-bg p-12 col-span-full">
-                 <h3 class="mt-4 text-xl font-semibold text-white">No Venues Found</h3>
+                <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-accent-color-secondary">
+                    <i class="fas fa-store-alt-slash fa-2x"></i>
+                </div>
+                <h3 class="mt-4 text-xl font-semibold text-white">No Venues Found</h3>
+                <p class="mt-2 text-gray-400">We couldn't find any venues at this time. Why not be the first to <a href="/get-listed.html" class="underline hover:text-white">get listed</a>?</p>
             </div>
         </section>
     </main>
@@ -36,7 +40,42 @@
     <div id="footer-placeholder"></div>
     
     <script>
-        // ... existing script for the venues page ...
+        async function renderVenues() {
+            const venueGrid = document.getElementById('venue-grid');
+            const noResultsMessage = document.getElementById('no-results-message');
+            try {
+                const venuesResponse = await fetch('/.netlify/functions/get-venues');
+                const venues = await venuesResponse.json();
+                
+                venueGrid.innerHTML = '';
+                venueGrid.style.display = venues.length > 0 ? 'grid' : 'none';
+                noResultsMessage.style.display = venues.length > 0 ? 'none' : 'block';
+
+                if (venues && venues.length > 0) {
+                    venues.forEach(venue => {
+                        const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
+                        const mediumSrc = venue.photo?.medium || placeholder;
+                        const venueCard = `
+                            <a href="/venue/${venue.slug}" class="item-card card-bg block group animate-fade-in">
+                                <div class="item-card-image-container">
+                                    <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
+                                </div>
+                                <div class="p-6">
+                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${venue.name}</h3>
+                                    <p class="text-gray-400 h-12 overflow-hidden">${venue.description}</p>
+                                </div>
+                            </a>
+                        `;
+                        venueGrid.insertAdjacentHTML('beforeend', venueCard);
+                    });
+                }
+            } catch (error) {
+                console.error("Error fetching venues:", error);
+                venueGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderVenues);
     </script>
 </body>
 </html>

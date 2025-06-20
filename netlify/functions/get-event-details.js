@@ -20,6 +20,7 @@ exports.handler = async function (event, context) {
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${escapeForAirtableValue(slug)}"`,
+        // Added 'Category' field to the initial event query
         fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText', 'Category']
     }).firstPage();
 
@@ -102,8 +103,7 @@ exports.handler = async function (event, context) {
                 OR(${categoryFilter})
             )`,
             sort: [{ field: 'Date', direction: 'asc' }],
-            // Increased maxRecords from 3 to 6 as per request
-            maxRecords: 6, 
+            maxRecords: 6, // Increased maxRecords from 3 to 6
             fields: ['Event Name', 'Date', 'Promo Image', 'Slug', 'VenueText']
         }).all();
 

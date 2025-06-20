@@ -39,14 +39,10 @@ exports.handler = async function (event, context) {
                 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
                 <link rel="stylesheet" href="/css/main.css">
+                <script src="/js/main.js" defer></script>
             </head>
             <body class="antialiased">
-                <header class="p-8">
-                    <nav class="container mx-auto flex justify-between items-center">
-                        <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
-                        <a href="/" class="bg-accent-color-secondary text-gray-800 font-bold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">BACK TO SITE</a>
-                    </nav>
-                </header>
+                <div id="header-placeholder"></div>
                 <main class="container mx-auto px-8 py-16">
                     <div class="relative rounded-2xl overflow-hidden mb-16 h-96 card-bg">
                         <img src="${imageUrl}" alt="${venue.Name}" class="w-full h-full object-cover opacity-50">
@@ -100,14 +96,6 @@ exports.handler = async function (event, context) {
                     </div>
                 </main>
                 <div id="footer-placeholder"></div>
-                <script>
-                    document.addEventListener("DOMContentLoaded", function() {
-                        fetch('/global/footer.html')
-                            .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
-                            .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
-                            .catch(error => console.error('Error loading footer:', error));
-                    });
-                </script>
             </body>
             </html>
         `;

@@ -9,7 +9,6 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        // **FIX:** Requesting all the new fields from Airtable.
         const venueRecords = await base('Venues').select({
             maxRecords: 1,
             filterByFormula: `{Slug} = "${slug}"`,
@@ -27,8 +26,6 @@ exports.handler = async function (event, context) {
         }).all();
 
         const sortedEvents = eventRecords.map(rec => rec.fields);
-
-        // **FIX:** Using the 'Photo URL' field we now save from our form.
         const imageUrl = venue['Photo URL'] || 'https://placehold.co/1600x600/1e1e1e/EAEAEA?text=Venue';
         
         const html = `
@@ -69,7 +66,6 @@ exports.handler = async function (event, context) {
                                 <h3 class="font-bold text-lg accent-color-secondary mb-2">Address</h3>
                                 <p class="text-gray-300 text-lg">${venue.Address || 'N/A'}</p>
                             </div>
-                            <!-- **FIX:** Added sections to display new info -->
                             ${venue['Opening Hours'] ? `<div><h3 class="font-bold text-lg accent-color-secondary mb-2">Opening Hours</h3><p class="text-gray-300 text-lg whitespace-pre-line">${venue['Opening Hours']}</p></div>` : ''}
                             ${venue.Accessibility ? `<div><h3 class="font-bold text-lg accent-color-secondary mb-2">Accessibility</h3><p class="text-gray-300 text-lg whitespace-pre-line">${venue.Accessibility}</p></div>` : ''}
                             <div>
@@ -103,6 +99,15 @@ exports.handler = async function (event, context) {
                         </div>
                     </div>
                 </main>
+                <div id="footer-placeholder"></div>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                        fetch('/global/footer.html')
+                            .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
+                            .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
+                            .catch(error => console.error('Error loading footer:', error));
+                    });
+                </script>
             </body>
             </html>
         `;

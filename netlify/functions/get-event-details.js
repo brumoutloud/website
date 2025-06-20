@@ -145,7 +145,7 @@ exports.handler = async function (event, context) {
             .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; }
             .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); }
 
-            /* NEW: Suggested Events Carousel Styles */
+            /* NEW: Suggested Events Carousel Styles (Static Version) */
             .suggested-carousel {
                 display: flex;
                 overflow-x: auto;
@@ -154,39 +154,32 @@ exports.handler = async function (event, context) {
                 -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
                 scrollbar-width: thin; /* Firefox */
                 scrollbar-color: #B564F7 #1e1e1e; /* Firefox thumb and track */
-                scroll-snap-type: x mandatory; /* Enable scroll snapping */
+                /* Removed scroll-snap for static version */
             }
             .suggested-carousel::-webkit-scrollbar { height: 8px; }
             .suggested-carousel::-webkit-scrollbar-track { background: #1e1e1e; border-radius: 10px; }
             .suggested-carousel::-webkit-scrollbar-thumb { background: #B564F7; border-radius: 10px; }
 
             .suggested-card {
-                width: 180px; /* Base size for non-active cards (50% smaller) */
-                aspect-ratio: 1 / 1; /* Square aspect ratio for non-active cards */
+                width: 180px; /* Consistent width for all static cards */
+                aspect-ratio: 2 / 3; /* Consistent portrait aspect ratio for all static cards */
                 border-radius: 1.25rem; /* Equivalent to card-bg border-radius */
                 overflow: hidden;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.3); /* Equivalent to card-bg shadow */
                 background-color: #1e1e1e; /* Fallback/background for image */
                 position: relative;
-                transition: all 0.5s ease-in-out; /* Smoother transition for size/shape changes */
+                transition: transform 0.3s ease, box-shadow 0.3s ease; /* Retain hover transition */
                 flex-shrink: 0; /* Prevent cards from shrinking */
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-end; /* Align content to bottom */
-                scroll-snap-align: start; /* Snap cards to the start of the scroll container */
+                /* Removed scroll-snap-align for static version */
             }
             .suggested-card:hover {
                 transform: translateY(-5px);
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
             }
-            /* Style for the active (highlighted) card */
-            .suggested-card.is-active {
-                width: 360px; /* Desired width for active card */
-                aspect-ratio: 2 / 3; /* Desired portrait aspect ratio for active card */
-                transform: none; /* No additional scaling as width/aspect-ratio dictate size */
-                box-shadow: 0 20px 50px rgba(0,0,0,0.7); /* More prominent shadow */
-                z-index: 10; /* Ensure active card is on top */
-            }
+            /* Removed .suggested-card.is-active styles */
 
             .suggested-card-image-container {
                 position: absolute;
@@ -216,6 +209,7 @@ exports.handler = async function (event, context) {
                 z-index: 1;
                 padding: 1rem;
                 color: white;
+                text-align: left; /* Explicitly align text to the left */
             }
         </style>
       </head>
@@ -310,112 +304,6 @@ exports.handler = async function (event, context) {
                         '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
                 }
                 container.innerHTML = buttonsHTML;
-
-                // NEW: Suggested Carousel Auto-Scroll and Active Card Logic
-                const suggestedCarousel = document.querySelector('.suggested-carousel');
-                if (suggestedCarousel) {
-                    let scrollInterval;
-                    let autoScrolling = true;
-                    const originalCards = Array.from(suggestedCarousel.querySelectorAll('.suggested-card'));
-                    
-                    // Clone cards for seamless looping
-                    const numClones = originalCards.length > 0 ? Math.min(originalCards.length, 3) : 0; // Clone first few cards
-                    for (let i = 0; i < numClones; i++) {
-                        suggestedCarousel.appendChild(originalCards[i].cloneNode(true));
-                    }
-                    const allCards = suggestedCarousel.querySelectorAll('.suggested-card'); // Get all cards including clones
-
-                    let currentIndex = 0; // Current card index for auto-scrolling
-
-                    const updateActiveCard = () => {
-                        let activeCardIndex = -1;
-                        let minDistance = Infinity;
-                        const carouselRect = suggestedCarousel.getBoundingClientRect();
-
-                        allCards.forEach((card, index) => {
-                            const cardRect = card.getBoundingClientRect();
-                            // Distance from the card's left edge to the carousel's visible left edge
-                            const distance = Math.abs(cardRect.left - carouselRect.left);
-
-                            // The card closest to the carousel's left edge is considered active
-                            if (distance < minDistance) {
-                                minDistance = distance;
-                                activeCardIndex = index;
-                            }
-                        });
-
-                        allCards.forEach((card, index) => {
-                            if (index === activeCardIndex) {
-                                card.classList.add('is-active');
-                            } else {
-                                card.classList.remove('is-active');
-                            }
-                        });
-                    };
-
-                    const scrollToNextCard = () => {
-                        currentIndex++;
-                        // If we scrolled past the original cards, jump back to the start
-                        if (currentIndex >= originalCards.length) {
-                            suggestedCarousel.scrollTo({ left: 0, behavior: 'auto' });
-                            currentIndex = 0;
-                            // Immediately update active card after a jump, give browser a moment
-                            setTimeout(updateActiveCard, 50); 
-                        } else {
-                            const targetScrollLeft = allCards[currentIndex].offsetLeft;
-                            suggestedCarousel.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
-                        }
-                    };
-
-                    const startAutoscroll = () => {
-                        stopAutoscroll(); // Clear any existing interval
-                        autoScrolling = true;
-                        scrollInterval = setInterval(() => {
-                            scrollToNextCard();
-                        }, 4000); // Scroll every 4 seconds
-                    };
-
-                    const stopAutoscroll = () => {
-                        clearInterval(scrollInterval);
-                        autoScrolling = false;
-                    };
-
-                    // Add hover listeners to individual cards
-                    allCards.forEach(card => {
-                        card.addEventListener('mouseenter', () => {
-                            stopAutoscroll(); // Pause auto-scrolling
-                            // Remove active class from any other card that might be active by scroll
-                            allCards.forEach(c => c.classList.remove('is-active'));
-                            card.classList.add('is-active'); // Make hovered card active
-                        });
-                        card.addEventListener('mouseleave', () => {
-                            card.classList.remove('is-active'); // Revert hovered card
-                            updateActiveCard(); // Immediately re-evaluate active card based on scroll position
-                            startAutoscroll(); // Resume auto-scrolling
-                        });
-                    });
-
-                    // For touch devices (on carousel container)
-                    let touchTimeout;
-                    suggestedCarousel.addEventListener('touchstart', () => {
-                        stopAutoscroll();
-                        clearTimeout(touchTimeout);
-                    });
-                    suggestedCarousel.addEventListener('touchend', () => {
-                        touchTimeout = setTimeout(startAutoscroll, 3000); // Resume after 3 seconds of no touch
-                    });
-
-                    // Update active card on any scroll (manual or automatic)
-                    let scrollDebounceTimer;
-                    suggestedCarousel.addEventListener('scroll', () => {
-                        clearTimeout(scrollDebounceTimer);
-                        scrollDebounceTimer = setTimeout(updateActiveCard, 100); 
-                    });
-
-                    // Initial setup
-                    updateActiveCard();
-                    startAutoscroll();
-                }
             });
         </script>
       </body>

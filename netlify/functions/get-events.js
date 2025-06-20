@@ -9,11 +9,10 @@ exports.handler = async (event, context) => {
 
         if (isAdminView) {
             // --- ADMIN PANEL LOGIC ---
-            
             let selectOptions = {
                 view: "Approved Upcoming",
-                // **THE FIX**: Sort ascending to show soonest to furthest.
-                sort: [{ field: 'Date', direction: 'asc' }], 
+                // Corrected sort order to be ascending (soonest to furthest)
+                sort: [{ field: 'Date', direction: 'asc' }],
             };
 
             if (offset) {
@@ -35,27 +34,27 @@ exports.handler = async (event, context) => {
 
         } else {
             // --- PUBLIC SITE LOGIC ---
-            
-            let allRecords = await base('Events').select({
+            let selectOptions = {
                 view: "Approved Upcoming",
                 sort: [{ field: 'Date', direction: 'asc' }],
-            }).all();
-
-            if (category) {
-                allRecords = allRecords.filter(record => {
-                    const categories = record.get('Category') || [];
-                    return categories.includes(category);
-                });
-            }
-
-            if (venue) {
-                // **THE FIX**: Moved the logic inside the filter callback to prevent crashing.
-                allRecords = allRecords.filter(record => {
-                    const venueRecIds = record.get('Venue') || [];
-                    return venueRecIds.includes(venue);
-                });
-            }
+                // **THE FIX**: Explicitly request all fields needed by events.html
+                // This ensures we get the data even if columns are hidden in the Airtable view.
+                fields: [
+                    'Event Name', 'Description', 'Date', 'End Date', 'Promo Image', 
+                    'Slug', 'Recurring Info', 'Venue', 'Venue Name', 
+                    'VenueText', 'Category'
+                ]
+            };
             
+            let allRecords = await base('Events').select(selectOptions).all();
+
+            // Post-fetch filtering for category, venue, or day
+            if (category) {
+                allRecords = allRecords.filter(record => (record.get('Category') || []).includes(category));
+            }
+            if (venue) {
+                allRecords = allRecords.filter(record => (record.get('Venue') || []).includes(venue));
+            }
             if (day) {
                 const targetDay = new Date(day).setHours(0, 0, 0, 0);
                 allRecords = allRecords.filter(record => {

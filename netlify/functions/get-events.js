@@ -11,9 +11,9 @@ exports.handler = async (event, context) => {
             // --- ADMIN PANEL LOGIC ---
             
             let selectOptions = {
-                // **THE FIX**: Using the correct view name for the admin panel.
-                view: "Approved Upcoming", 
-                sort: [{ field: 'Date', direction: 'desc' }],
+                view: "Approved Upcoming",
+                // **THE FIX**: Sort ascending to show soonest to furthest.
+                sort: [{ field: 'Date', direction: 'asc' }], 
             };
 
             if (offset) {
@@ -49,8 +49,11 @@ exports.handler = async (event, context) => {
             }
 
             if (venue) {
-                const venueRecIds = record.get('Venue') || [];
-                allRecords = allRecords.filter(record => venueRecIds.includes(venue));
+                // **THE FIX**: Moved the logic inside the filter callback to prevent crashing.
+                allRecords = allRecords.filter(record => {
+                    const venueRecIds = record.get('Venue') || [];
+                    return venueRecIds.includes(venue);
+                });
             }
             
             if (day) {

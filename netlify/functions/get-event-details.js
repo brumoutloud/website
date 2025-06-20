@@ -66,13 +66,12 @@ exports.handler = async function (event, context) {
                 const suggEventSlug = suggEvent.get('Slug');
 
                 return `
-                    <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-1/3 flex-shrink-0">
-                        <div class="suggested-card-image-container" style="background-image: url('${suggImageUrl}')">
-                            <div class="suggested-card-overlay bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
-                            <div class="suggested-card-content">
-                                <h4 class="font-bold text-white text-lg">${suggEventName}</h4>
-                                <p class="text-gray-200 text-sm">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                            </div>
+                    <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-1/3 flex-shrink-0 relative overflow-hidden flex flex-col justify-end">
+                        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${suggImageUrl}')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
+                        <div class="relative z-10 p-4">
+                            <h4 class="font-bold text-white text-lg">${suggEventName}</h4>
+                            <p class="text-gray-200 text-sm">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
                     </a>
                 `;
@@ -152,40 +151,13 @@ exports.handler = async function (event, context) {
             /* Suggested Card base styles (retain only what's not covered by Tailwind) */
             .suggested-card {
                 border-radius: 1.25rem;
-                overflow: hidden;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.3);
                 background-color: #1e1e1e;
-                position: relative;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-end; /* This aligns content to bottom */
             }
             .suggested-card:hover {
                 transform: translateY(-5px);
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
-            }
-
-            .suggested-card-image-container {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-size: cover;
-                background-position: center;
-                transition: transform 0.4s ease;
-            }
-            .suggested-card:hover .suggested-card-image-container {
-                transform: scale(1.05);
-            }
-
-            .suggested-card-content {
-                position: relative;
-                z-index: 1;
-                padding: 1rem;
-                color: white;
-                text-align: left;
             }
         </style>
       </head>

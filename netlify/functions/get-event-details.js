@@ -107,7 +107,16 @@ exports.handler = async function (event, context) {
 
     // --- Start Suggested Events Logic ---
     let suggestedEventsHTML = '';
-    const mainEventCategories = fields['Category'] || [];
+    const mainEventCategoriesRaw = fields['Category'];
+    let mainEventCategories = [];
+
+    // Robustly handle mainEventCategories: ensure it's an array of strings
+    if (Array.isArray(mainEventCategoriesRaw)) {
+        mainEventCategories = mainEventCategoriesRaw.filter(cat => typeof cat === 'string');
+    } else if (typeof mainEventCategoriesRaw === 'string' && mainEventCategoriesRaw.trim() !== '') {
+        mainEventCategories = [mainEventCategoriesRaw];
+    }
+    // If mainEventCategoriesRaw is null, undefined, or an empty string, mainEventCategories remains an empty array.
 
     if (mainEventCategories.length > 0) {
         const categoryFilter = mainEventCategories.map(cat => `FIND("${escapeForAirtableValue(cat)}", ARRAYJOIN({Category}, ","))`).join(',');
@@ -135,12 +144,21 @@ exports.handler = async function (event, context) {
                 const sDate = new Date(sFields.Date);
                 const sImageUrl = sFields['Promo Image'] && sFields['Promo Image'][0] ? sFields['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
                 
+                let formattedDate = 'Date TBC';
+                let formattedTime = '';
+
+                // Validate sDate before formatting to prevent errors
+                if (!isNaN(sDate.getTime())) { 
+                    formattedDate = sDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                    formattedTime = ` - ${sDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                }
+
                 suggestedEventsHTML += `
                     <a href="/event/${encodeSlug(sFields.Slug)}" class="carousel-card group">
                         <img src="${sImageUrl}" alt="${escapeHtml(sFields['Event Name'])}" class="card-image">
                         <div class="card-overlay">
                             <h4 class="card-title">${escapeHtml(sFields['Event Name'])}</h4>
-                            <p class="card-date">${sDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} - ${sDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+                            <p class="card-date">${formattedDate}${formattedTime}</p>
                         </div>
                     </a>
                 `;

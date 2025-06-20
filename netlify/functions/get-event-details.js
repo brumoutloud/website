@@ -19,7 +19,7 @@ exports.handler = async function (event, context) {
   try {
     const eventRecords = await base('Events').select({
         maxRecords: 1,
-        filterByFormula: `{Slug} = "${escapeForAirtableValue(slug)}"`, // Apply escaping here too
+        filterByFormula: `{Slug} = "${escapeForAirtableValue(slug)}"`,
         fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText', 'Category']
     }).firstPage();
 
@@ -36,10 +36,10 @@ exports.handler = async function (event, context) {
 
     let filterFormula;
     if (parentEventName) {
-        const parentNameForQuery = escapeForAirtableValue(parentEventName); // Use the new helper
+        const parentNameForQuery = escapeForAirtableValue(parentEventName);
         filterFormula = `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
     } else if (recurringInfo) {
-        const eventNameForQuery = escapeForAirtableValue(eventName); // Use the new helper
+        const eventNameForQuery = escapeForAirtableValue(eventName);
         filterFormula = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info}, IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
     }
 
@@ -92,7 +92,6 @@ exports.handler = async function (event, context) {
     const mainEventCategories = fields['Category'] || [];
 
     if (mainEventCategories.length > 0) {
-        // Construct the OR filter for categories, escaping each category name
         const categoryFilter = mainEventCategories.map(cat => `FIND("${escapeForAirtableValue(cat)}", ARRAYJOIN({Category}, ","))`).join(',');
         
         const suggestedEventsRecords = await base('Events').select({
@@ -104,34 +103,27 @@ exports.handler = async function (event, context) {
             )`,
             sort: [{ field: 'Date', direction: 'asc' }],
             maxRecords: 3,
-            fields: ['Event Name', 'Date', 'Promo Image', 'Link', 'Slug', 'VenueText'] // Added Link and VenueText to match existing card structure
+            fields: ['Event Name', 'Date', 'Promo Image', 'Slug', 'VenueText']
         }).all();
 
         if (suggestedEventsRecords.length > 0) {
             suggestedEventsHTML = `
-                <div class="mt-16">
-                    <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Don't Miss These...</span></h2>
-                    <div class="space-y-4">
+                <div class="suggested-events-section">
+                    <h2 class="suggested-events-heading"><span class="accent-color">Don't Miss These...</span></h2>
+                    <div class="carousel-container">
             `;
             suggestedEventsRecords.forEach(suggestedEvent => {
                 const sFields = suggestedEvent.fields;
                 const sDate = new Date(sFields.Date);
-                const sDay = sDate.toLocaleDateString('en-GB', { day: 'numeric' });
-                const sMonth = sDate.toLocaleDateString('en-GB', { month: 'short' });
-                // Use sFields.image if available, otherwise fallback to Promo Image
                 const sImageUrl = sFields['Promo Image'] && sFields['Promo Image'][0] ? sFields['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
                 
                 suggestedEventsHTML += `
-                    <a href="/event/${sFields.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
-                        <div class="text-center w-20 flex-shrink-0">
-                            <p class="text-2xl font-bold text-white">${sDay}</p>
-                            <p class="text-lg text-gray-400">${sMonth}</p>
+                    <a href="/event/${sFields.Slug}" class="carousel-card group">
+                        <img src="${sImageUrl}" alt="${sFields['Event Name']}" class="card-image">
+                        <div class="card-overlay">
+                            <h4 class="card-title">${sFields['Event Name']}</h4>
+                            <p class="card-date">${sDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} - ${sDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
                         </div>
-                        <div class="flex-grow">
-                            <h4 class="font-bold text-white text-xl">${sFields['Event Name']}</h4>
-                            <p class="text-sm text-gray-400">${sDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
-                        </div>
-                        <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
                     </a>
                 `;
             });
@@ -162,6 +154,99 @@ exports.handler = async function (event, context) {
             .hero-image-container:hover .hero-image-bg { opacity: 1; }
             .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; }
             .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); }
+
+            /* New CSS for Suggested Events Carousel */
+            .carousel-container {
+                display: flex;
+                overflow-x: scroll;
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch; /* For smoother scrolling on iOS */
+                scrollbar-width: none; /* Firefox */
+                -ms-overflow-style: none;  /* IE and Edge */
+                padding-bottom: 1rem; /* Space for potential scrollbar on some systems */
+                gap: 1rem; /* Space between cards */
+            }
+            .carousel-container::-webkit-scrollbar {
+                display: none; /* Chrome, Safari, Opera */
+            }
+
+            .carousel-card {
+                flex: 0 0 auto; /* Do not grow, do not shrink, base on content */
+                width: calc((100% / 1.5) - 0.66rem); /* 1.5 cards on mobile, accounting for gap */
+                height: 300px; /* Fixed height for consistent cards */
+                position: relative;
+                overflow: hidden;
+                border-radius: 0.75rem; /* Equivalent to rounded-lg */
+                background-color: #1a1a1a; /* Placeholder if image fails, consistent with card-bg */
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                scroll-snap-align: start;
+                text-decoration: none; /* Remove underline from anchor */
+                color: inherit; /* Inherit text color */
+            }
+
+            .card-image {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                position: absolute;
+                top: 0;
+                left: 0;
+                transition: transform 0.3s ease-out;
+            }
+
+            .carousel-card:hover .card-image {
+                transform: scale(1.05); /* Subtle zoom */
+            }
+
+            .card-overlay {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                padding: 1rem;
+                background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0)); /* Scrim effect */
+                color: white;
+                z-index: 10;
+            }
+
+            .card-title {
+                font-family: 'Poppins', sans-serif;
+                font-weight: 700;
+                font-size: 1.25rem;
+                line-height: 1.2;
+                margin-bottom: 0.25rem;
+            }
+
+            .card-date {
+                font-family: 'Poppins', sans-serif;
+                font-size: 0.875rem;
+                color: #a0aec0; /* A gray shade for date, like text-gray-400 */
+            }
+
+            /* Responsive adjustments for carousel cards */
+            @media (min-width: 768px) { /* md breakpoint for desktop */
+                .carousel-card {
+                    width: calc((100% / 2) - 0.5rem); /* Show 2 cards on desktop */
+                }
+            }
+            @media (min-width: 1024px) { /* lg breakpoint for desktop */
+                .carousel-card {
+                    width: calc((100% / 3) - 0.66rem); /* Show 3 cards on larger desktop */
+                }
+            }
+
+            /* Section styling for suggested events */
+            .suggested-events-section {
+                margin-top: 4rem; /* Equivalent to mt-16 */
+            }
+            .suggested-events-heading {
+                font-family: 'Anton', sans-serif;
+                font-size: 2.25rem; /* Equivalent to text-4xl */
+                margin-bottom: 2rem; /* Equivalent to mb-8 */
+            }
+            .suggested-events-heading .accent-color {
+                color: #6d28d9; /* Assuming this is the accent color from your main.css */
+            }
         </style>
       </head>
       <body class="antialiased">

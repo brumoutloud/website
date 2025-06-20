@@ -10,19 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
-    <style>
-        .tag-missing {
-            display: inline-block;
-            background-color: rgba(239, 68, 68, 0.1);
-            color: #F87171;
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-    </style>
 </head>
 <body class="antialiased">
 
@@ -30,62 +17,63 @@
 
     <main class="container mx-auto px-8 py-16">
         <section class="max-w-4xl mx-auto">
-            <div class="text-center mb-16">
-                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">EVENTS</span></h1>
-                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Add, edit, and bulk-process events on the site.</p>
-            </div>
             
-            <div class="card-bg p-8 md:p-12 mb-8">
-                <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools</h2>
-                <p class="text-gray-400 mb-6">Run tools to process and clean up existing event data.</p>
-                <button id="start-cleanup-btn" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity w-full flex items-center justify-center">
-                     <span id="cleanup-btn-text">AI Category Cleanup</span>
-                     <span id="cleanup-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
-                </button>
-                <div id="status-message" class="text-green-400 mt-6 text-center hidden font-semibold"></div>
-            </div>
-
-            <div class="card-bg p-6 mb-8">
-                <div class="flex flex-wrap justify-between items-center gap-4">
-                    <div id="filter-bar" class="flex flex-wrap items-center gap-2">
-                        <span class="font-semibold text-gray-400 mr-2">Filter:</span>
-                        <button class="filter-button active" data-filter="all">All</button>
-                        <button class="filter-button" data-filter="missing-image">Missing Image</button>
-                        <button class="filter-button" data-filter="missing-desc">No Description</button>
-                        <button class="filter-button" data-filter="missing-cat">No Category</button>
-                    </div>
-                     <button id="add-event-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0">
-                        <i class="fas fa-plus mr-2"></i> Add New Event
+            <div class="flex justify-between items-start mb-8 gap-8">
+                <div class="text-left">
+                    <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">EVENTS</span></h1>
+                    <p class="mt-4 text-xl text-gray-300 max-w-2xl">Edit existing approved events, create new ones, or use the data tools to clean up entries.</p>
+                </div>
+                <div class="card-bg p-4 rounded-lg flex-shrink-0">
+                    <h3 class="font-bold text-white mb-2 text-lg">Data Tools</h3>
+                    <button id="start-cleanup-btn" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-500 transition-colors w-full flex items-center justify-center gap-2">
+                        <i id="cleanup-loader" class="fas fa-spinner fa-spin hidden"></i>
+                        <span id="cleanup-btn-text">AI Category Cleanup</span>
                     </button>
+                    <p id="status-message" class="text-xs text-green-400 mt-2 hidden"></p>
                 </div>
             </div>
 
+            <div id="filter-bar" class="card-bg p-2 rounded-lg flex items-center justify-between mb-8 gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400 font-bold px-2">Filter:</span>
+                    <button data-filter="all" class="filter-btn active">All</button>
+                    <button data-filter="missing-image" class="filter-btn">Missing Image</button>
+                    <button data-filter="missing-desc" class="filter-btn">No Description</button>
+                    <button data-filter="missing-cat" class="filter-btn">No Category</button>
+                </div>
+                <button id="add-event-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0">
+                    <i class="fas fa-plus mr-2"></i> Add New Event
+                </button>
+            </div>
+            
+            <div id="event-list" class="space-y-4">
+                </div>
+            
             <div id="loading-state" class="text-center py-10">
                 <div class="loader inline-block"></div>
                 <p class="mt-4 text-gray-400">Loading approved events...</p>
             </div>
 
-            <div id="event-list" class="space-y-4">
-                </div>
-            <div id="load-more-container" class="text-center mt-8 hidden">
+            <div id="load-more-container" class="text-center mt-8" style="display: none;">
                 <button id="load-more-btn" class="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-600">Load More</button>
             </div>
         </section>
     </main>
+    
+    <div id="footer-placeholder"></div>
 
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
              <div class="flex justify-end gap-4 pt-4">
-                <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
-                <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
+                 <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+                 <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg">Save Changes</button>
              </div>
         </form>
     </div>
     
-    <div id="footer-placeholder"></div>
-    <script src="/js/main.js" defer></script>
+    <script type="module" src="/js/main.js"></script>
     <script>
         const eventList = document.getElementById('event-list');
         const loadingState = document.getElementById('loading-state');
@@ -120,9 +108,9 @@
             if (!fields.Category || fields.Category.length === 0) tagsHtml += '<span class="tag-missing">No Category</span>';
 
             const card = document.createElement('div');
-            card.className = 'card-bg p-4 flex justify-between items-center';
+            card.className = 'card-bg p-4 flex justify-between items-start';
             card.innerHTML = `
-                <div>
+                <div class="flex-grow">
                     <div class="flex items-center gap-4">
                         <div class="text-center w-16 flex-shrink-0">
                             <p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p>
@@ -133,9 +121,9 @@
                             <p class="text-sm text-gray-400">${fields['VenueText'] || 'Venue TBC'}</p>
                         </div>
                     </div>
-                    <div class="mt-2 pl-20">${tagsHtml}</div>
+                    <div class="mt-2 pl-[80px] flex gap-2 flex-wrap">${tagsHtml}</div>
                 </div>
-                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0" data-item='${JSON.stringify(item)}'>Edit</button>
+                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0 ml-4" data-item='${JSON.stringify(item)}'>Edit</button>
             `;
             return card;
         }
@@ -149,23 +137,136 @@
                 if (currentFilter === 'missing-cat') return !item.fields.Category || item.fields.Category.length === 0;
                 return true;
             });
-            filtered.forEach(item => eventList.appendChild(renderEvent(item)));
+
+            if(filtered.length > 0) {
+                 filtered.forEach(item => eventList.appendChild(renderEvent(item)));
+            } else {
+                 eventList.innerHTML = `<p class="text-center text-gray-400">No events match the current filter.</p>`;
+            }
+             
+            loadMoreContainer.style.display = 'none';
         }
-        
-        // ... (populateEditForm, form submit logic, and other functions from previous versions will be added here)
         
         async function fetchAndRenderEvents(offset) {
-            // ... (pagination logic from previous version) ...
+            if (isFetching) return;
+            isFetching = true;
+
+            const button = document.getElementById('load-more-btn');
+            const originalButtonText = button.textContent;
+            
+            if (offset) {
+                button.textContent = 'Loading...';
+                button.disabled = true;
+            } else {
+                loadingState.style.display = 'block';
+                eventList.innerHTML = ''; 
+            }
+
+            try {
+                let url = '/.netlify/functions/get-events?view=admin';
+                if (offset) {
+                    url += `&offset=${offset}`;
+                }
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.details || 'Failed to fetch events.');
+                }
+
+                loadingState.style.display = 'none';
+                
+                if (!offset && (!data.events || data.events.length === 0)) {
+                    eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
+                }
+                
+                allAdminEvents = allAdminEvents.concat(data.events);
+                data.events.forEach(item => eventList.appendChild(renderEvent(item)));
+                
+                currentOffset = data.offset; 
+
+                if (currentOffset) {
+                    loadMoreContainer.style.display = 'block';
+                } else {
+                    loadMoreContainer.style.display = 'none';
+                }
+
+            } catch (error) {
+                loadingState.innerHTML = `<p class="text-red-400 text-center">${error.message}</p>`;
+            } finally {
+                isFetching = false;
+                if (offset) {
+                    button.textContent = originalButtonText;
+                    button.disabled = false;
+                }
+            }
+        }
+        
+        function populateEditForm(item) {
+            currentItemForAction = item;
+            const isAdding = !item;
+            const fields = isAdding ? {} : item.fields;
+
+            modalTitle.textContent = isAdding ? 'Add New Event' : 'Edit Event';
+
+            const imageUrl = fields['Promo Image'] && fields['Promo Image'][0] ? fields['Promo Image'][0].url : null;
+            const currentCategories = fields['Category'] || [];
+            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
+            const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
+            const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
+
+            const formHtml = `
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
+                    <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}" required></div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
+                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
+                </div>
+                <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
+                    <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
+                </div>
+                <div><label>Recurring Info</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g. Every Friday. Updates this event only."></div>
+                <div><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
+                <div>
+                    ${!isAdding ? `<label class="block text-sm font-semibold mb-2">Current Image</label>${imageUrl ? `<img src="${imageUrl}" class="max-h-32 rounded-md mb-2">` : '<p class="text-gray-400">No image submitted.</p>'}` : ''}
+                    <label class="block text-sm font-semibold mb-2">${isAdding ? 'Promo Image' : 'Upload New Image (replaces current)'}</label>
+                    <input type="file" name="promoImage" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/*">
+                </div>
+            `;
+            
+            editFormFields.innerHTML = formHtml;
+            editForm.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea').forEach(el => {
+                el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white';
+            });
+            editForm.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
+            editModal.classList.remove('hidden');
         }
 
+
         document.addEventListener('DOMContentLoaded', () => {
-            // ... (initial fetch and other event listeners) ...
+            fetchAndRenderEvents(null);
+
+            loadMoreBtn.addEventListener('click', () => {
+                const allFilterBtn = filterBar.querySelector('[data-filter="all"]');
+                if (!allFilterBtn.classList.contains('active')) {
+                    filterBar.querySelector('.active')?.classList.remove('active');
+                    allFilterBtn.classList.add('active');
+                    currentFilter = 'all';
+                    applyFilters();
+                }
+                fetchAndRenderEvents(currentOffset);
+            });
             
             filterBar.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
-                    filterBar.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    currentFilter = e.target.dataset.filter;
+                const button = e.target.closest('button[data-filter]');
+                if (button) {
+                    filterBar.querySelector('.active')?.classList.remove('active');
+                    button.classList.add('active');
+                    currentFilter = button.dataset.filter;
                     applyFilters();
                 }
             });
@@ -173,23 +274,68 @@
             cleanupBtn.addEventListener('click', async () => {
                 if (!confirm('This will process all uncategorized events and may take a while. Are you sure?')) return;
                 cleanupBtn.disabled = true;
-                btnText.textContent = 'Processing...';
-                loader.classList.remove('hidden');
+                cleanupBtnText.textContent = 'Processing...';
+                cleanupLoader.classList.remove('hidden');
                 statusMessage.classList.add('hidden');
                 try {
                     const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
                     const result = await response.json();
-                    if (!response.ok) throw new Error(result.message);
+                    if (!response.ok) throw new Error(result.message || 'Unknown error');
                     statusMessage.textContent = result.message + " Please refresh the page to see changes.";
-                    statusMessage.classList.remove('hidden');
+                    statusMessage.classList.remove('text-red-400');
+                    statusMessage.classList.add('text-green-400');
                 } catch (error) {
                     statusMessage.textContent = `Error: ${error.toString()}`;
-                    statusMessage.classList.replace('text-green-400', 'text-red-400');
-                    statusMessage.classList.remove('hidden');
+                    statusMessage.classList.remove('text-green-400');
+                    statusMessage.classList.add('text-red-400');
                 } finally {
-                    btnText.textContent = 'Start Category Cleanup';
-                    loader.classList.add('hidden');
+                    statusMessage.classList.remove('hidden');
+                    cleanupBtnText.textContent = 'AI Category Cleanup';
+                    cleanupLoader.classList.add('hidden');
                     cleanupBtn.disabled = false;
+                }
+            });
+            
+            addEventBtn.addEventListener('click', () => populateEditForm(null));
+
+            eventList.addEventListener('click', (e) => {
+                const editButton = e.target.closest('.edit-btn');
+                if (editButton) {
+                    const item = JSON.parse(editButton.dataset.item);
+                    populateEditForm(item);
+                }
+            });
+
+            cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const isAdding = !currentItemForAction;
+                const submitBtn = editForm.querySelector('button[type=submit]');
+                const originalBtnText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+                
+                const formData = new FormData(editForm);
+                
+                let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
+                if (!isAdding) {
+                    formData.append('id', currentItemForAction.id);
+                    formData.append('type', 'Event'); 
+                }
+
+                try {
+                    const response = await fetch(endpoint, { method: 'POST', body: formData });
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.message || 'Server returned an error');
+                    }
+                    alert('Success!');
+                    location.reload();
+                } catch (error) {
+                    alert(`Error saving changes: ${error.toString()}`);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
                 }
             });
         });

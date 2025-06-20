@@ -66,11 +66,15 @@ exports.handler = async function (event, context) {
                 const suggEventSlug = suggEvent.get('Slug');
 
                 return `
-                    <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-1/3 flex-shrink-0 relative overflow-hidden flex flex-col justify-end">
+                    <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-1/3 flex-shrink-0 relative overflow-hidden flex flex-col justify-end snap-start">
                         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${suggImageUrl}')"></div>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div>
+                        <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-20">
+                            <p class="font-bold text-xl leading-none">${suggEventDate.getDate()}</p>
+                            <p class="text-sm uppercase">${suggEventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
+                        </div>
                         <div class="relative z-10 p-4">
-                            <h4 class="font-bold text-white text-xl">${suggEventName}</h4>
+                            <h4 class="font-extrabold text-white text-2xl">${suggEventName}</h4>
                             <p class="text-gray-200 text-base">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
                     </a>
@@ -270,6 +274,6 @@ exports.handler = async function (event, context) {
 
   } catch (error) {
     console.error(error);
-    return { statusCode: 500, body: 'Server error building venue page.' };
+    return { statusCode: 500, body: 'Server error fetching event details.' };
   }
 };

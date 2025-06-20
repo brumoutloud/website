@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <style>
-        /* Add a transition for the rotation of the plus icon */
         details summary::-webkit-details-marker {
             display: none;
         }
@@ -55,7 +54,6 @@
                     </summary>
                     <p class="text-gray-300 mt-2 text-lg">Right in the city centre, bab! It's centred around Hurst Street, just a hop, skip, and a jump away from New Street Station.</p>
                 </details>
-
                 <details class="group border-b border-gray-700/50 py-4">
                     <summary class="flex items-center justify-between cursor-pointer list-none">
                         <span class="font-semibold text-lg text-white">What are the best gay bars and clubs in Birmingham?</span>
@@ -63,7 +61,6 @@
                     </summary>
                     <p class="text-gray-300 mt-2 text-lg">Where do we start? The Village Inn, The Fox, The Nightingale Club... the list goes on! Check out our <a href="/all-venues.html" class="font-semibold underline hover:text-white">venues page</a> for all the deets.</p>
                 </details>
-                
                 <details class="group border-b border-gray-700/50 py-4">
                     <summary class="flex items-center justify-between cursor-pointer list-none">
                         <span class="font-semibold text-lg text-white">Are there any LGBTQ+ sports teams or social groups?</span>
@@ -71,15 +68,6 @@
                     </summary>
                     <p class="text-gray-300 mt-2 text-lg">Absolutely! Birmingham has a thriving scene for LGBTQ+ sports and social clubs. From the Birmingham Bulls RFC (inclusive rugby) to the Swifts (running club) and various hiking and social groups, there are plenty of ways to get involved and meet new people outside of the bar scene. We're working on a dedicated section for this!</p>
                 </details>
-
-                <details class="group border-b border-gray-700/50 py-4">
-                    <summary class="flex items-center justify-between cursor-pointer list-none">
-                        <span class="font-semibold text-lg text-white">Is there a gay sauna in Birmingham?</span>
-                        <span class="text-2xl accent-color plus-icon">+</span>
-                    </summary>
-                    <p class="text-gray-300 mt-2 text-lg">None in the city centre but there are a few options if you don't mind a short journey. The Greenhouse in Darlaston and Spartan in Erdington are popular choices.</p>
-                </details>
-                
                 <details class="group border-b border-gray-700/50 py-4">
                     <summary class="flex items-center justify-between cursor-pointer list-none">
                         <span class="font-semibold text-lg text-white">How can I support BrumOutLoud?</span>
@@ -87,48 +75,20 @@
                     </summary>
                     <p class="text-gray-300 mt-2 text-lg">The best way to support us is by using the site and spreading the word! You can also help keep our listings up-to-date by submitting events and venues using the 'Get Listed' button. As a community project, every bit of engagement helps.</p>
                 </details>
-                
-                <details class="group border-b border-gray-700/50 py-4">
-                    <summary class="flex items-center justify-between cursor-pointer list-none">
-                        <span class="font-semibold text-lg text-white">How does Birmingham's gay scene compare to other UK cities?</span>
-                        <span class="text-2xl accent-color plus-icon">+</span>
-                    </summary>
-                    <p class="text-gray-300 mt-2 text-lg">Let's set the record straight: Birmingham's queer scene is a force to be reckoned with! Our Gay Village boasts a vibrant array of bars and clubs, rivaling the likes of Manchester's Canal Street or London's Soho. We might not always get the spotlight, but we're proud to be a hidden gem of LGBTQ+ life in the UK.</p>
-                </details>
-
             </div>
         </section>
     </main>
     
-    <footer class="border-t-2 border-gray-800 mt-32 p-8">
-        <div class="container mx-auto grid md:grid-cols-2">
-            <div>
-                 <h3 class="font-anton text-5xl leading-tight text-white">BE SEEN,<br>BE HEARD.</h3>
-                 <div class="flex space-x-6 text-2xl mt-6 text-gray-400">
-                    <a href="#" class="hover:accent-color"><i class="fab fa-instagram"></i></a>
-                    <a href="#" class="hover:accent-color"><i class="fab fa-facebook"></i></a>
-                    <a href="#" class="hover:accent-color"><i class="fab fa-tiktok"></i></a>
-                 </div>
-            </div>
-            <div class="grid grid-cols-2 gap-8 mt-8 md:mt-0">
-                <div>
-                    <h4 class="font-bold text-lg mb-4 text-white">Explore</h4>
-                    <ul>
-                        <li class="mb-2"><a href="/events.html" class="text-gray-400 hover:text-white">Events</a></li>
-                        <li class="mb-2"><a href="/all-venues.html" class="text-gray-400 hover:text-white">Venues</a></li>
-                        <li class="mb-2"><a href="/promoter-tool" class="text-gray-400 hover:text-white">Promoter Tools</a></li>
-                    </ul>
-                </div>
-                 <div>
-                    <h4 class="font-bold text-lg mb-4 text-white">About</h4>
-                    <ul>
-                        <li class="mb-2"><a href="/community.html" class="text-gray-400 hover:text-white">Community & FAQ</a></li>
-                        <li class="mb-2"><a href="/contact" class="text-gray-400 hover:text-white">Contact</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </footer>
+    <div id="footer-placeholder"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            fetch('/global/footer.html')
+                .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
+                .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
+                .catch(error => console.error('Error loading footer:', error));
+        });
+    </script>
 
 </body>
 </html>

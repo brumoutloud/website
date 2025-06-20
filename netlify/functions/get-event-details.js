@@ -23,7 +23,6 @@ exports.handler = async function (event, context) {
     const recurringInfo = fields['Recurring Info'];
     let allFutureInstances = [];
 
-    // --- Fetch other instances in the same series ---
     let filterFormula;
     if (parentEventName) {
         const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
@@ -40,17 +39,22 @@ exports.handler = async function (event, context) {
         }).all();
         allFutureInstances = futureInstanceRecords.map(rec => rec.fields);
     }
-
-    // --- NEW: Fetch suggested events based on category ---
+    
+    // --- Fetch suggested events based on category ---
     let suggestedEventsHTML = '';
     const primaryCategories = fields.Category || [];
     if (primaryCategories.length > 0) {
-        const categoryFormulas = primaryCategories.map(cat => `FIND('${cat.replace(/'/g, "\\'")}', ARRAYJOIN(Category))`);
+        // **THE FIX**: Properly escape double quotes in category names before building the formula.
+        const categoryFormulas = primaryCategories.map(cat => {
+            const escapedCat = cat.replace(/"/g, '\\"');
+            return `FIND("${escapedCat}", ARRAYJOIN(Category))`;
+        });
+        
         const suggestedEventsFilter = `AND(
             {Status} = 'Approved',
             IS_AFTER({Date}, TODAY()),
-            RECORD_ID() != '<span class="math-inline">\{eventRecord\.id\}',
-OR\(</span>{categoryFormulas.join(', ')})
+            RECORD_ID() != '${eventRecord.id}',
+            OR(${categoryFormulas.join(', ')})
         )`;
         
         const suggestedRecords = await base('Events').select({
@@ -67,18 +71,19 @@ OR\(</span>{categoryFormulas.join(', ')})
                 const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
                 const month = d.toLocaleDateString('en-GB', { month: 'short' });
                 const img = f['Promo Image'] ? f['Promo Image'][0].url : 'https://placehold.co/600x400/171717/FFF?text=Image';
+                const slug = f.Slug || rec.id;
                 return `
-                    <a href="/event/<span class="math-inline">\{rec\.id\}/</span>{f.Slug}" class="event-card">
+                    <a href="/event/${rec.id}/${slug}" class="event-card">
                         <div class="relative">
-                            <img src="<span class="math-inline">\{img\}" alt\="</span>{f['Event Name']}" class="w-full h-48 object-cover rounded-t-lg">
+                            <img src="${img}" alt="${f['Event Name']}" class="w-full h-48 object-cover rounded-t-lg">
                             <div class="absolute top-2 right-2 bg-black/70 backdrop-blur-sm text-white text-center rounded-md p-2 w-16">
-                                <p class="text-2xl font-bold"><span class="math-inline">\{day\}</p\>
-<p class\="text\-sm uppercase"\></span>{month}</p>
+                                <p class="text-2xl font-bold">${day}</p>
+                                <p class="text-sm uppercase">${month}</p>
                             </div>
                         </div>
                         <div class="p-4">
-                            <h3 class="font-bold text-xl text-white truncate"><span class="math-inline">\{f\['Event Name'\]\}</h3\>
-<p class\="text\-gray\-400 text\-sm truncate"\></span>{f.VenueText || 'Venue TBC'}</p>
+                            <h3 class="font-bold text-xl text-white truncate">${f['Event Name']}</h3>
+                            <p class="text-gray-400 text-sm truncate">${f.VenueText || 'Venue TBC'}</p>
                         </div>
                     </a>
                 `;
@@ -109,13 +114,14 @@ OR\(</span>{categoryFormulas.join(', ')})
         const d = new Date(instance.Date);
         const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
         const month = d.toLocaleDateString('en-GB', { month: 'short' });
-        return `<a href="/event/<span class="math-inline">\{instance\.Slug\}" class\="card\-bg p\-4 flex items\-center space\-x\-4 hover\:bg\-gray\-800 transition\-colors duration\-200 block"\>
-<div class\="text\-center w\-20 flex\-shrink\-0"\>
-<p class\="text\-2xl font\-bold text\-white"\></span>{day}</p>
-                        <p class="text-lg text-gray-400"><span class="math-inline">\{month\}</p\>
-</div\>
-<div class\="flex\-grow"\>
-<h4 class\="font\-bold text\-white text\-xl"\></span>{instance['Event Name']}</h4>
+        const slug = instance.Slug || instance.id;
+        return `<a href="/event/${slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
+                    <div class="text-center w-20 flex-shrink-0">
+                        <p class="text-2xl font-bold text-white">${day}</p>
+                        <p class="text-lg text-gray-400">${month}</p>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-white text-xl">${instance['Event Name']}</h4>
                         <p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
                     </div>
                     <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
@@ -128,28 +134,28 @@ OR\(</span>{categoryFormulas.join(', ')})
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title><span class="math-inline">\{eventName\} \| Brum Out Loud</title\>
-<script src\="https\://cdn\.tailwindcss\.com"\></script\>
-<link href\="https\://fonts\.googleapis\.com/css2?family\=Anton&family\=Poppins\:wght@400;600;700&display\=swap" rel\="stylesheet"\>
-<link rel\="stylesheet" href\="https\://cdnjs\.cloudflare\.com/ajax/libs/font\-awesome/6\.4\.2/css/all\.min\.css"\>
-<link rel\="stylesheet" href\="/css/main\.css"\>
-<script src\="/js/main\.js" defer\></script\>
-<style\>
-\.hero\-image\-container \{ position\: relative; width\: 100%; aspect\-ratio\: 16 / 9; background\-color\: \#1e1e1e; overflow\: hidden; border\-radius\: 1\.25rem; box\-shadow\: 0 10px 30px rgba\(0,0,0,0\.3\); \}
-\.hero\-image\-bg \{ position\: absolute; top\: 0; left\: 0; width\: 100%; height\: 100%; object\-fit\: cover; opacity\: 0; filter\: blur\(24px\) brightness\(0\.5\); transform\: scale\(1\.1\); transition\: opacity 0\.4s ease; \}
-\.hero\-image\-container\:hover \.hero\-image\-bg \{ opacity\: 1; \}
-\.hero\-image\-fg \{ position\: relative; width\: 100%; height\: 100%; object\-fit\: cover; z\-index\: 10; transition\: all 0\.4s ease; \}
-\.hero\-image\-container\:hover \.hero\-image\-fg \{ object\-fit\: contain; transform\: scale\(0\.9\); \}
-</style\>
-</head\>
-<body class\="antialiased"\>
-<div id\="header\-placeholder"\></div\>
-<main class\="container mx\-auto px\-8 py\-16"\>
-<div class\="grid lg\:grid\-cols\-3 gap\-16"\>
-<div class\="lg\:col\-span\-2"\>
-<div class\="hero\-image\-container mb\-8"\>
-<img src\="</span>{imageUrl}" alt="" class="hero-image-bg" aria-hidden="true">
-                        <img src="<span class="math-inline">\{imageUrl\}" alt\="</span>{eventName}" class="hero-image-fg">
+        <title>${eventName} | Brum Out Loud</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+        <link rel="stylesheet" href="/css/main.css">
+        <script src="/js/main.js" defer></script>
+        <style>
+            .hero-image-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background-color: #1e1e1e; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+            .hero-image-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: blur(24px) brightness(0.5); transform: scale(1.1); transition: opacity 0.4s ease; }
+            .hero-image-container:hover .hero-image-bg { opacity: 1; }
+            .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; }
+            .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); }
+        </style>
+      </head>
+      <body class="antialiased">
+        <div id="header-placeholder"></div>
+        <main class="container mx-auto px-8 py-16">
+            <div class="grid lg:grid-cols-3 gap-16">
+                <div class="lg:col-span-2">
+                     <div class="hero-image-container mb-8">
+                        <img src="${imageUrl}" alt="" class="hero-image-bg" aria-hidden="true">
+                        <img src="${imageUrl}" alt="${eventName}" class="hero-image-fg">
                      </div>
                     <p class="font-semibold accent-color mb-2">EVENT DETAILS</p>
                     <h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${eventName}</h1>
@@ -169,8 +175,8 @@ OR\(</span>{categoryFormulas.join(', ')})
                     <div class="card-bg p-8 sticky top-8 space-y-6">
                         <div>
                             <h3 class="font-bold text-lg accent-color-secondary mb-2">Date & Time</h3>
-                            <p class="text-2xl font-semibold"><span class="math-inline">\{eventDate\.toLocaleDateString\('en\-GB', \{ weekday\: 'long', day\: 'numeric', month\: 'long' \}\)\}</p\>
-<p class\="text\-xl text\-gray\-400"\></span>{eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
+                            <p class="text-2xl font-semibold">${eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                            <p class="text-xl text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
                             ${recurringInfo ? `<p class="mt-2 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${recurringInfo}</p>` : ''}
                         </div>
                          <div>
@@ -209,16 +215,7 @@ OR\(</span>{categoryFormulas.join(', ')})
 
             function generateICSFile(isSeries) {
                 let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location];
-                if (isSeries && calendarData.isRecurring) {
-                    const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(',');
-                    icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString);
-                }
-                icsContent.push('END:VEVENT', 'END:VCALENDAR');
-                const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = calendarData.title.replace(/ /g, '_') + '.ics';
+      _G,_/g, '_') + '.ics';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);

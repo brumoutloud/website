@@ -1,84 +1,91 @@
-const fetch = require('node-fetch');
+const Airtable = require('airtable');
 
-const AIRTABLE_API_KEY = process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN;
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
-const TABLE_NAME = 'Events';
-// **THE FIX**: We now specify the new, pre-filtered view.
-const VIEW_NAME = encodeURIComponent('Approved Upcoming');
+exports.handler = async (event, context) => {
+    try {
+        const { AIRTABLE_PERSONAL_ACCESS_TOKEN, AIRTABLE_BASE_ID } = process.env;
+        const base = new Airtable({ apiKey: AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(AIRTABLE_BASE_ID);
+        const { view, offset, category, venue, day } = event.queryStringParameters;
 
-// The list of fields we need.
-const fields = [
-    'Event Name', 'Description', 'Date', 'Promo Image', 'Slug', 
-    'Recurring Info', 'Venue Name', 'Venue Slug', 'Category', 
-    'VenueText', 'Link', 'Parent Event Name', 'Submitter Email'
-].map(field => `fields%5B%5D=${encodeURIComponent(field)}`).join('&');
+        let selectOptions = {};
 
-// The new URL is much simpler, as the filtering and sorting is handled by the view.
-const BASE_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${TABLE_NAME}?pageSize=50&${fields}&view=${VIEW_NAME}`;
-
-
-exports.handler = async function (event, context) {
-  try {
-    const isAdminView = event.queryStringParameters.view === 'admin';
-    const offset = event.queryStringParameters.offset;
-    
-    let url = BASE_URL;
-    if (offset) {
-      url += `&offset=${offset}`;
-    }
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` }
-    });
-    
-    const data = await response.json();
-
-    if (!response.ok) {
-        console.error("Airtable API Error:", data);
-        throw new Error(data.error?.message || 'Failed to fetch data from Airtable.');
-    }
-
-    let processedRecords;
-
-    if (isAdminView) {
-        processedRecords = data.records.map((record) => {
-            const fields = { ...record.fields };
-            if (fields['Submitter Email']) {
-                fields['Contact Email'] = fields['Submitter Email'];
-                delete fields['Submitter Email'];
-            }
-            return { id: record.id, type: 'Event', fields: fields };
-        });
-    } else {
-        processedRecords = data.records.map((record) => {
-            const venueDisplay = record.fields['Venue Name'] ? record.fields['Venue Name'][0] : (record.fields['VenueText'] || 'TBC');
-            return {
-                id: record.id,
-                name: record.fields['Event Name'],
-                description: record.fields['Description'],
-                date: record.fields['Date'],
-                venue: venueDisplay,
-                image: record.fields['Promo Image'] ? record.fields['Promo Image'][0].url : null,
-                slug: record.fields['Slug'],
-                recurringInfo: record.fields['Recurring Info'],
-                category: record.fields['Category'] || [] 
+        if (view === 'admin') {
+            // Admin view: Fetch all approved events, sorted by date descending
+            selectOptions = {
+                view: "Approved Events",
+                sort: [{ field: 'Date', direction: 'desc' }],
+                offset: offset,
             };
-        });
-    }
-    
-    return { 
-        statusCode: 200, 
-        body: JSON.stringify({
-            events: processedRecords,
-            offset: data.offset
-        }) 
-    };
+        } else {
+            // Public view: Check if specific filters are applied
+            if (category || venue || day) {
+                // If filters exist, build a dynamic formula
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayISO = today.toISOString();
 
-  } catch (error) {
-    console.error("Error in get-events function:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch events', details: error.message }),
-    };
-  }
+                let filterParts = [
+                    "Status = 'Approved'",
+                    `OR(
+                        AND({End Date}, IS_AFTER({End Date}, '${todayISO}')),
+                        AND(NOT({End Date}), IS_AFTER(Date, '${todayISO}')),
+                        IS_SAME(Date, '${todayISO}', 'day'),
+                        IS_SAME({End Date}, '${todayISO}', 'day')
+                    )`
+                ];
+
+                if (category) filterParts.push(`FIND('${category}', ARRAYJOIN(Category))`);
+                if (venue) filterParts.push(`{VenueRecID} = '${venue}'`);
+                if (day) {
+                    const targetDate = new Date(day);
+                    const targetDateStart = new Date(targetDate.setHours(0,0,0,0)).toISOString();
+                    const targetDateEnd = new Date(targetDate.setHours(23,59,59,999)).toISOString();
+                    filterParts.push(
+                        `OR(
+                            AND(Date >= '${targetDateStart}', Date <= '${targetDateEnd}'),
+                            AND({End Date}, Date <= '${targetDateStart}', {End Date} >= '${targetDateStart}')
+                        )`
+                    );
+                }
+
+                selectOptions = {
+                    filterByFormula: `AND(${filterParts.join(', ')})`,
+                    sort: [{ field: 'Date', direction: 'asc' }],
+                    offset: offset,
+                };
+
+            } else {
+                // **MODIFICATION**: Using the correct view name provided.
+                selectOptions = {
+                    view: "Approved Upcoming",
+                    sort: [{ field: 'Date', direction: 'asc' }],
+                    offset: offset,
+                };
+            }
+        }
+
+        const allRecords = await base('Events').select(selectOptions).all();
+
+        const records = allRecords.map(record => ({
+            id: record.id,
+            fields: record.fields
+        }));
+
+        const response = {
+            events: records,
+            offset: allRecords.offset
+        };
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify(response),
+            headers: { 'Content-Type': 'application/json' },
+        };
+    } catch (error) {
+        console.error(error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ details: "Failed to fetch events." }),
+            headers: { 'Content-Type': 'application/json' },
+        };
+    }
 };

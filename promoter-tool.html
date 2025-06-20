@@ -58,10 +58,11 @@
             
             <div id="status-message" class="mt-8 text-center text-lg font-semibold hidden"></div>
             <div id="results-container" class="mt-8 space-y-6">
-                <!-- Parsed event forms will be injected here -->
-            </div>
+                </div>
         </section>
     </main>
+
+    <div id="footer-placeholder"></div>
 
     <script>
         const posterForm = document.getElementById('poster-form');
@@ -198,6 +199,14 @@
                     alert(`Error adding event: ${error.toString()}`);
                 }
             }
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            fetch('/global/footer.html')
+                .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
+                .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
+                .catch(error => console.error('Error loading footer:', error));
         });
     </script>
 </body>

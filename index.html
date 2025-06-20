@@ -9,14 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
+    <script src="/js/main.js" defer></script>
     <style>
-        .feature-card {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .feature-card:hover {
-            transform: scale(1.03) translateY(-5px);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-        }
+        .feature-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .feature-card:hover { transform: scale(1.03) translateY(-5px); box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+        .hamburger { cursor: pointer; width: 24px; height: 24px; transition: all 0.25s; position: relative; }
+        .hamburger-top, .hamburger-middle, .hamburger-bottom { position: absolute; top: 0; left: 0; width: 24px; height: 3px; background: #fff; transform: rotate(0); transition: all 0.5s; }
+        .hamburger-middle { transform: translateY(7px); }
+        .hamburger-bottom { transform: translateY(14px); }
+        .open .hamburger-top { transform: rotate(45deg) translateY(6px) translateX(6px); }
+        .open .hamburger-middle { display: none; }
+        .open .hamburger-bottom { transform: rotate(-45deg) translateY(6px) translateX(-6px); }
     </style>
 </head>
 <body class="antialiased">
@@ -29,19 +32,7 @@
         </video>
     </div>
 
-    <header class="p-8 relative z-10">
-        <nav class="container mx-auto flex justify-between items-center">
-            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
-            <div class="hidden md:flex items-center space-x-8 font-semibold">
-                <a href="/events.html" class="text-gray-300 hover:accent-color transition-colors">Events</a>
-                <a href="/all-venues.html" class="text-gray-300 hover:accent-color transition-colors">Venues</a>
-                <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
-            </div>
-            <a href="/get-listed.html" class="nav-cta">
-                GET LISTED
-            </a>
-        </nav>
-    </header>
+    <div id="header-placeholder"></div>
 
     <main class="container mx-auto px-8 py-16 relative z-10">
         <section class="text-center mb-32">
@@ -77,14 +68,5 @@
         </div>
         <div id="footer-placeholder" class="relative z-10"></div>
     </div>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            fetch('/global/footer.html')
-                .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
-                .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
-                .catch(error => console.error('Error loading footer:', error));
-        });
-    </script>
 </body>
 </html>

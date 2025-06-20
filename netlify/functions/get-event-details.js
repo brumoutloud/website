@@ -68,7 +68,7 @@ exports.handler = async function (event, context) {
                 return `
                     <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-1/3 flex-shrink-0 relative overflow-hidden flex flex-col justify-end">
                         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${suggImageUrl}')"></div>
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div>
                         <div class="relative z-10 p-4">
                             <h4 class="font-bold text-white text-lg">${suggEventName}</h4>
                             <p class="text-gray-200 text-sm">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -80,7 +80,7 @@ exports.handler = async function (event, context) {
             suggestedEventsHtml = `
                 <div class="mt-16 suggested-events-section">
                     <h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2>
-                    <div class="suggested-carousel flex overflow-x-auto no-scrollbar gap-6">
+                    <div class="suggested-carousel flex overflow-x-auto no-scrollbar gap-6 snap-x snap-mandatory">
                         ${suggestedCardsHtml}
                     </div>
                 </div>
@@ -158,6 +158,27 @@ exports.handler = async function (event, context) {
             .suggested-card:hover {
                 transform: translateY(-5px);
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            }
+
+            /* NEW: Enable drag to scroll and darken gradient */
+            .suggested-carousel {
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
+                overflow-x: auto; /* Ensure horizontal scrolling is enabled */
+                padding-bottom: 1rem; /* Add some padding at the bottom */
+            }
+
+            .suggested-carousel::-webkit-scrollbar {
+                display: none; /* Hide scrollbar for Chrome, Safari and Opera */
+            }
+
+            .suggested-carousel {
+                -ms-overflow-style: none; /* Hide scrollbar for Internet Explorer and Edge */
+                scrollbar-width: none; /* Hide scrollbar for Firefox */
+            }
+
+            .suggested-card-overlay {
+                background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 35%, transparent 100%);
             }
         </style>
       </head>

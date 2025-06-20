@@ -31,7 +31,8 @@ async function getGeminiModelName() {
     } catch (error) {
         console.error("Error fetching Gemini model from Firestore:", error);
     }
-    return 'gemini-2.5-flash';
+    // Fallback to a default model if not found or on error
+    return 'gemini-1.5-flash';
 }
 
 async function getCategoriesFromAI(eventName, eventDescription, modelName) {
@@ -52,11 +53,16 @@ async function getCategoriesFromAI(eventName, eventDescription, modelName) {
         const response = await fetch(apiUrl, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
-        if (!response.ok) { return []; }
+        if (!response.ok) {
+             console.error(`AI API call failed with status: ${response.status}`);
+             return [];
+        }
         const result = await response.json();
         const textResponse = result.candidates[0].content.parts[0].text;
+        // Clean the response to ensure it's valid JSON
         const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
         const categories = JSON.parse(jsonString);
+        // Ensure all returned categories are from the valid list
         return categories.filter(cat => validCategories.includes(cat));
     } catch (error) {
         console.error("Error parsing categories with AI:", error);
@@ -66,7 +72,7 @@ async function getCategoriesFromAI(eventName, eventDescription, modelName) {
 
 exports.handler = async function (event, context) {
     if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+        return { statusCode: 405, body: JSON.stringify({ message: 'Method Not Allowed' }) };
     }
     try {
         const geminiModel = await getGeminiModelName();
@@ -79,7 +85,8 @@ exports.handler = async function (event, context) {
         for (const record of recordsMissingCategory) {
             const eventName = record.get("Event Name");
             const description = record.get("Description");
-            if (eventName && description) {
+            // Only process if we have something to work with
+            if (eventName || description) {
                 const categories = await getCategoriesFromAI(eventName, description, geminiModel);
                 if (categories.length > 0) {
                     recordsToUpdate.push({
@@ -91,12 +98,13 @@ exports.handler = async function (event, context) {
         }
         
         if (recordsToUpdate.length > 0) {
+            // Airtable's update method can handle up to 10 records at a time.
             const chunkSize = 10;
             for (let i = 0; i < recordsToUpdate.length; i += chunkSize) {
                 await eventsTable.update(recordsToUpdate.slice(i, i + chunkSize));
             }
         }
-        const summary = `Cleanup complete. Added categories to ${recordsToUpdate.length} events.`;
+        const summary = `Cleanup complete. Added categories to ${recordsToUpdate.length} of ${recordsMissingCategory.length} events found without a category.`;
         return {
             statusCode: 200,
             body: JSON.stringify({ success: true, message: summary }),

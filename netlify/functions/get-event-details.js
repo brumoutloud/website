@@ -1,6 +1,17 @@
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
+// Helper function to escape strings for Airtable formula values
+// This ensures that any double quotes or backslashes within the string
+// are correctly escaped for the Airtable formula when embedded in a JS template literal.
+function escapeForAirtableValue(str) {
+    if (typeof str !== 'string') return str;
+    // JSON.stringify converts the string into a valid JavaScript string literal,
+    // escaping internal quotes and backslashes. We then slice to remove the
+    // outer double quotes added by JSON.stringify, leaving the escaped content.
+    return JSON.stringify(str).slice(1, -1);
+}
+
 exports.handler = async function (event, context) {
   const slug = event.path.split("/").pop();
   if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
@@ -8,8 +19,8 @@ exports.handler = async function (event, context) {
   try {
     const eventRecords = await base('Events').select({
         maxRecords: 1,
-        filterByFormula: `{Slug} = "${slug}"`,
-        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText']
+        filterByFormula: `{Slug} = "${escapeForAirtableValue(slug)}"`, // Apply escaping here too
+        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText', 'Category']
     }).firstPage();
 
     if (!eventRecords || eventRecords.length === 0) {
@@ -25,10 +36,10 @@ exports.handler = async function (event, context) {
 
     let filterFormula;
     if (parentEventName) {
-        const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
+        const parentNameForQuery = escapeForAirtableValue(parentEventName); // Use the new helper
         filterFormula = `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
     } else if (recurringInfo) {
-        const eventNameForQuery = eventName.replace(/"/g, '\\"');
+        const eventNameForQuery = escapeForAirtableValue(eventName); // Use the new helper
         filterFormula = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info}, IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
     }
 
@@ -76,6 +87,63 @@ exports.handler = async function (event, context) {
                 </a>`;
     }).join('');
 
+    // --- Start Suggested Events Logic ---
+    let suggestedEventsHTML = '';
+    const mainEventCategories = fields['Category'] || [];
+
+    if (mainEventCategories.length > 0) {
+        // Construct the OR filter for categories, escaping each category name
+        const categoryFilter = mainEventCategories.map(cat => `FIND("${escapeForAirtableValue(cat)}", ARRAYJOIN({Category}, ","))`).join(',');
+        
+        const suggestedEventsRecords = await base('Events').select({
+            filterByFormula: `AND(
+                {Status} = 'Approved',
+                IS_AFTER({Date}, TODAY()),
+                NOT({Slug} = '${escapeForAirtableValue(slug)}'),
+                OR(${categoryFilter})
+            )`,
+            sort: [{ field: 'Date', direction: 'asc' }],
+            maxRecords: 3,
+            fields: ['Event Name', 'Date', 'Promo Image', 'Link', 'Slug', 'VenueText'] // Added Link and VenueText to match existing card structure
+        }).all();
+
+        if (suggestedEventsRecords.length > 0) {
+            suggestedEventsHTML = `
+                <div class="mt-16">
+                    <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Don't Miss These...</span></h2>
+                    <div class="space-y-4">
+            `;
+            suggestedEventsRecords.forEach(suggestedEvent => {
+                const sFields = suggestedEvent.fields;
+                const sDate = new Date(sFields.Date);
+                const sDay = sDate.toLocaleDateString('en-GB', { day: 'numeric' });
+                const sMonth = sDate.toLocaleDateString('en-GB', { month: 'short' });
+                // Use sFields.image if available, otherwise fallback to Promo Image
+                const sImageUrl = sFields['Promo Image'] && sFields['Promo Image'][0] ? sFields['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
+                
+                suggestedEventsHTML += `
+                    <a href="/event/${sFields.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
+                        <div class="text-center w-20 flex-shrink-0">
+                            <p class="text-2xl font-bold text-white">${sDay}</p>
+                            <p class="text-lg text-gray-400">${sMonth}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <h4 class="font-bold text-white text-xl">${sFields['Event Name']}</h4>
+                            <p class="text-sm text-gray-400">${sDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+                        </div>
+                        <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
+                    </a>
+                `;
+            });
+            suggestedEventsHTML += `
+                    </div>
+                </div>
+            `;
+        }
+    }
+    // --- End Suggested Events Logic ---
+
+
     const html = `
       <!DOCTYPE html>
       <html lang="en">
@@ -111,6 +179,7 @@ exports.handler = async function (event, context) {
                         ${description.replace(/\n/g, '<br>')}
                     </div>
                     ${(parentEventName || recurringInfo) && otherInstancesHTML ? `<div class="mt-16"><h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Events</span> in this Series</h2><div class="space-y-4">${otherInstancesHTML}</div></div>` : ''}
+                    ${suggestedEventsHTML}
                 </div>
                 <div class="lg:col-span-1">
                     <div class="card-bg p-8 sticky top-8 space-y-6">

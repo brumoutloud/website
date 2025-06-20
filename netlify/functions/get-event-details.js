@@ -154,6 +154,7 @@ exports.handler = async function (event, context) {
                 -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
                 scrollbar-width: thin; /* Firefox */
                 scrollbar-color: #B564F7 #1e1e1e; /* Firefox thumb and track */
+                scroll-snap-type: x mandatory; /* Enable scroll snapping */
             }
             .suggested-carousel::-webkit-scrollbar { height: 8px; }
             .suggested-carousel::-webkit-scrollbar-track { background: #1e1e1e; border-radius: 10px; }
@@ -171,10 +172,17 @@ exports.handler = async function (event, context) {
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-end; /* Align content to bottom */
+                scroll-snap-align: start; /* Snap cards to the start of the scroll container */
             }
             .suggested-card:hover {
                 transform: translateY(-5px);
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            }
+            /* Style for the active (highlighted) card */
+            .suggested-card.is-active {
+                transform: scale(1.05); /* Slightly larger */
+                box-shadow: 0 20px 50px rgba(0,0,0,0.7); /* More prominent shadow */
+                z-index: 10; /* Ensure active card is on top */
             }
 
             .suggested-card-image-container {
@@ -299,6 +307,50 @@ exports.handler = async function (event, context) {
                         '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
                 }
                 container.innerHTML = buttonsHTML;
+
+                // NEW: Suggested Carousel Active Card Logic
+                const suggestedCarousel = document.querySelector('.suggested-carousel');
+                if (suggestedCarousel) {
+                    const suggestedCards = suggestedCarousel.querySelectorAll('.suggested-card');
+
+                    const updateActiveCard = () => {
+                        let activeCardIndex = -1;
+                        let minScrollDistance = Infinity;
+
+                        suggestedCards.forEach((card, index) => {
+                            const cardLeft = card.offsetLeft; 
+                            const scrollLeft = suggestedCarousel.scrollLeft;
+
+                            const distance = Math.abs(cardLeft - scrollLeft);
+
+                            if (distance < minScrollDistance) {
+                                minScrollDistance = distance;
+                                activeCardIndex = index;
+                            }
+                        });
+
+                        suggestedCards.forEach((card, index) => {
+                            if (index === activeCardIndex) {
+                                card.classList.add('is-active');
+                            } else {
+                                card.classList.remove('is-active');
+                            }
+                        });
+                    };
+
+                    // Set initial active card
+                    updateActiveCard();
+
+                    // Debounce the scroll event for performance
+                    let scrollTimeout;
+                    suggestedCarousel.addEventListener('scroll', () => {
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(updateActiveCard, 150); // Update after 150ms of no scrolling
+                    });
+
+                    // Also update on resize to handle layout changes
+                    window.addEventListener('resize', updateActiveCard);
+                }
             });
         </script>
       </body>

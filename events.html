@@ -317,5 +317,14 @@
         
         document.addEventListener('DOMContentLoaded', initializePage);
     </script>
+    <div id="footer-placeholder"></div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            fetch('/global/footer.html')
+                .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
+                .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
+                .catch(error => console.error('Error loading footer:', error));
+        });
+    </script>
 </body>
 </html>

@@ -70,8 +70,8 @@ exports.handler = async function (event, context) {
                         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${suggImageUrl}')"></div>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div>
                         <div class="relative z-10 p-4">
-                            <h4 class="font-bold text-white text-lg">${suggEventName}</h4>
-                            <p class="text-gray-200 text-sm">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <h4 class="font-bold text-white text-xl">${suggEventName}</h4>
+                            <p class="text-gray-200 text-base">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
                     </a>
                 `;
@@ -160,26 +160,21 @@ exports.handler = async function (event, context) {
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
             }
 
-            /* NEW: Enable drag to scroll and darken gradient */
+            /* Enable drag to scroll by adding `cursor: grab` and `scroll-snap-type` if not already present on container */
             .suggested-carousel {
+                cursor: grab;
                 scroll-snap-type: x mandatory;
                 -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
                 overflow-x: auto; /* Ensure horizontal scrolling is enabled */
-                padding-bottom: 1rem; /* Add some padding at the bottom */
+                padding-bottom: 1rem; /* Add some padding at the bottom for scrollbar if visible */
+            }
+            .suggested-carousel:active {
+                cursor: grabbing;
             }
 
-            .suggested-carousel::-webkit-scrollbar {
-                display: none; /* Hide scrollbar for Chrome, Safari and Opera */
-            }
-
-            .suggested-carousel {
-                -ms-overflow-style: none; /* Hide scrollbar for Internet Explorer and Edge */
-                scrollbar-width: none; /* Hide scrollbar for Firefox */
-            }
-
-            .suggested-card-overlay {
-                background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 35%, transparent 100%);
-            }
+            /* Gradient styling (now applied directly via Tailwind, but keeping for reference if customisation needed) */
+            /* The gradient is now applied via Tailwind classes directly in the HTML for better control */
+            /* `bg-gradient-to-t from-black/90 via-black/70 to-transparent` */
         </style>
       </head>
       <body class="antialiased">

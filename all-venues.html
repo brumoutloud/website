@@ -48,6 +48,7 @@
         </section>
     </main>
     
+    <div id="footer-placeholder"></div>
     <script>
         async function renderVenues() {
             const venueGrid = document.getElementById('venue-grid');
@@ -85,6 +86,14 @@
         }
 
         document.addEventListener('DOMContentLoaded', renderVenues);
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            fetch('/global/footer.html')
+                .then(response => response.ok ? response.text() : Promise.reject('Footer not found.'))
+                .then(data => { document.getElementById('footer-placeholder').innerHTML = data; })
+                .catch(error => console.error('Error loading footer:', error));
+        });
     </script>
 </body>
 </html>

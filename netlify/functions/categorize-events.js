@@ -90,7 +90,6 @@ exports.handler = async function (event, context) {
             const eventName = record.get("Event Name");
             const description = record.get("Description");
             
-            // **MODIFICATION**: First, try to find a match by name.
             if (eventName) {
                 try {
                     const existingRecords = await eventsTable.select({
@@ -104,7 +103,7 @@ exports.handler = async function (event, context) {
                         if (categories && categories.length > 0) {
                             recordsToUpdate.push({ id: record.id, fields: { "Category": categories } });
                             lookupCount++;
-                            continue; // Skip to the next record
+                            continue;
                         }
                     }
                 } catch (e) {
@@ -112,7 +111,6 @@ exports.handler = async function (event, context) {
                 }
             }
             
-            // **Fallback**: If lookup fails or no name, use AI/Default logic.
             if (eventName || description) {
                 let categories = await getCategoriesFromAI(eventName, description, geminiModel);
                 

@@ -66,7 +66,7 @@ exports.handler = async function (event, context) {
                 const suggEventSlug = suggEvent.get('Slug');
 
                 return `
-                    <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-[calc(33.33%-1rem)] flex-shrink-0 relative overflow-hidden flex flex-col justify-end snap-start">
+                    <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-[32%] flex-shrink-0 relative overflow-hidden flex flex-col justify-end snap-start">
                         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${suggImageUrl}')"></div>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div>
                         <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-20">
@@ -84,7 +84,7 @@ exports.handler = async function (event, context) {
             suggestedEventsHtml = `
                 <div class="mt-16 suggested-events-section">
                     <h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2>
-                    <div class="suggested-carousel flex overflow-x-auto no-scrollbar gap-6 snap-x snap-mandatory pr-6">
+                    <div class="suggested-carousel flex overflow-x-auto gap-6 snap-x snap-mandatory pr-6">
                         ${suggestedCardsHtml}
                     </div>
                 </div>
@@ -148,10 +148,6 @@ exports.handler = async function (event, context) {
             .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; }
             .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); }
 
-            /* Scrollbar hiding styles */
-            .no-scrollbar::-webkit-scrollbar { display: none; }
-            .no-scrollbar { -ms-overflow-style: none; /* IE and Edge */ scrollbar-width: none; /* Firefox */ }
-
             /* Suggested Card base styles (retain only what's not covered by Tailwind) */
             .suggested-card {
                 border-radius: 1.25rem;
@@ -164,12 +160,29 @@ exports.handler = async function (event, context) {
                 box-shadow: 0 15px 40px rgba(0,0,0,0.5);
             }
 
-            /* Carousel styling for scroll behavior */
+            /* Carousel styling for scroll behavior and custom scrollbar */
             .suggested-carousel {
                 scroll-snap-type: x mandatory;
                 -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
                 overflow-x: auto; /* Ensure horizontal scrolling is enabled */
                 padding-bottom: 1rem; /* Add some padding at the bottom for scrollbar if visible */
+
+                /* Custom Scrollbar Styles */
+                scrollbar-width: thin; /* For Firefox */
+                scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1); /* For Firefox (thumb and track) */
+            }
+
+            /* Webkit (Chrome, Safari, Edge) Scrollbar Styles */
+            .suggested-carousel::-webkit-scrollbar {
+                height: 4px; /* Height of the horizontal scrollbar */
+            }
+            .suggested-carousel::-webkit-scrollbar-track {
+                background: rgba(0, 0, 0, 0.1); /* Color of the scrollbar track */
+                border-radius: 2px;
+            }
+            .suggested-carousel::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.3); /* Color of the scrollbar thumb */
+                border-radius: 2px;
             }
         </style>
       </head>

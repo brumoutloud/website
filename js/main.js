@@ -20,11 +20,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const btn = document.getElementById('menu-btn');
                 const menu = document.getElementById('menu');
 
-                btn.addEventListener('click', () => {
-                    btn.classList.toggle('open');
-                    menu.classList.toggle('hidden');
-                    menu.classList.toggle('flex');
-                });
+                if (btn && menu) { // Ensure elements exist after injection
+                    btn.addEventListener('click', () => {
+                        btn.classList.toggle('open');
+                        menu.classList.toggle('hidden');
+                        menu.classList.toggle('flex');
+
+                        // Toggle icon for hamburger/X
+                        const icon = btn.querySelector('i'); // Get the <i> element inside the button
+                        if (icon) {
+                            icon.classList.toggle('fa-bars');
+                            icon.classList.toggle('fa-xmark'); // Use fa-xmark for a modern X icon
+                        }
+                    });
+                }
             })
             .catch(error => console.error('Error loading header:', error));
     }

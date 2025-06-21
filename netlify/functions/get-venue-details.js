@@ -1,25 +1,148 @@
 const Airtable = require('airtable');
+const fetch = require('node-fetch'); // Ensure fetch is imported
+
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
+    if (!slug) { return { statusCode: 400, body: 'Venue slug not provided.' }; }
 
-    if (!slug) {
-        return { statusCode: 400, body: 'Venue slug not provided.' };
-    }
+    // Google Places API Key
+    const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
     try {
         const venueRecords = await base('Venues').select({
             maxRecords: 1,
             filterByFormula: `{Slug} = "${slug}"`,
-            fields: ["Name", "Description", "Address", "Opening Hours", "Accessibility", "Website", "Instagram", "Facebook", "TikTok", "Photo URL"]
+            // Add Google Place ID to the fields
+            fields: ["Name", "Description", "Address", "Opening Hours", "Accessibility", "Website", "Instagram", "Facebook", "TikTok", "Photo URL", "Google Place ID"]
         }).all();
 
         if (!venueRecords || venueRecords.length === 0) {
             return { statusCode: 404, body: 'Venue not found.' };
         }
         const venue = venueRecords[0].fields;
-        
+        const venueRecordId = venueRecords[0].id; // Get the record ID for updates
+
+        let placeId = venue['Google Place ID'];
+        let googleRatingHtml = '';
+        let googleReviewsHtml = '';
+        let googleAttributionHtml = '';
+
+        if (GOOGLE_PLACES_API_KEY) {
+            // Part 1: Find and Store the Google Place ID
+            if (!placeId) {
+                const findPlaceQuery = encodeURIComponent(`${venue.Name}, ${venue.Address}`);
+                const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${findPlaceQuery}&inputtype=textquery&fields=place_id&key=${GOOGLE_PLACES_API_KEY}`;
+                
+                try {
+                    const findPlaceResponse = await fetch(findPlaceUrl);
+                    const findPlaceData = await findPlaceResponse.json();
+                    if (findPlaceData.status === 'OK' && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
+                        placeId = findPlaceData.candidates[0].place_id;
+                        // Update Airtable with the new place_id
+                        await base('Venues').update([
+                            {
+                                id: venueRecordId,
+                                fields: { "Google Place ID": placeId }
+                            }
+                        ]);
+                        console.log(`Updated venue ${venue.Name} with Place ID: ${placeId}`);
+                    } else {
+                        console.warn(`Could not find Place ID for ${venue.Name}. Status: ${findPlaceData.status}`);
+                    }
+                } catch (error) {
+                    console.error("Error finding place ID:", error);
+                }
+            }
+
+            // Part 2: Fetch Google Reviews and Rating
+            if (placeId) {
+                const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=rating,user_ratings_total,reviews,url&key=${GOOGLE_PLACES_API_KEY}`;
+                
+                try {
+                    const placeDetailsResponse = await fetch(placeDetailsUrl);
+                    const placeDetailsData = await placeDetailsResponse.json();
+
+                    if (placeDetailsData.status === 'OK' && placeDetailsData.result) {
+                        const { rating, user_ratings_total, reviews, url: googleMapsUrl } = placeDetailsData.result;
+
+                        // Generate star rating HTML
+                        if (rating) {
+                            let stars = '';
+                            const fullStars = Math.floor(rating);
+                            const halfStar = rating % 1 >= 0.5;
+                            for (let i = 0; i < fullStars; i++) {
+                                stars += '<i class="fas fa-star text-yellow-400"></i>';
+                            }
+                            if (halfStar) {
+                                stars += '<i class="fas fa-star-half-alt text-yellow-400"></i>';
+                            }
+                            const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+                            for (let i = 0; i < emptyStars; i++) {
+                                stars += '<i class="far fa-star text-yellow-400"></i>';
+                            }
+                            googleRatingHtml = `
+                                <div class="mt-4 pt-4 border-t border-gray-700">
+                                    <h3 class="font-bold text-lg accent-color-secondary mb-2">Google Rating</h3>
+                                    <div class="flex items-center space-x-2 text-xl">
+                                        <div>${stars}</div>
+                                        <p class="text-white font-semibold">${rating} <span class="text-gray-400">(${user_ratings_total} reviews)</span></p>
+                                    </div>
+                                    ${googleMapsUrl ? `<a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline text-sm mt-1 block">View on Google Maps</a>` : ''}
+                                </div>
+                            `;
+                        }
+
+                        // Generate reviews HTML
+                        if (reviews && reviews.length > 0) {
+                            const selectedReviews = reviews.slice(0, 3); // Get first 3 reviews
+                            let reviewsCardsHtml = '';
+                            selectedReviews.forEach(review => {
+                                let reviewStars = '';
+                                for (let i = 0; i < review.rating; i++) {
+                                    reviewStars += '<i class="fas fa-star text-yellow-400 text-sm"></i>';
+                                }
+                                for (let i = 0; i < (5 - review.rating); i++) {
+                                    reviewStars += '<i class="far fa-star text-yellow-400 text-sm"></i>';
+                                }
+
+                                reviewsCardsHtml += `
+                                    <div class="card-bg p-4 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <p class="font-semibold text-white">${review.author_name}</p>
+                                            <div>${reviewStars}</div>
+                                        </div>
+                                        <p class="text-gray-300 text-sm">${review.text}</p>
+                                    </div>
+                                `;
+                            });
+
+                            googleReviewsHtml = `
+                                <div class="mt-8">
+                                    <h2 class="font-anton text-4xl mb-6">Recent Reviews <span class="accent-color">from Google</span></h2>
+                                    <div class="space-y-4">
+                                        ${reviewsCardsHtml}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        console.warn(`Could not fetch Place Details for Place ID ${placeId}. Status: ${placeDetailsData.status}`);
+                    }
+                } catch (error) {
+                    console.error("Error fetching place details:", error);
+                }
+            }
+            // Attribution for Google Places API
+            googleAttributionHtml = `
+                <div class="mt-8 text-center">
+                    <img src="https://maps.gstatic.com/help/attribution_image_uk-2x.png" alt="Powered by Google" style="width:120px; margin: 0 auto;">
+                </div>
+            `;
+        }
+
+
         const eventRecords = await base('Events').select({
             filterByFormula: `AND({Venue Name} = "${venue.Name}", IS_AFTER({Date}, TODAY()))`,
             sort: [{ field: 'Date', direction: 'asc' }],
@@ -64,7 +187,7 @@ exports.handler = async function (event, context) {
                             </div>
                             ${venue['Opening Hours'] ? `<div><h3 class="font-bold text-lg accent-color-secondary mb-2">Opening Hours</h3><p class="text-gray-300 text-lg whitespace-pre-line">${venue['Opening Hours']}</p></div>` : ''}
                             ${venue.Accessibility ? `<div><h3 class="font-bold text-lg accent-color-secondary mb-2">Accessibility</h3><p class="text-gray-300 text-lg whitespace-pre-line">${venue.Accessibility}</p></div>` : ''}
-                            <div>
+                            ${googleRatingHtml} <div>
                                 <h3 class="font-bold text-lg accent-color-secondary mb-2">Follow Them</h3>
                                 <div class="flex space-x-6 text-2xl text-gray-400">
                                     ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="hover:text-white" title="Website"><i class="fas fa-globe"></i></a>` : ''}
@@ -92,7 +215,7 @@ exports.handler = async function (event, context) {
                                     </a>
                                 `).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>'}
                              </div>
-                        </div>
+                             ${googleReviewsHtml} ${googleAttributionHtml} </div>
                     </div>
                 </main>
                 <div id="footer-placeholder"></div>

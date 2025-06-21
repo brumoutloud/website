@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Venues | Admin Panel</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Anton for headings, Poppins for body text -->
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom main CSS -->
+    <link rel="stylesheet" href="/css/main.css">
+    <!-- Auth Guard for admin pages -->
+    <script type="module" src="/js/auth-guard.js"></script>
+    <style>
+        /* Styles for filter buttons (kept for consistency with other admin pages) */
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s, color 0.2s;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #d1d5db;
+        }
+        .filter-button.active {
+            background-color: #E83A99; /* Accent color */
+            color: white;
+        }
+        .filter-button:hover:not(.active) {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        /* Custom form styling for input and select elements within the modal */
+        #edit-form input[type="text"],
+        #edit-form input[type="email"],
+        #edit-form input[type="tel"],
+        #edit-form input[type="url"],
+        #edit-form textarea,
+        #edit-form select {
+            @apply w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white;
+        }
+        #edit-form input[type="file"] {
+            @apply w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600;
+        }
+        #edit-form label {
+            @apply block text-sm font-semibold mb-1 accent-color-secondary;
+        }
+        /* Checkbox styling */
+        .form-checkbox {
+            @apply h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header Placeholder: Content will be loaded dynamically by main.js -->
+    <div id="header-placeholder"></div>
+
+    <main class="container mx-auto px-8 py-16">
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">VENUES</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Add, edit, and manage venues on the site.</p>
+            </div>
+            
+            <div class="card-bg p-6 mb-8 rounded-lg shadow-lg">
+                <div class="flex flex-wrap justify-end items-center gap-4">
+                     <button id="add-venue-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0 shadow-md">
+                        <i class="fas fa-plus mr-2"></i> Add New Venue
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State: Shown while venues are being fetched -->
+            <div id="loading-state" class="text-center py-10">
+                <div class="loader inline-block"></div>
+                <p class="mt-4 text-gray-400">Loading approved venues...</p>
+            </div>
+
+            <!-- Venue List Container: Venues will be rendered here -->
+            <div id="venue-list" class="space-y-4">
+                <!-- Venue cards will be dynamically inserted here -->
+            </div>
+
+            <!-- Load More Button: Hidden as get-venues.js fetches all approved venues -->
+            <div id="load-more-container" class="text-center mt-8 hidden">
+                <button id="load-more-btn" class="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-600">Load More</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Edit Modal: Hidden by default, shown when 'Edit' button is clicked -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto rounded-lg shadow-xl">
+             <h3 id="modal-title" class="font-anton text-3xl text-white mb-6">Edit Venue</h3>
+             <!-- Form fields will be dynamically populated here -->
+             <div id="edit-form-fields" class="space-y-4"></div>
+             <div class="flex justify-end gap-4 pt-4">
+                <button type="button" id="cancel-edit-btn" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+             </div>
+        </form>
+    </div>
+    
+    <!-- Footer Placeholder: Content will be loaded dynamically by main.js -->
+    <div id="footer-placeholder"></div>
+
+    <!-- Main JavaScript file (for header/footer, etc.) -->
+    <script src="/js/main.js" defer></script>
+    <script>
+        // DOM Elements
+        const venueList = document.getElementById('venue-list');
+        const loadingState = document.getElementById('loading-state');
+        const loadMoreContainer = document.getElementById('load-more-container'); // Not used for this page but kept for consistency
+        const loadMoreBtn = document.getElementById('load-more-btn'); // Not used for this page but kept for consistency
+        const addVenueBtn = document.getElementById('add-venue-btn');
+        const editModal = document.getElementById('edit-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const editForm = document.getElementById('edit-form');
+        const editFormFields = document.getElementById('edit-form-fields');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        
+        // State variables
+        let allAdminVenues = []; // Stores all fetched venue data
+        let currentItemForAction = null; // Stores the venue currently being edited
+        let isFetching = false; // Prevents multiple simultaneous fetch calls
+
+        /**
+         * Renders a single venue card for the list.
+         * @param {object} item - The venue data object.
+         * @returns {HTMLElement} The created card element.
+         */
+        function renderVenue(item) {
+            const name = item.name;
+            const description = item.description || 'No description provided.';
+            // Use medium photo if available, otherwise original, or a placeholder
+            const imageUrl = item.photo?.medium || item.photo?.original || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
+            
+            // Escape single quotes in JSON string for data-item attribute
+            const itemString = JSON.stringify(item).replace(/'/g, '&apos;'); 
+            
+            const card = document.createElement('div');
+            card.className = 'card-bg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center rounded-lg shadow-md';
+            card.innerHTML = `
+                <div class="flex items-center flex-grow mb-4 sm:mb-0">
+                    <img src="${imageUrl}" alt="${name}" class="w-20 h-20 object-cover rounded-md flex-shrink-0 mr-4 border border-gray-700">
+                    <div>
+                        <h3 class="font-bold text-xl text-white">${name}</h3>
+                        <p class="text-sm text-gray-400">${description.substring(0, 100)}${description.length > 100 ? '...' : ''}</p>
+                    </div>
+                </div>
+                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 transition-colors flex-shrink-0 w-full sm:w-auto" data-item='${itemString}'>
+                    <i class="fas fa-edit mr-2"></i>Edit
+                </button>
+            `;
+            return card;
+        }
+        
+        /**
+         * Fetches all approved venues from the backend and renders them.
+         * Displays a loading state and handles errors.
+         */
+        async function fetchAndRenderVenues() {
+            if (isFetching) return; // Prevent duplicate fetches
+            isFetching = true;
+            loadingState.style.display = 'block'; // Show loading spinner
+            venueList.innerHTML = ''; // Clear previous list
+            allAdminVenues = []; // Reset stored data
+
+            try {
+                // Call the Netlify function to get all venues
+                const response = await fetch('/.netlify/functions/get-venues');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({details: 'Server returned an invalid response'}));
+                    throw new Error(errorData.details || 'Failed to fetch venues.');
+                }
+                const data = await response.json();
+                loadingState.style.display = 'none'; // Hide loading spinner
+                
+                if (data && data.length > 0) {
+                    allAdminVenues = data;
+                    // Render each venue
+                    allAdminVenues.forEach(item => venueList.appendChild(renderVenue(item)));
+                } else {
+                    venueList.innerHTML = '<p class="text-center text-gray-400">No approved venues found.</p>';
+                }
+                // The get-venues.js function currently fetches all approved venues, so no "Load More" needed.
+                loadMoreContainer.style.display = 'none'; 
+            } catch (error) {
+                console.error("Error fetching venues:", error);
+                loadingState.innerHTML = `<p class="text-red-400 text-center">Error: ${error.message}</p>`;
+            } finally {
+                isFetching = false;
+            }
+        }
+
+        /**
+         * Populates the edit modal form with data from the selected venue.
+         * @param {object} item - The venue data to populate the form with.
+         */
+        function populateEditForm(item) {
+            currentItemForAction = item; // Store the item being edited
+            modalTitle.textContent = 'Edit Venue'; // Set modal title
+
+            // Use original photo if available, otherwise medium, or null
+            const currentPhotoUrl = item?.photo?.original || item?.photo?.medium || null; 
+
+            // Form fields, identical to admin-add-venue.html, pre-populated with item data
+            const formHtml = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label for="name">Venue Name</label><input type="text" id="name" name="Name" value="${item.name || ''}" required></div>
+                    <div><label for="address">Address</label><input type="text" id="address" name="Address" value="${item.address || ''}" required></div>
+                </div>
+                <div><label for="description">Description</label><textarea id="description" name="Description" rows="4">${item.description || ''}</textarea></div>
+                <div><label for="opening-hours">Opening Hours</label><textarea id="opening-hours" name="Opening Hours" rows="4" placeholder="e.g., Mon-Thu: 5pm - 12am...">${item['Opening Hours'] || ''}</textarea></div>
+                <div><label for="accessibility">Accessibility Info</label><textarea id="accessibility" name="Accessibility" rows="3">${item.accessibility || ''}</textarea></div>
+                
+                <div>
+                    <label>Vibe Tags</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Lively" ${item['Vibe Tags']?.includes('Lively') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Lively</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Relaxed" ${item['Vibe Tags']?.includes('Relaxed') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Relaxed</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Party" ${item['Vibe Tags']?.includes('Party') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Party</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Chilled" ${item['Vibe Tags']?.includes('Chilled') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Chilled</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Community-Focused" ${item['Vibe Tags']?.includes('Community-Focused') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Community-Focused</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Cabaret" ${item['Vibe Tags']?.includes('Cabaret') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Cabaret</span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label>Venue Features</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Drag Shows" ${item['Venue Features']?.includes('Drag Shows') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Drag Shows</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Karaoke" ${item['Venue Features']?.includes('Karaoke') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Karaoke</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Live Music" ${item['Venue Features']?.includes('Live Music') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Live Music</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Serves Food" ${item['Venue Features']?.includes('Serves Food') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Serves Food</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Outdoor Area" ${item['Venue Features']?.includes('Outdoor Area') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Outdoor Area</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Happy Hour" ${item['Venue Features']?.includes('Happy Hour') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Happy Hour</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Pool Table" ${item['Venue Features']?.includes('Pool Table') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Pool Table</span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="accessibility-rating">Accessibility Rating</label>
+                    <select id="accessibility-rating" name="Accessibility Rating">
+                        <option value="">Select a rating</option>
+                        <option value="Fully Accessible" ${item['Accessibility Rating'] === 'Fully Accessible' ? 'selected' : ''}>Fully Accessible</option>
+                        <option value="Partially Accessible" ${item['Accessibility Rating'] === 'Partially Accessible' ? 'selected' : ''}>Partially Accessible</option>
+                        <option value="Not Accessible" ${item['Accessibility Rating'] === 'Not Accessible' ? 'selected' : ''}>Not Accessible</option>
+                        <option value="Info Unavailable" ${item['Accessibility Rating'] === 'Info Unavailable' ? 'selected' : ''}>Info Unavailable</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Accessibility Features</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Accessibility Features" value="Step-Free Access" ${item['Accessibility Features']?.includes('Step-Free Access') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Step-Free Access</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Accessibility Features" value="Accessible Toilets" ${item['Accessibility Features']?.includes('Accessible Toilets') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Accessible Toilets</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Accessibility Features" value="Gender-Neutral Toilets" ${item['Accessibility Features']?.includes('Gender-Neutral Toilets') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Gender-Neutral Toilets</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Accessibility Features" value="Ramp Available" ${item['Accessibility Features']?.includes('Ramp Available') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Ramp Available</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="Accessibility Features" value="Guide Dogs Permitted" ${item['Accessibility Features']?.includes('Guide Dogs Permitted') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Guide Dogs Permitted</span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="parking-exception">Parking Exception</label>
+                    <textarea id="parking-exception" name="Parking Exception" rows="3" placeholder="e.g., On-site car park available after 6 pm.">${item['Parking Exception'] || ''}</textarea>
+                </div>
+
+                <div class="border-t border-gray-700 pt-6">
+                    <h3 class="font-bold text-xl mb-4 text-white text-center">Contact Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><label for="contact-email">Contact Email</label><input type="email" id="contact-email" name="Contact Email" value="${item['Contact Email'] || ''}"></div>
+                        <div><label for="contact-phone">Contact Phone</label><input type="tel" id="contact-phone" name="Contact Phone" value="${item['Contact Phone'] || ''}"></div>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-700 pt-6">
+                    <h3 class="font-bold text-xl mb-4 text-white text-center">Social & Website Links</h3>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div><label for="website">Website URL</label><input type="url" id="website" name="Website" value="${item.website || ''}"></div>
+                         <div><label for="instagram">Instagram URL</label><input type="url" id="instagram" name="Instagram" value="${item.instagram || ''}"></div>
+                         <div><label for="facebook">Facebook URL</label><input type="url" id="facebook" name="Facebook" value="${item.facebook || ''}"></div>
+                         <div><label for="tiktok">TikTok URL</label><input type="url" id="tiktok" name="TikTok" value="${item.tiktok || ''}"></div>
+                     </div>
+                </div>
+                <div>
+                    <label>Current Photo</label>
+                    ${currentPhotoUrl ? `<img src="${currentPhotoUrl}" alt="Current Venue Photo" class="max-h-32 rounded-md mb-2 object-cover border border-gray-700">` : '<p class="text-gray-400">No image submitted.</p>'}
+                    <label for="photo">Upload New Photo</label>
+                    <input type="file" id="photo" name="photo" accept="image/png, image/jpeg, image/webp">
+                </div>
+            `;
+            
+            editFormFields.innerHTML = formHtml;
+            // Show the modal
+            editModal.classList.remove('hidden');
+        }
+
+        // --- EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Fetch and render venues when the page loads
+            fetchAndRenderVenues();
+            
+            // Event listener for the "Add New Venue" button
+            addVenueBtn.addEventListener('click', () => {
+                // Redirect to admin-add-venue.html for adding new venues
+                window.location.href = '/admin-add-venue.html'; // Assuming this is the correct path
+            });
+
+            // Event listener for the "Cancel" button in the edit modal
+            cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+
+            // Event delegation for "Edit" buttons on venue cards
+            venueList.addEventListener('click', (e) => {
+                const editButton = e.target.closest('.edit-btn');
+                if (editButton) {
+                    try {
+                        // Retrieve the venue data from the data-item attribute
+                        const itemData = editButton.dataset.item.replace(/&apos;/g, "'"); // Decode escaped single quotes
+                        const item = JSON.parse(itemData);
+                        populateEditForm(item); // Populate and show the edit modal
+                    } catch (error) {
+                        console.error("Failed to parse venue data:", error);
+                        // Using a custom modal/message box is preferred over alert()
+                        // For this example, a simple alert is used as a placeholder
+                        alert("Could not open the editor for this venue due to a data error. Please check console for details.");
+                    }
+                }
+            });
+            
+            // Event listener for the edit form submission
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); // Prevent default form submission
+                const submitBtn = editForm.querySelector('button[type=submit]');
+                const originalBtnText = submitBtn.textContent;
+                submitBtn.disabled = true; // Disable button to prevent double submission
+                submitBtn.textContent = 'Saving...'; // Change button text
+                
+                const formData = new FormData(editForm);
+                formData.append('id', currentItemForAction.id); // Add the ID of the venue being edited
+                formData.append('type', 'Venue'); // Indicate that this is a venue update
+
+                try {
+                    // Send the form data to the Netlify function for update
+                    const response = await fetch('/.netlify/functions/update-submission', { 
+                        method: 'POST', 
+                        body: formData // FormData automatically sets content-type to multipart/form-data
+                    });
+
+                    if (!response.ok) {
+                        const err = await response.json().catch(() => ({message: 'Unknown server error'}));
+                        throw new Error(err.message || 'Server returned an error');
+                    }
+                    // Using a custom modal/message box is preferred over alert()
+                    alert('Venue updated successfully!');
+                    location.reload(); // Reload page to reflect changes
+                } catch (error) {
+                    console.error("Error saving changes:", error);
+                    // Using a custom modal/message box is preferred over alert()
+                    alert(`Error saving changes: ${error.toString()}`);
+                    submitBtn.disabled = false; // Re-enable button
+                    submitBtn.textContent = originalBtnText; // Restore button text
+                }
+            });
+        });
+    </script>
+</body>
+</html>

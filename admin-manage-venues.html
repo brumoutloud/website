@@ -102,8 +102,8 @@
          */
         function renderVenue(item) {
             // Use capitalized keys for display as this is how Airtable often returns them
-            const name = item.name || 'N/A'; // Corrected to item.name from item.Name
-            const description = item.description || 'No description provided.'; // Corrected to item.description
+            const name = item.name || 'N/A';
+            const description = item.description || 'No description provided.';
             // Use Photo Medium URL if available, otherwise Photo URL, or a placeholder
             const imageUrl = item.photo?.medium || item.photo?.original || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
             
@@ -185,9 +185,7 @@
             const checkboxInputClass = "form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color";
 
 
-            // Form HTML structure with pre-population using CORRECT Airtable-style keys
-            // Note: The `name` attributes for form submission will remain lowercase hyphenated as per admin-add-venue.html,
-            // but data retrieval uses capitalized/space-separated keys.
+            // Form HTML structure with pre-population using CORRECT camelCase keys from get-venues.js output
             const formHtml = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label for="name" class="${labelClass}">Venue Name</label><input type="text" id="name" name="name" value="${item.name || ''}" class="${inputClass}" required></div>

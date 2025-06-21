@@ -80,113 +80,41 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('[DEBUG] DOM Content Loaded. Initializing script.');
+
             const form = document.getElementById('single-event-form');
-            const newVenueAddressContainer = document.getElementById('new-venue-address-container');
-            const newVenueAddressInput = document.getElementById('new-venue-address');
-            const statusDiv = document.getElementById('form-status');
-            const submitButton = document.getElementById('submit-button');
+            if (!form) {
+                console.error('[DEBUG] CRITICAL: Could not find form with ID "single-event-form".');
+                return;
+            }
+            
+            const venueSelectElement = document.getElementById('venue-select');
+            if (!venueSelectElement) {
+                console.error('[DEBUG] CRITICAL: Could not find select element with ID "venue-select".');
+                return;
+            }
 
-            let isCreatingNewVenue = false;
-            let newVenueName = '';
-
-            const tomSelect = new TomSelect('#venue-select', {
-                valueField: 'id',
-                labelField: 'name',
-                searchField: 'name',
-                create: true,
-                createFilter: (input) => input.length > 2,
-                render: {
-                    option_create: (data, escape) => `<div class="create">✨ Add a new location: <strong>${escape(data.input)}</strong></div>`,
-                },
-                load: (query, callback) => {
-                    fetch(`/.netlify/functions/get-venues?search=${encodeURIComponent(query)}`)
-                        .then(res => res.json()).then(callback).catch(() => callback());
-                },
-                onChange: (value) => {
-                    if (value && !value.startsWith('__new__')) {
-                        isCreatingNewVenue = false;
-                        newVenueAddressContainer.classList.add('hidden');
-                        newVenueAddressInput.required = false;
+            console.log('[DEBUG] Initializing Tom Select...');
+            try {
+                const tomSelect = new TomSelect(venueSelectElement, {
+                    valueField: 'id',
+                    labelField: 'name',
+                    searchField: 'name',
+                    create: true,
+                    onInitialize: function() {
+                        console.log('[DEBUG] Tom Select has been initialized successfully.');
+                    },
+                    onCreate: function(value) {
+                        console.log(`[DEBUG] Tom Select 'onCreate' event fired with value: "${value}"`);
+                        // This is where the modal or inline field logic should go.
+                        // For now, we are just logging to see if this event fires.
+                        alert(`You tried to create a new venue: "${value}". Check the console for details.`);
+                        return false; 
                     }
-                },
-                onItemAdd: (value, item) => {
-                    if (value.startsWith('__new__')) {
-                         isCreatingNewVenue = true;
-                         newVenueName = item.textContent.replace('✨ Add a new location: ','');
-                         newVenueAddressContainer.classList.remove('hidden');
-                         newVenueAddressInput.required = true;
-                         tomSelect.clear(); // Clear the "new..." item from the select
-                    }
-                }
-            });
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                submitButton.disabled = true;
-                statusDiv.textContent = 'Submitting, please wait...';
-                statusDiv.className = 'text-center text-white';
-                statusDiv.classList.remove('hidden');
-
-                let venueId = tomSelect.getValue();
-                
-                // Step 1: If creating a new venue, create it first.
-                if (isCreatingNewVenue) {
-                    try {
-                        const response = await fetch('/.netlify/functions/create-unlisted-venue', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                venueName: newVenueName,
-                                address: newVenueAddressInput.value
-                            })
-                        });
-                        const result = await response.json();
-                        if (!response.ok || !result.success) throw new Error(result.message || 'Failed to create venue.');
-                        venueId = result.id; // Get the ID of the newly created venue
-                    } catch (error) {
-                        statusDiv.textContent = `Error: ${error.message}`;
-                        statusDiv.className = 'text-center text-red-500';
-                        submitButton.disabled = false;
-                        return;
-                    }
-                }
-
-                if (!venueId) {
-                    statusDiv.textContent = 'Error: Please select or create a venue.';
-                    statusDiv.className = 'text-center text-red-500';
-                    submitButton.disabled = false;
-                    return;
-                }
-                
-                // Step 2: Submit the event with the correct venue ID
-                const formData = new FormData();
-                formData.append('event-name', form.elements['event-name'].value);
-                formData.append('date', form.elements['date'].value);
-                formData.append('start-time', form.elements['start-time'].value);
-                formData.append('description', form.elements['description'].value);
-                formData.append('link', form.elements['link'].value);
-                formData.append('recurring-info', form.elements['recurring-info'].value);
-                formData.append('promo-image', form.elements['promo-image'].files[0]);
-                formData.append('venueId', venueId);
-
-                try {
-                     const response = await fetch('/.netlify/functions/event-submission', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (!response.ok) throw new Error('Server error during event submission.');
-                    
-                    statusDiv.textContent = 'Success! Your event has been submitted for review.';
-                    statusDiv.className = 'text-center text-green-400';
-                    form.reset();
-                    tomSelect.clear();
-
-                } catch (error) {
-                    statusDiv.textContent = `Error: ${error.message}`;
-                    statusDiv.className = 'text-center text-red-500';
-                    submitButton.disabled = false;
-                }
-            });
+                });
+            } catch (e) {
+                console.error('[DEBUG] CRITICAL: An error occurred during Tom Select initialization.', e);
+            }
         });
     </script>
 </body>

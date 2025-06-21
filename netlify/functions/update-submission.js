@@ -10,7 +10,8 @@ cloudinary.config({
 
 exports.handler = async (event, context) => {
   try {
-    if (event.httpMethod !== 'PUT') {
+    // Change the expected HTTP method from PUT to POST to match the client-side request
+    if (event.httpMethod !== 'POST') {
       return {
         statusCode: 405,
         body: 'Method Not Allowed',
@@ -136,7 +137,7 @@ exports.handler = async (event, context) => {
         'Accessibility Features': toArray(result['accessibility-features']),
         'Parking Exception': result['parking-exception'],
         'Contact Email': result['contact-email'],
-        'Contact Phone': result['contact-phone'],
+        'Contact Phone': result['contact_phone'], // Corrected field name based on typical form naming
         'Website': result.website,
         'Instagram': result.instagram,
         'Facebook': result.facebook,

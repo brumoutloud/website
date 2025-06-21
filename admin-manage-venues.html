@@ -101,11 +101,11 @@
          * @returns {HTMLElement} The created card element.
          */
         function renderVenue(item) {
-            // Note: Assuming 'name' and 'description' keys from get-venues.js output are lowercase for card display.
-            const name = item.name || item.Name; // Try lowercase first, then capitalized
-            const description = item.description || item.Description || 'No description provided.';
-            // Use medium photo if available, otherwise original, or a placeholder
-            const imageUrl = item.photo?.medium || item.photo?.original || item['Photo URL'] || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
+            // Use capitalized keys for display as this is how Airtable often returns them
+            const name = item.Name || 'N/A'; 
+            const description = item.Description || 'No description provided.';
+            // Use Photo Medium URL if available, otherwise Photo URL, or a placeholder
+            const imageUrl = item['Photo Medium URL'] || item['Photo URL'] || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
             
             // Escape single quotes in JSON string for data-item attribute
             const itemString = JSON.stringify(item).replace(/'/g, '&apos;'); 
@@ -173,9 +173,8 @@
             currentItemForAction = item; // Store the item being edited
             modalTitle.textContent = 'Edit Venue'; // Set modal title
 
-            // Use original photo if available, otherwise medium, or null
-            // Check for 'Photo URL' first, then 'photo' object for consistency with how Airtable returns attachments
-            const currentPhotoUrl = item['Photo URL'] || item.photo?.[0]?.url || item.photo?.original || item.photo?.medium || null; 
+            // Use the Photo URL directly from the item, or fallbacks
+            const currentPhotoUrl = item['Photo URL'] || item.photo?.[0]?.url || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=No+Photo';
 
             // Form element classes (copied directly from admin-add-venue.html)
             const inputClass = "w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none";
@@ -184,38 +183,40 @@
             const fileInputClass = "w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600";
             const labelClass = "block text-sm font-semibold mb-2 accent-color-secondary"; // Ensure consistent label spacing
 
-            // Form HTML structure with pre-population using lowercase, hyphenated keys
+            // Form HTML structure with pre-population using CORRECT Airtable-style keys
+            // Note: The `name` attributes for form submission will remain lowercase hyphenated as per admin-add-venue.html,
+            // but data retrieval uses capitalized/space-separated keys.
             const formHtml = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label for="name" class="${labelClass}">Venue Name</label><input type="text" id="name" name="name" value="${item.name || ''}" class="${inputClass}" required></div>
-                    <div><label for="address" class="${labelClass}">Address</label><input type="text" id="address" name="address" value="${item.address || ''}" class="${inputClass}" required></div>
+                    <div><label for="name" class="${labelClass}">Venue Name</label><input type="text" id="name" name="name" value="${item.Name || ''}" class="${inputClass}" required></div>
+                    <div><label for="address" class="${labelClass}">Address</label><input type="text" id="address" name="address" value="${item.Address || ''}" class="${inputClass}" required></div>
                 </div>
-                <div><label for="description" class="${labelClass}">Description</label><textarea id="description" name="description" rows="4" class="${textareaClass}">${item.description || ''}</textarea></div>
-                <div><label for="opening-hours" class="${labelClass}">Opening Hours</label><textarea id="opening-hours" name="opening-hours" rows="4" class="${textareaClass}" placeholder="e.g., Mon-Thu: 5pm - 12am...">${item['opening-hours'] || ''}</textarea></div>
-                <div><label for="accessibility" class="${labelClass}">Accessibility Info</label><textarea id="accessibility" name="accessibility" rows="3" class="${textareaClass}">${item.accessibility || ''}</textarea></div>
+                <div><label for="description" class="${labelClass}">Description</label><textarea id="description" name="description" rows="4" class="${textareaClass}">${item.Description || ''}</textarea></div>
+                <div><label for="opening-hours" class="${labelClass}">Opening Hours</label><textarea id="opening-hours" name="opening-hours" rows="4" class="${textareaClass}" placeholder="e.g., Mon-Thu: 5pm - 12am...">${item['Opening Hours'] || ''}</textarea></div>
+                <div><label for="accessibility" class="${labelClass}">Accessibility Info</label><textarea id="accessibility" name="accessibility" rows="3" class="${textareaClass}">${item.Accessibility || ''}</textarea></div>
                 
                 <div>
                     <label class="${labelClass}">Vibe Tags</label>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Lively" ${item['vibe-tags']?.includes('Lively') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Lively</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Relaxed" ${item['vibe-tags']?.includes('Relaxed') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Relaxed</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Party" ${item['vibe-tags']?.includes('Party') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Party</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Chilled" ${item['vibe-tags']?.includes('Chilled') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Chilled</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Community-Focused" ${item['vibe-tags']?.includes('Community-Focused') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Community-Focused</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Cabaret" ${item['vibe-tags']?.includes('Cabaret') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Cabaret</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Lively" ${item['Vibe Tags']?.includes('Lively') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Lively</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Relaxed" ${item['Vibe Tags']?.includes('Relaxed') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Relaxed</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Party" ${item['Vibe Tags']?.includes('Party') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Party</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Chilled" ${item['Vibe Tags']?.includes('Chilled') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Chilled</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Community-Focused" ${item['Vibe Tags']?.includes('Community-Focused') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Community-Focused</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Cabaret" ${item['Vibe Tags']?.includes('Cabaret') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Cabaret</span></label>
                     </div>
                 </div>
 
                 <div>
                     <label class="${labelClass}">Venue Features</label>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Drag Shows" ${item['venue-features']?.includes('Drag Shows') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Drag Shows</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Karaoke" ${item['venue-features']?.includes('Karaoke') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Karaoke</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Live Music" ${item['venue-features']?.includes('Live Music') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Live Music</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Serves Food" ${item['venue-features']?.includes('Serves Food') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Serves Food</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Outdoor Area" ${item['venue-features']?.includes('Outdoor Area') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Outdoor Area</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Happy Hour" ${item['venue-features']?.includes('Happy Hour') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Happy Hour</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Pool Table" ${item['venue-features']?.includes('Pool Table') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Pool Table</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Drag Shows" ${item['Venue Features']?.includes('Drag Shows') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Drag Shows</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Karaoke" ${item['Venue Features']?.includes('Karaoke') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Karaoke</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Live Music" ${item['Venue Features']?.includes('Live Music') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Live Music</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Serves Food" ${item['Venue Features']?.includes('Serves Food') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Serves Food</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Outdoor Area" ${item['Venue Features']?.includes('Outdoor Area') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Outdoor Area</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Happy Hour" ${item['Venue Features']?.includes('Happy Hour') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Happy Hour</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Pool Table" ${item['Venue Features']?.includes('Pool Table') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Pool Table</span></label>
                     </div>
                 </div>
 
@@ -223,44 +224,44 @@
                     <label for="accessibility-rating" class="${labelClass}">Accessibility Rating</label>
                     <select id="accessibility-rating" name="accessibility-rating" class="${selectClass}">
                         <option value="">Select a rating</option>
-                        <option value="Fully Accessible" ${item['accessibility-rating'] === 'Fully Accessible' ? 'selected' : ''}>Fully Accessible</option>
-                        <option value="Partially Accessible" ${item['accessibility-rating'] === 'Partially Accessible' ? 'selected' : ''}>Partially Accessible</option>
-                        <option value="Not Accessible" ${item['accessibility-rating'] === 'Not Accessible' ? 'selected' : ''}>Not Accessible</option>
-                        <option value="Info Unavailable" ${item['accessibility-rating'] === 'Info Unavailable' ? 'selected' : ''}>Info Unavailable</option>
+                        <option value="Fully Accessible" ${item['Accessibility Rating'] === 'Fully Accessible' ? 'selected' : ''}>Fully Accessible</option>
+                        <option value="Partially Accessible" ${item['Accessibility Rating'] === 'Partially Accessible' ? 'selected' : ''}>Partially Accessible</option>
+                        <option value="Not Accessible" ${item['Accessibility Rating'] === 'Not Accessible' ? 'selected' : ''}>Not Accessible</option>
+                        <option value="Info Unavailable" ${item['Accessibility Rating'] === 'Info Unavailable' ? 'selected' : ''}>Info Unavailable</option>
                     </select>
                 </div>
 
                 <div>
                     <label class="${labelClass}">Accessibility Features</label>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Step-Free Access" ${item['accessibility-features']?.includes('Step-Free Access') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Step-Free Access</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Accessible Toilets" ${item['accessibility-features']?.includes('Accessible Toilets') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Accessible Toilets</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Gender-Neutral Toilets" ${item['accessibility-features']?.includes('Gender-Neutral Toilets') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Gender-Neutral Toilets</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Ramp Available" ${item['accessibility-features']?.includes('Ramp Available') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Ramp Available</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Guide Dogs Permitted" ${item['accessibility-features']?.includes('Guide Dogs Permitted') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Guide Dogs Permitted</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Step-Free Access" ${item['Accessibility Features']?.includes('Step-Free Access') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Step-Free Access</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Accessible Toilets" ${item['Accessibility Features']?.includes('Accessible Toilets') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Accessible Toilets</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Gender-Neutral Toilets" ${item['Accessibility Features']?.includes('Gender-Neutral Toilets') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Gender-Neutral Toilets</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Ramp Available" ${item['Accessibility Features']?.includes('Ramp Available') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Ramp Available</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Guide Dogs Permitted" ${item['Accessibility Features']?.includes('Guide Dogs Permitted') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Guide Dogs Permitted</span></label>
                     </div>
                 </div>
 
                 <div>
                     <label for="parking-exception" class="${labelClass}">Parking Exception</label>
-                    <textarea id="parking-exception" name="parking-exception" rows="3" class="${textareaClass}" placeholder="e.g., On-site car park available after 6 pm.">${item['parking-exception'] || ''}</textarea>
+                    <textarea id="parking-exception" name="parking-exception" rows="3" class="${textareaClass}" placeholder="e.g., On-site car park available after 6 pm.">${item['Parking Exception'] || ''}</textarea>
                 </div>
 
                 <div class="border-t border-gray-700 pt-6">
                     <h3 class="font-bold text-xl mb-4 text-white text-center">Contact Information</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div><label for="contact-email" class="${labelClass}">Contact Email</label><input type="email" id="contact-email" name="contact-email" value="${item['contact-email'] || ''}" class="${inputClass}"></div>
-                        <div><label for="contact-phone" class="${labelClass}">Contact Phone</label><input type="tel" id="contact-phone" name="contact-phone" value="${item['contact-phone'] || ''}" class="${inputClass}"></div>
+                        <div><label for="contact-email" class="${labelClass}">Contact Email</label><input type="email" id="contact-email" name="contact-email" value="${item['Contact Email'] || ''}" class="${inputClass}"></div>
+                        <div><label for="contact-phone" class="${labelClass}">Contact Phone</label><input type="tel" id="contact-phone" name="contact-phone" value="${item['Contact Phone'] || ''}" class="${inputClass}"></div>
                     </div>
                 </div>
 
                 <div class="border-t border-gray-700 pt-6">
                     <h3 class="font-bold text-xl mb-4 text-white text-center">Social & Website Links</h3>
                      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div><label for="website" class="${labelClass}">Website URL</label><input type="url" id="website" name="website" value="${item.website || ''}" class="${inputClass}"></div>
-                         <div><label for="instagram" class="${labelClass}">Instagram URL</label><input type="url" id="instagram" name="instagram" value="${item.instagram || ''}" class="${inputClass}"></div>
-                         <div><label for="facebook" class="${labelClass}">Facebook URL</label><input type="url" id="facebook" name="facebook" value="${item.facebook || ''}" class="${inputClass}"></div>
-                         <div><label for="tiktok" class="${labelClass}">TikTok URL</label><input type="url" id="tiktok" name="tiktok" value="${item.tiktok || ''}" class="${inputClass}"></div>
+                         <div><label for="website" class="${labelClass}">Website URL</label><input type="url" id="website" name="website" value="${item.Website || ''}" class="${inputClass}"></div>
+                         <div><label for="instagram" class="${labelClass}">Instagram URL</label><input type="url" id="instagram" name="instagram" value="${item.Instagram || ''}" class="${inputClass}"></div>
+                         <div><label for="facebook" class="${labelClass}">Facebook URL</label><input type="url" id="facebook" name="facebook" value="${item.Facebook || ''}" class="${inputClass}"></div>
+                         <div><label for="tiktok" class="${labelClass}">TikTok URL</label><input type="url" id="tiktok" name="tiktok" value="${item.TikTok || ''}" class="${inputClass}"></div>
                      </div>
                 </div>
                 <div>

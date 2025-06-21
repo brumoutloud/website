@@ -10,7 +10,6 @@ cloudinary.config({
 
 exports.handler = async (event, context) => {
   try {
-    // Change the expected HTTP method from PUT to POST to match the client-side request
     if (event.httpMethod !== 'POST') {
       return {
         statusCode: 405,
@@ -40,7 +39,15 @@ exports.handler = async (event, context) => {
           data: part.data,
         };
       } else {
-        result[part.name] = part.data.toString('utf8');
+        // Handle array values like categories by pushing to an array if key already exists
+        if (result[part.name] && !Array.isArray(result[part.name])) {
+            result[part.name] = [result[part.name]]; // Convert to array if it's a single value already
+        }
+        if (Array.isArray(result[part.name])) {
+            result[part.name].push(part.data.toString('utf8'));
+        } else {
+            result[part.name] = part.data.toString('utf8');
+        }
       }
     });
 
@@ -79,51 +86,55 @@ exports.handler = async (event, context) => {
       });
     };
 
+    // This helper now assumes multipart.parse already handled multi-value fields into arrays
     const toArray = (value) => {
-      if (!value) return [];
-      try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [parsed];
-      } catch (e) {
-        return value.split(',').map(item => item.trim()).filter(item => item !== '');
-      }
+        if (value === undefined || value === null || value === '') return [];
+        if (Array.isArray(value)) {
+            return value;
+        }
+        // Fallback for single strings that should be arrays (e.g., if a single checkbox was selected)
+        return [value];
     };
+
 
     let table;
     let fieldsToUpdate = {};
 
     if (type === 'Event') {
-      table = base('Events Pending Approval');
+      table = base('Events'); 
+
+      // NEW HYBRID VENUE LOGIC
+      const linkedVenueId = result.linkedVenueId; 
+      const venueNameText = result.venueNameText; 
+
+      if (linkedVenueId && linkedVenueId !== '') {
+          fieldsToUpdate['Venue'] = [linkedVenueId]; 
+          fieldsToUpdate['VenueText'] = null; 
+      } else {
+          fieldsToUpdate['VenueText'] = venueNameText || ''; 
+          fieldsToUpdate['Venue'] = null; 
+      }
 
       fieldsToUpdate = {
-        'Name': result.name,
+        ...fieldsToUpdate, 
+        'Event Name': result['Event Name'], 
         'Date': result.date,
         'Time': result.time,
-        'Venue': toArray(result.venue),
-        'Type': toArray(result.type_tags),
-        'Genre': toArray(result.genre_tags),
-        'Cost': result.cost,
-        'Ticket Link': result.ticket_link,
-        'Description': result.description,
-        'Website': result.website,
-        'Instagram': result.instagram,
-        'Facebook': result.facebook,
-        'TikTok': result.tiktok,
-        'Contact Email': result.contact_email,
-        'Contact Phone': result.contact_phone,
-        'Internal Notes': result.internal_notes,
+        'Description': result.Description, 
+        'Link': result.Link, 
+        'Parent Event Name': result['Parent Event Name'],
+        'Recurring Info': result['Recurring Info'], 
+        'Category': toArray(result.Category), 
       };
 
-      const photoFile = files.photo;
-      if (photoFile && photoFile.data.length > 0) {
-        const { original, medium, thumbnail } = await uploadImage(photoFile, 'brumoutloud_events');
-        fieldsToUpdate['Photo'] = [{ url: original, filename: photoFile.filename }];
-        fieldsToUpdate['Photo URL'] = original;
-        fieldsToUpdate['Photo Medium URL'] = medium;
-        fieldsToUpdate['Photo Thumbnail URL'] = thumbnail;
+      const promoImageFile = files.promoImage; 
+      if (promoImageFile && promoImageFile.data.length > 0) {
+        const { original, medium, thumbnail } = await uploadImage(promoImageFile, 'brumoutloud_events');
+        fieldsToUpdate['Promo Image'] = [{ url: original, filename: promoImageFile.filename }];
       }
+      
     } else if (type === 'Venue') {
-      table = base('Venues Pending Approval');
+      table = base('Venues'); 
 
       fieldsToUpdate = {
         'Name': result.name,
@@ -137,7 +148,7 @@ exports.handler = async (event, context) => {
         'Accessibility Features': toArray(result['accessibility-features']),
         'Parking Exception': result['parking-exception'],
         'Contact Email': result['contact-email'],
-        'Contact Phone': result['contact_phone'], // Corrected field name based on typical form naming
+        'Contact Phone': result['contact_phone'], 
         'Website': result.website,
         'Instagram': result.instagram,
         'Facebook': result.facebook,
@@ -159,12 +170,20 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Filter out undefined values to avoid overwriting existing data with nulls
-    const filteredFields = Object.fromEntries(
-      Object.entries(fieldsToUpdate).filter(([, value]) => value !== undefined)
-    );
+    const finalFields = {};
+    for (const key in fieldsToUpdate) {
+        if (fieldsToUpdate[key] !== undefined) {
+            if ((key === 'Venue' || key === 'Photo' || key === 'Promo Image') && (fieldsToUpdate[key] === null || fieldsToUpdate[key].length === 0)) {
+                finalFields[key] = null;
+            } else if (fieldsToUpdate[key] === '') { 
+                finalFields[key] = '';
+            } else {
+                finalFields[key] = fieldsToUpdate[key];
+            }
+        }
+    }
 
-    await table.update(id, filteredFields);
+    await table.update(id, finalFields);
 
     return {
       statusCode: 200,

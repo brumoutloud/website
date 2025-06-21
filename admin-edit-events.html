@@ -122,6 +122,7 @@
         // State
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
         let allAdminEvents = [];
+        let allVenues = []; // New global variable for venues
         let currentItemForAction = null;
         let currentOffset = null;
         let isFetching = false;
@@ -155,6 +156,19 @@
                 <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0 ml-4" data-item='${itemString}'>Edit</button>
             `;
             return card;
+        }
+
+        async function fetchVenues() {
+            try {
+                const response = await fetch('/.netlify/functions/get-venues');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch venues for dropdown.');
+                }
+                allVenues = await response.json();
+            } catch (error) {
+                console.error("Error fetching venues:", error);
+                // Optionally display an error message to the user
+            }
         }
         
         function applyFilters() {
@@ -237,12 +251,41 @@
             const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
             const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
 
+            // Venue dropdown options
+            const venueOptionsHtml = allVenues.map(venue => {
+                const isSelected = item && item.fields.Venue && item.fields.Venue[0] === venue.id;
+                return `<option value="${venue.id}" ${isSelected ? 'selected' : ''}>${venue.name}</option>`;
+            }).join('');
+
+            let initialLinkedVenueId = '';
+            let initialVenueNameText = '';
+            let isLinkedVenueDisabled = false;
+            let isVenueTextDisabled = false;
+
+            if (item && item.fields.Venue && item.fields.Venue.length > 0) {
+                initialLinkedVenueId = item.fields.Venue[0];
+                isVenueTextDisabled = true; 
+            } else if (item && item.fields.VenueText) {
+                initialVenueNameText = item.fields.VenueText;
+                isLinkedVenueDisabled = true; 
+            }
+
             const formHtml = `
                 <div class="grid md:grid-cols-2 gap-4">
                     <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
                     <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
                 </div>
-                <div><label>Venue Text</label><input type="text" name="VenueText" value="${fields['VenueText'] || ''}" required></div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Linked Venue (from list)</label>
+                    <select id="linked-venue-select" name="linkedVenueId" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white" ${isLinkedVenueDisabled ? 'disabled' : ''}>
+                        <option value="">-- Select a listed venue --</option>
+                        ${venueOptionsHtml}
+                    </select>
+                    <p class="text-center text-gray-500 my-2">OR</p>
+                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name (as text, for unlisted)</label>
+                    <input type="text" id="venue-name-text" name="venueNameText" value="${initialVenueNameText}" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white" ${isVenueTextDisabled ? 'disabled' : ''}>
+                </div>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
                     <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
@@ -262,12 +305,47 @@
                 el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white';
             });
             editForm.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
+
+            // Add event listeners for mutual exclusivity *after* elements are rendered
+            const linkedVenueSelect = document.getElementById('linked-venue-select');
+            const venueNameTextInput = document.getElementById('venue-name-text');
+
+            if (linkedVenueSelect && venueNameTextInput) {
+                linkedVenueSelect.addEventListener('change', () => {
+                    if (linkedVenueSelect.value !== '') {
+                        venueNameTextInput.value = '';
+                        venueNameTextInput.disabled = true;
+                    } else {
+                        venueNameTextInput.disabled = false;
+                    }
+                });
+
+                venueNameTextInput.addEventListener('input', () => {
+                    if (venueNameTextInput.value !== '') {
+                        linkedVenueSelect.value = '';
+                        linkedVenueSelect.disabled = true; 
+                    } else {
+                        linkedVenueSelect.disabled = false;
+                    }
+                });
+
+                // Set initial values and disabled states
+                if (initialLinkedVenueId !== '') {
+                    linkedVenueSelect.value = initialLinkedVenueId;
+                    venueNameTextInput.disabled = true;
+                } else if (initialVenueNameText !== '') {
+                    venueNameTextInput.value = initialVenueNameText;
+                    linkedVenueSelect.disabled = true;
+                }
+            }
+
             editModal.classList.remove('hidden');
         }
 
         // --- EVENT LISTENERS ---
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchAndRenderEvents(null);
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchVenues(); 
+            await fetchAndRenderEvents(null); 
             
             loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
             
@@ -300,7 +378,28 @@
             });
 
             cleanupBtn.addEventListener('click', async () => {
-                // This logic can be filled in if needed
+                cleanupBtnText.textContent = 'Processing...';
+                cleanupLoader.classList.remove('hidden');
+                statusMessage.classList.add('hidden');
+                cleanupBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message);
+                    statusMessage.textContent = `Cleanup Complete: ${result.message}`;
+                    statusMessage.classList.remove('hidden');
+                    // Re-fetch events to show updated categories
+                    await fetchAndRenderEvents(null);
+                } catch (error) {
+                    statusMessage.textContent = `Error during cleanup: ${error.toString()}`;
+                    statusMessage.classList.remove('hidden');
+                } finally {
+                    cleanupBtnText.textContent = 'AI Category Cleanup';
+                    cleanupLoader.classList.add('hidden');
+                    cleanupBtn.disabled = false;
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                }
             });
             
             editForm.addEventListener('submit', async (e) => {
@@ -311,6 +410,25 @@
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'Saving...';
                 const formData = new FormData(editForm);
+                
+                // Manually handle the venue fields based on frontend state
+                const linkedVenueId = document.getElementById('linked-venue-select').value;
+                const venueNameText = document.getElementById('venue-name-text').value;
+
+                // Remove potentially conflicting fields from FormData first
+                formData.delete('VenueText'); // Old text field name
+                formData.delete('Venue');     // Old linked field name
+                formData.delete('linkedVenueId'); // Ensure not duplicated
+                formData.delete('venueNameText'); // Ensure not duplicated
+
+                if (linkedVenueId && linkedVenueId !== '') {
+                    formData.append('Venue', linkedVenueId); 
+                    formData.append('VenueText', ''); // Explicitly clear text field in Airtable
+                } else {
+                    formData.append('VenueText', venueNameText);
+                    formData.append('Venue', ''); // Explicitly clear linked field in Airtable
+                }
+                
                 let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
                 if (!isAdding) {
                     formData.append('id', currentItemForAction.id);

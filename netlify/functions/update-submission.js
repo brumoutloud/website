@@ -50,10 +50,10 @@ cloudinary.config({
 
 /**
  * Uses a generative AI model (Gemini) to predict recurring dates based on a start date and recurrence info.
- * @param {string} startDate - The start date in YYYY-MM-DD format.
+ * @param {string} startDate - The start date inَالَ-MM-DD format.
  * @param {string} recurringInfo - Natural language description of recurrence (e.g., "every Monday", "first Sunday of month").
  * @param {string} modelName - The name of the Gemini model to use.
- * @returns {Array<string>} A list of predicted dates in YYYY-MM-DD format.
+ * @returns {Array<string>} A list of predicted dates inَالَ-MM-DD format.
  */
 async function getDatesFromAI(startDate, recurringInfo, modelName) {
     console.log(`[getDatesFromAI] INPUT - startDate: "${startDate}", recurringInfo: "${recurringInfo}"`);
@@ -62,7 +62,7 @@ async function getDatesFromAI(startDate, recurringInfo, modelName) {
         console.warn("[getDatesFromAI] GEMINI_API_KEY is not set. Returning only the start date.");
         return [startDate];
     }
-    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in format YYYY-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
+    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in formatَالَ-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
     
@@ -259,8 +259,8 @@ exports.handler = async function (event, context) {
             }
 
             // Handle photo upload for venues
-            const photoFile = result.files.find(f => f.fieldname === 'photo');
-            if (photoFile && photoFile.content.length > 0) {
+            const photoFile = (result.files && result.files.length > 0) ? result.files.find(f => f.fieldname === 'photo') : null;
+            if (photoFile && photoFile.content && photoFile.content.length > 0) {
                 console.log("New photo file detected for venue. Uploading to Cloudinary...");
                 const uploadedImage = await uploadImage(photoFile, 'brumoutloud_venues');
                 // Update specific URL fields for easy access

@@ -4,30 +4,25 @@
 
 <header class="p-8">
     <nav class="container mx-auto flex justify-between items-center">
-        <a href="/" class="font-anton text-2xl tracking-widest text-white z-50">BRUM OUT LOUD</a>
-        
-        <div class="hidden md:flex items-center space-x-8 font-semibold">
-            <a href="/events.html" class="text-gray-300 hover:accent-color transition-colors">Events</a>
-            <a href="/all-venues.html" class="text-gray-300 hover:accent-color transition-colors">Venues</a>
-            <a href="/community.html" class="text-gray-300 hover:accent-color transition-colors">Community</a>
-            <a href="/contact" class="text-gray-300 hover:accent-color transition-colors">Contact</a>
+        <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
+        <div class="hidden md:flex items-center space-x-8">
+            <a href="/events.html" class="text-gray-300 hover:text-white">WHAT'S ON</a>
+            <a href="/all-venues.html" class="text-gray-300 hover:text-white">VENUES</a>
+            <a href="/community.html" class="text-gray-300 hover:text-white">COMMUNITY</a>
+            <a href="/contact.html" class="text-gray-300 hover:text-white">CONTACT</a>
+            <a href="/promoter-tool.html" class="btn btn-primary">GET LISTED</a>
         </div>
-
-        <div class="md:hidden z-50">
-            <button id="menu-btn" class="hamburger focus:outline-none">
-                <span class="hamburger-top"></span>
-                <span class="hamburger-middle"></span>
-                <span class="hamburger-bottom"></span>
+        <div class="md:hidden">
+            <button id="menu-btn" class="text-white text-2xl">
+                <i class="fas fa-bars"></i>
             </button>
         </div>
     </nav>
-    
-    <div id="menu" class="fixed inset-0 z-40 flex-col items-center justify-center w-full h-screen bg-black/90 backdrop-blur-sm text-white text-2xl font-semibold space-y-8 hidden">
-        <a href="/" class="hover:accent-color">Home</a>
-        <a href="/events.html" class="hover:accent-color">Events</a>
-        <a href="/all-venues.html" class="hover:accent-color">Venues</a>
-        <a href="/community.html" class="hover:accent-color">Community</a>
-        <a href="/contact" class="hover:accent-color">Contact</a>
-        <a href="/promoter-tool.html" class="nav-cta mt-4">GET LISTED</a>
+    <div id="menu" class="hidden md:hidden fixed inset-0 bg-gray-900 z-50 flex-col items-center justify-center space-y-6">
+        <a href="/events.html" class="block text-white text-4xl py-4 hover:text-gray-300">WHAT'S ON</a>
+        <a href="/all-venues.html" class="block text-white text-4xl py-4 hover:text-gray-300">VENUES</a>
+        <a href="/community.html" class="block text-white text-4xl py-4 hover:text-gray-300">COMMUNITY</a>
+        <a href="/contact.html" class="block text-white text-4xl py-4 hover:text-gray-300">CONTACT</a>
+        <a href="/promoter-tool.html" class="block mt-4 text-center btn btn-primary text-2xl px-8 py-4">GET LISTED</a>
     </div>
 </header>

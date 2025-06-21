@@ -1,3 +1,4 @@
+// netlify/functions/update-submission.js
 const Airtable = require('airtable');
 const parser = require('lambda-multipart-parser');
 const cloudinary = require('cloudinary').v2;
@@ -224,24 +225,37 @@ exports.handler = async function (event, context) {
         else if (type === 'Venue') {
             console.log(`Processing venue update for ID: ${id}`);
             const fieldsToUpdate = {};
-            // Define allowed text fields for venues
-            const allowedTextFields = ['Name', 'Description', 'Address', 'Opening Hours', 'Accessibility', 'Website', 'Instagram', 'Facebook', 'TikTok', 'Contact Email', 'Contact Phone', 'Parking Exception'];
             
-            // Populate text fields from form submission
-            allowedTextFields.forEach(field => {
-                if (result[field] !== undefined) {
-                    fieldsToUpdate[field] = result[field];
-                }
-            });
+            // Define mapping from HTML form field names (hyphenated) to Airtable field names (space-separated)
+            const formFieldToAirtableFieldMap = {
+                'name': 'Name',
+                'description': 'Description',
+                'address': 'Address',
+                'opening-hours': 'Opening Hours',
+                'accessibility': 'Accessibility',
+                'website': 'Website',
+                'instagram': 'Instagram',
+                'facebook': 'Facebook',
+                'tiktok': 'TikTok',
+                'contact-email': 'Contact Email',
+                'contact-phone': 'Contact Phone',
+                'parking-exception': 'Parking Exception',
+                'vibe-tags': 'Vibe Tags',
+                'venue-features': 'Venue Features',
+                'accessibility-rating': 'Accessibility Rating',
+                'accessibility-features': 'Accessibility Features'
+            };
 
-            // Handle checkbox/array fields, ensuring they are always arrays
-            fieldsToUpdate['Vibe Tags'] = toArray(result['Vibe Tags']);
-            fieldsToUpdate['Venue Features'] = toArray(result['Venue Features']);
-            fieldsToUpdate['Accessibility Features'] = toArray(result['Accessibility Features']);
-            
-            // Handle select field for Accessibility Rating
-            if (result['Accessibility Rating'] !== undefined) {
-                fieldsToUpdate['Accessibility Rating'] = result['Accessibility Rating'];
+            // Populate fieldsToUpdate using the map, ensuring correct array handling for multi-selects
+            for (const formFieldName in formFieldToAirtableFieldMap) {
+                const airtableFieldName = formFieldToAirtableFieldMap[formFieldName];
+                if (result[formFieldName] !== undefined) {
+                    if (['vibe-tags', 'venue-features', 'accessibility-features'].includes(formFieldName)) {
+                        fieldsToUpdate[airtableFieldName] = toArray(result[formFieldName]);
+                    } else {
+                        fieldsToUpdate[airtableFieldName] = result[formFieldName];
+                    }
+                }
             }
 
             // Handle photo upload for venues
@@ -272,7 +286,9 @@ exports.handler = async function (event, context) {
             console.log(`Processing single event update for ID: ${id}`);
             const fieldsToUpdate = {};
             // Allowed text fields for events (simplified, can be expanded as needed)
-            const allowedTextFields = [ 'Event Name', 'VenueText', 'Description', 'Link', 'Parent Event Name', 'Recurring Info', 'Name', 'Address', 'Opening Hours', 'Accessibility', 'Website', 'Instagram', 'Facebook', 'TikTok', 'Contact Email', 'Contact Phone', 'Parking Exception' ]; // Added venue-related fields for consistency, though 'type' dictates which table is used.
+            // Note: These field names assume they match the 'result' keys directly.
+            // For events, if form fields use hyphenated names, they would need similar mapping.
+            const allowedTextFields = [ 'Event Name', 'VenueText', 'Description', 'Link', 'Parent Event Name', 'Recurring Info', 'Name', 'Address', 'Opening Hours', 'Accessibility', 'Website', 'Instagram', 'Facebook', 'TikTok', 'Contact Email', 'Contact Phone', 'Parking Exception' ]; 
             allowedTextFields.forEach(field => {
                 if (result[field] !== undefined) {
                     fieldsToUpdate[field] = result[field];

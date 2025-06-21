@@ -36,7 +36,7 @@ async function getGeminiModelName() {
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 const eventsTable = base('Events');
-const venuesTable = base('Venues');
+const venuesTable = base('Venues'); 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 cloudinary.config({
@@ -44,20 +44,6 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-
-async function findVenueRecordId(venueName) {
-    if (!venueName) return null;
-    try {
-        const records = await venuesTable.select({
-            filterByFormula: `LOWER({Name}) = LOWER("${venueName.replace(/"/g, '\\"')}")`,
-            maxRecords: 1
-        }).firstPage();
-        return records.length > 0 ? records[0].id : null;
-    } catch (error) {
-        console.error(`Error finding venue "${venueName}":`, error);
-        return null;
-    }
-}
 
 async function uploadImage(file) {
     if (!file || !file.content) return null;
@@ -76,7 +62,7 @@ async function getDatesFromAI(startDate, recurringInfo, modelName) {
     console.log(`[getDatesFromAI] INPUT - startDate: "${startDate}", recurringInfo: "${recurringInfo}"`);
     
     if (!GEMINI_API_KEY) return [startDate];
-    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in format<y_bin_413>-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
+    const prompt = `Based on a start date of ${startDate} and the recurrence rule "${recurringInfo}", provide a comma-separated list of all dates for the next 3 months in format YYYY-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
     
@@ -119,7 +105,6 @@ exports.handler = async function (event, context) {
     try {
         const eventData = await parser.parse(event);
         
-        const venueRecordId = await findVenueRecordId(eventData.VenueText || eventData.venue);
         const promoImageFile = eventData.files.find(f => f.fieldname === 'promoImage');
         const uploadedImage = await uploadImage(promoImageFile);
         
@@ -140,12 +125,20 @@ exports.handler = async function (event, context) {
             const fields = {
                 'Event Name': eventName,
                 'Description': eventData.Description || eventData.description || '',
-                'VenueText': eventData.VenueText || eventData.venue || '',
                 'Date': `${date}T${eventData.time || '00:00'}:00.000Z`,
                 'Status': 'Approved'
             };
 
-            if (venueRecordId) fields['Venue'] = [venueRecordId];
+            const linkedVenueId = eventData.linkedVenueId; 
+            const venueNameText = eventData.venueNameText; 
+
+            if (linkedVenueId && linkedVenueId !== '') {
+                fields['Venue'] = [linkedVenueId]; 
+                fields['VenueText'] = null; 
+            } else {
+                fields['VenueText'] = venueNameText || ''; 
+                fields['Venue'] = null; 
+            }
             
             const ticketLink = eventData.Link || eventData.ticketLink;
             if (ticketLink) fields['Link'] = ticketLink;

@@ -134,10 +134,10 @@ exports.handler = async function (event, context) {
                     console.error("Error fetching place details:", error);
                 }
             }
-            // Attribution for Google Places API
+            // Attribution for Google Places API - Updated URL and style
             googleAttributionHtml = `
                 <div class="mt-8 text-center">
-                    <img src="https://maps.gstatic.com/help/attribution_image_uk-2x.png" alt="Powered by Google" style="width:120px; margin: 0 auto;">
+                    <img src="https://www.gstatic.com/marketing-cms/assets/images/c5/3a/200414104c669203c62270f7884f/google-wordmarks-2x.webp" alt="Powered by Google" style="max-width:120px; height: auto; margin: 0 auto;">
                 </div>
             `;
         }
@@ -196,7 +196,7 @@ exports.handler = async function (event, context) {
                                     ${venue.TikTok ? `<a href="${venue.TikTok}" target="_blank" class="hover:text-white" title="TikTok"><i class="fab fa-tiktok"></i></a>` : ''}
                                 </div>
                             </div>
-                        </div>
+                            ${googleReviewsHtml} ${googleAttributionHtml} </div>
 
                         <div class="lg:col-span-2">
                              <h2 class="font-anton text-4xl mb-8"><span class="accent-color">What's On</span> at ${venue.Name}</h2>
@@ -215,7 +215,7 @@ exports.handler = async function (event, context) {
                                     </a>
                                 `).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>'}
                              </div>
-                             ${googleReviewsHtml} ${googleAttributionHtml} </div>
+                        </div>
                     </div>
                 </main>
                 <div id="footer-placeholder"></div>

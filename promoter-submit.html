@@ -114,104 +114,106 @@
 
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
-        // --- NEW: Venue Search Dropdown Logic ---
-        const venueModal = document.getElementById('add-venue-modal');
-        const venueForm = document.getElementById('add-venue-form');
-        const cancelVenueBtn = document.getElementById('cancel-venue-btn');
-        const newVenueNameInput = document.getElementById('new-venue-name');
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Venue Search Dropdown Logic ---
+            const venueModal = document.getElementById('add-venue-modal');
+            const venueForm = document.getElementById('add-venue-form');
+            const cancelVenueBtn = document.getElementById('cancel-venue-btn');
+            const newVenueNameInput = document.getElementById('new-venue-name');
 
-        const tomSelect = new TomSelect('#venue-select', {
-            valueField: 'id',
-            labelField: 'name',
-            searchField: 'name',
-            create: true,
-            createFilter: (input) => input.length > 2,
-            render: {
-                option_create: (data, escape) => `<div class="create">✨ Add a new location: <strong>${escape(data.input)}</strong></div>`,
-            },
-            load: (query, callback) => {
-                const url = `/.netlify/functions/get-venues?search=${encodeURIComponent(query)}`;
-                fetch(url)
-                    .then(response => response.json())
-                    .then(venues => {
-                        callback(venues);
-                    }).catch(() => {
-                        callback();
-                    });
-            },
-            onCreate: (value) => {
-                newVenueNameInput.value = value;
-                venueModal.classList.remove('hidden');
-                return false; // Prevent TomSelect from adding it right away
-            }
-        });
-
-        cancelVenueBtn.addEventListener('click', () => venueModal.classList.add('hidden'));
-
-        venueForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const modalError = document.getElementById('modal-error');
-            modalError.classList.add('hidden');
-
-            const newVenue = {
-                venueName: newVenueNameInput.value,
-                address: document.getElementById('new-venue-address').value,
-            };
-
-            try {
-                const response = await fetch('/.netlify/functions/create-unlisted-venue', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newVenue),
-                });
-                const result = await response.json();
-                if (!response.ok || !result.success) {
-                    throw new Error(result.message || 'Failed to create venue.');
+            const tomSelect = new TomSelect('#venue-select', {
+                valueField: 'id',
+                labelField: 'name',
+                searchField: 'name',
+                create: true,
+                createFilter: (input) => input.length > 2,
+                render: {
+                    option_create: (data, escape) => `<div class="create">✨ Add a new location: <strong>${escape(data.input)}</strong></div>`,
+                },
+                load: (query, callback) => {
+                    const url = `/.netlify/functions/get-venues?search=${encodeURIComponent(query)}`;
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(venues => {
+                            callback(venues);
+                        }).catch(() => {
+                            callback();
+                        });
+                },
+                onCreate: (value) => {
+                    newVenueNameInput.value = value;
+                    venueModal.classList.remove('hidden');
+                    return false; 
                 }
-                tomSelect.addOption({ id: result.id, name: newVenue.venueName });
-                tomSelect.setValue(result.id);
-                venueModal.classList.add('hidden');
-                venueForm.reset();
-            } catch (error) {
-                modalError.textContent = error.message;
-                modalError.classList.remove('hidden');
-            }
-        });
+            });
 
-        // --- UNCHANGED: Bulk Upload Logic ---
-        const bulkForm = document.getElementById('bulk-upload-form');
-        const bulkSubmitBtn = bulkForm.querySelector('button[type=submit]');
-        const bulkSubmitText = document.getElementById('bulk-submit-text');
-        const bulkSubmitLoader = document.getElementById('bulk-submit-loader');
-        const statusMessage = document.getElementById('status-message');
+            cancelVenueBtn.addEventListener('click', () => venueModal.classList.add('hidden'));
 
-        bulkForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(bulkForm);
-            
-            bulkSubmitBtn.disabled = true;
-            bulkSubmitText.textContent = 'Processing...';
-            bulkSubmitLoader.classList.remove('hidden');
-            statusMessage.textContent = 'Uploading spreadsheet and contacting our smart system...';
-            statusMessage.classList.remove('hidden');
+            venueForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const modalError = document.getElementById('modal-error');
+                modalError.classList.add('hidden');
 
-            try {
-                const response = await fetch('/.netlify/functions/process-spreadsheet', {
-                    method: 'POST',
-                    body: formData,
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.message || 'An unknown error occurred.');
+                const newVenue = {
+                    venueName: newVenueNameInput.value,
+                    address: document.getElementById('new-venue-address').value,
+                };
 
-                const encodedData = btoa(JSON.stringify(result.events));
-                window.location.href = `/admin-review#${encodedData}`;
+                try {
+                    const response = await fetch('/.netlify/functions/create-unlisted-venue', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newVenue),
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || 'Failed to create venue.');
+                    }
+                    tomSelect.addOption({ id: result.id, name: newVenue.venueName });
+                    tomSelect.setValue(result.id);
+                    venueModal.classList.add('hidden');
+                    venueForm.reset();
+                } catch (error) {
+                    modalError.textContent = error.message;
+                    modalError.classList.remove('hidden');
+                }
+            });
 
-            } catch (error) {
-                statusMessage.textContent = `Error: ${error.toString()}`;
-                bulkSubmitBtn.disabled = false;
-                bulkSubmitText.textContent = 'Parse Spreadsheet';
-                bulkSubmitLoader.classList.add('hidden');
-            }
+            // --- Bulk Upload Logic ---
+            const bulkForm = document.getElementById('bulk-upload-form');
+            const bulkSubmitBtn = bulkForm.querySelector('button[type=submit]');
+            const bulkSubmitText = document.getElementById('bulk-submit-text');
+            const bulkSubmitLoader = document.getElementById('bulk-submit-loader');
+            const statusMessage = document.getElementById('status-message');
+
+            bulkForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(bulkForm);
+                
+                bulkSubmitBtn.disabled = true;
+                bulkSubmitText.textContent = 'Processing...';
+                bulkSubmitLoader.classList.remove('hidden');
+                statusMessage.textContent = 'Uploading spreadsheet and contacting our smart system...';
+                statusMessage.classList.remove('hidden');
+
+                try {
+                    const response = await fetch('/.netlify/functions/process-spreadsheet', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message || 'An unknown error occurred.');
+
+                    const encodedData = btoa(JSON.stringify(result.events));
+                    window.location.href = `/admin-review#${encodedData}`;
+
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.toString()}`;
+                    bulkSubmitBtn.disabled = false;
+                    bulkSubmitText.textContent = 'Parse Spreadsheet';
+                    bulkSubmitLoader.classList.add('hidden');
+                }
+            });
         });
     </script>
 </body>

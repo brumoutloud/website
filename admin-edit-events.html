@@ -412,8 +412,8 @@
                 const formData = new FormData(editForm);
                 
                 // Manually handle the venue fields based on frontend state
-                const linkedVenueId = document.getElementById('linked-venue-select').value;
-                const venueNameText = document.getElementById('venue-name-text').value;
+                const linkedVenueSelect = document.getElementById('linked-venue-select');
+                const venueNameTextInput = document.getElementById('venue-name-text');
 
                 // Remove potentially conflicting fields from FormData first
                 formData.delete('VenueText'); // Old text field name
@@ -421,11 +421,11 @@
                 formData.delete('linkedVenueId'); // Ensure not duplicated
                 formData.delete('venueNameText'); // Ensure not duplicated
 
-                if (linkedVenueId && linkedVenueId !== '') {
-                    formData.append('Venue', linkedVenueId); 
+                if (linkedVenueSelect.value !== '') {
+                    formData.append('Venue', linkedVenueSelect.value); 
                     formData.append('VenueText', ''); // Explicitly clear text field in Airtable
                 } else {
-                    formData.append('VenueText', venueNameText);
+                    formData.append('VenueText', venueNameTextInput.value);
                     formData.append('Venue', ''); // Explicitly clear linked field in Airtable
                 }
                 

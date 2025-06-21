@@ -35,6 +35,67 @@
                 <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
                 <div><label for="opening-hours" class="block text-sm font-semibold mb-2 accent-color-secondary">Opening Hours</label><textarea id="opening-hours" name="opening-hours" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Mon-Thu: 5pm - 12am..."></textarea></div>
                 <div><label for="accessibility" class="block text-sm font-semibold mb-2 accent-color-secondary">Accessibility Info</label><textarea id="accessibility" name="accessibility" rows="3" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                
+                <div>
+                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Vibe Tags</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Lively" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Lively</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Relaxed" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Relaxed</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Party" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Party</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Chilled" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Chilled</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Community-Focused" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Community-Focused</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Cabaret" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Cabaret</span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Features</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Drag Shows" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Drag Shows</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Karaoke" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Karaoke</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Live Music" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Live Music</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Serves Food" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Serves Food</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Outdoor Area" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Outdoor Area</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Happy Hour" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Happy Hour</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Pool Table" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Pool Table</span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="accessibility-rating" class="block text-sm font-semibold mb-2 accent-color-secondary">Accessibility Rating</label>
+                    <select id="accessibility-rating" name="accessibility-rating" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
+                        <option value="">Select a rating</option>
+                        <option value="Fully Accessible">Fully Accessible</option>
+                        <option value="Partially Accessible">Partially Accessible</option>
+                        <option value="Not Accessible">Not Accessible</option>
+                        <option value="Info Unavailable">Info Unavailable</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Accessibility Features</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Step-Free Access" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Step-Free Access</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Accessible Toilets" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Accessible Toilets</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Gender-Neutral Toilets" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Gender-Neutral Toilets</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Ramp Available" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Ramp Available</span></label>
+                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Guide Dogs Permitted" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Guide Dogs Permitted</span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="parking-exception" class="block text-sm font-semibold mb-2 accent-color-secondary">Parking Exception</label>
+                    <textarea id="parking-exception" name="parking-exception" rows="3" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., On-site car park available after 6 pm."></textarea>
+                </div>
+
+                <div class="border-t border-gray-700 pt-6">
+                    <h3 class="font-bold text-xl mb-4 text-white text-center">Contact Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><label for="contact-email" class="block text-sm font-semibold mb-2 accent-color-secondary">Contact Email</label><input type="email" id="contact-email" name="contact-email" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
+                        <div><label for="contact-phone" class="block text-sm font-semibold mb-2 accent-color-secondary">Contact Phone</label><input type="tel" id="contact-phone" name="contact-phone" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
+                    </div>
+                </div>
+
                 <div class="border-t border-gray-700 pt-6">
                     <h3 class="font-bold text-xl mb-4 text-white text-center">Social & Website Links</h3>
                      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

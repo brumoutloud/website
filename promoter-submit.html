@@ -45,15 +45,19 @@
                 <div class="card-bg p-8 md:p-12">
                     <h2 class="font-anton text-3xl text-white mb-4">Submit a Single Event</h2>
                     <p class="text-gray-400 mb-6">Use this form to submit one event at a time. All fields are required for a complete listing.</p>
-                    <form id="single-event-form" class="space-y-6" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
+                    <form id="single-event-form" class="space-y-6">
                          <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
                             <div class="space-y-6">
                                 <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
                                 <div>
                                   <label for="venue-select" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label>
-                                  <select id="venue-select" name="venueId" required placeholder="Search for a venue..."></select>
+                                  <select id="venue-select" required placeholder="Search for or create a new venue..."></select>
                                 </div>
-                                <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea name="description" rows="8" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                                <div id="new-venue-address-container" class="hidden">
+                                  <label for="new-venue-address" class="block text-sm font-semibold mb-2 accent-color-secondary">New Venue Address</label>
+                                  <input type="text" id="new-venue-address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., 123 Main Street, Birmingham">
+                                </div>
+                                <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea name="description" rows="5" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
                             </div>
                             <div class="space-y-6">
                                 <div class="grid grid-cols-2 gap-4">
@@ -62,64 +66,28 @@
                                 </div>
                                 <div><label for="link" class="block text-sm font-semibold mb-2 accent-color-secondary">Ticket Link (Optional)</label><input type="url" name="link" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="https://"></div>
                                 <div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday"></div>
-                                <div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif"></div>
+                                <div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" name="promo-image" id="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif"></div>
                             </div>
                         </div>
-                        <div class="text-right pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
-                    </form>
-                </div>
-                
-                <div class="card-bg p-8 md:p-12">
-                    <h2 class="font-anton text-3xl text-white mb-4">Got a lot of events to add?</h2>
-                    <p class="text-gray-400 mb-6">Upload a spreadsheet (.csv, .xls, .xlsx) with your event listings. Our smart system will parse the data for your review.</p>
-                    <form id="bulk-upload-form">
-                        <div>
-                            <label for="spreadsheet-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Upload Spreadsheet</label>
-                            <input type="file" id="spreadsheet-file" name="spreadsheet" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
-                        </div>
-                        <div class="pt-6"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 w-full flex items-center justify-center">
-                            <span id="bulk-submit-text">Parse Spreadsheet</span>
-                            <span id="bulk-submit-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
-                        </button></div>
+                        <div id="form-status" class="text-center hidden"></div>
+                        <div class="text-right pt-4"><button type="submit" id="submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
                     </form>
                 </div>
             </div>
-            
-            <div id="status-message" class="mt-8 text-center text-lg font-semibold hidden"></div>
         </section>
     </main>
 
-    <div id="add-venue-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
-        <div class="card-bg p-8 rounded-lg max-w-md w-full">
-            <h2 class="font-anton text-3xl text-white mb-4">Add New Location</h2>
-            <p class="text-gray-400 mb-6">This location isn't on our list. Add its details below to continue.</p>
-            <form id="add-venue-form" class="space-y-4">
-                <div>
-                    <label for="new-venue-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label>
-                    <input type="text" id="new-venue-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
-                </div>
-                <div>
-                    <label for="new-venue-address" class="block text-sm font-semibold mb-2 accent-color-secondary">Address</label>
-                    <input type="text" id="new-venue-address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
-                </div>
-                <div id="modal-error" class="text-red-500 text-sm hidden"></div>
-                <div class="flex justify-end space-x-4 pt-4">
-                    <button type="button" id="cancel-venue-btn" class="text-gray-400 hover:text-white">Cancel</button>
-                    <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg hover:opacity-90">Save Location</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
-        // --- FIX: Wrap all script logic in DOMContentLoaded listener ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Venue Search Dropdown Logic
-            const venueModal = document.getElementById('add-venue-modal');
-            const venueForm = document.getElementById('add-venue-form');
-            const cancelVenueBtn = document.getElementById('cancel-venue-btn');
-            const newVenueNameInput = document.getElementById('new-venue-name');
+            const form = document.getElementById('single-event-form');
+            const newVenueAddressContainer = document.getElementById('new-venue-address-container');
+            const newVenueAddressInput = document.getElementById('new-venue-address');
+            const statusDiv = document.getElementById('form-status');
+            const submitButton = document.getElementById('submit-button');
+
+            let isCreatingNewVenue = false;
+            let newVenueName = '';
 
             const tomSelect = new TomSelect('#venue-select', {
                 valueField: 'id',
@@ -131,61 +99,94 @@
                     option_create: (data, escape) => `<div class="create">✨ Add a new location: <strong>${escape(data.input)}</strong></div>`,
                 },
                 load: (query, callback) => {
-                    const url = `/.netlify/functions/get-venues?search=${encodeURIComponent(query)}`;
-                    fetch(url)
-                        .then(response => response.json())
-                        .then(venues => callback(venues))
-                        .catch(() => callback());
+                    fetch(`/.netlify/functions/get-venues?search=${encodeURIComponent(query)}`)
+                        .then(res => res.json()).then(callback).catch(() => callback());
                 },
-                onCreate: (value) => {
-                    newVenueNameInput.value = value;
-                    venueModal.classList.remove('hidden');
-                    return false; 
-                }
-            });
-
-            cancelVenueBtn.addEventListener('click', () => venueModal.classList.add('hidden'));
-
-            venueForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const modalError = document.getElementById('modal-error');
-                modalError.classList.add('hidden');
-                const newVenue = {
-                    venueName: newVenueNameInput.value,
-                    address: document.getElementById('new-venue-address').value,
-                };
-                try {
-                    const response = await fetch('/.netlify/functions/create-unlisted-venue', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(newVenue),
-                    });
-                    const result = await response.json();
-                    if (!response.ok || !result.success) {
-                        throw new Error(result.message || 'Failed to create venue.');
+                onChange: (value) => {
+                    if (value && !value.startsWith('__new__')) {
+                        isCreatingNewVenue = false;
+                        newVenueAddressContainer.classList.add('hidden');
+                        newVenueAddressInput.required = false;
                     }
-                    tomSelect.addOption({ id: result.id, name: newVenue.venueName });
-                    tomSelect.setValue(result.id);
-                    venueModal.classList.add('hidden');
-                    venueForm.reset();
-                } catch (error) {
-                    modalError.textContent = error.message;
-                    modalError.classList.remove('hidden');
+                },
+                onItemAdd: (value, item) => {
+                    if (value.startsWith('__new__')) {
+                         isCreatingNewVenue = true;
+                         newVenueName = item.textContent.replace('✨ Add a new location: ','');
+                         newVenueAddressContainer.classList.remove('hidden');
+                         newVenueAddressInput.required = true;
+                         tomSelect.clear(); // Clear the "new..." item from the select
+                    }
                 }
             });
 
-            // Bulk Upload Logic
-            const bulkForm = document.getElementById('bulk-upload-form');
-            if (bulkForm) {
-                const bulkSubmitBtn = bulkForm.querySelector('button[type=submit]');
-                const bulkSubmitText = document.getElementById('bulk-submit-text');
-                const bulkSubmitLoader = document.getElementById('bulk-submit-loader');
-                const statusMessage = document.getElementById('status-message');
-                bulkForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    // ... (rest of bulk upload logic is unchanged)
-                });
-            }
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                submitButton.disabled = true;
+                statusDiv.textContent = 'Submitting, please wait...';
+                statusDiv.className = 'text-center text-white';
+                statusDiv.classList.remove('hidden');
+
+                let venueId = tomSelect.getValue();
+                
+                // Step 1: If creating a new venue, create it first.
+                if (isCreatingNewVenue) {
+                    try {
+                        const response = await fetch('/.netlify/functions/create-unlisted-venue', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                venueName: newVenueName,
+                                address: newVenueAddressInput.value
+                            })
+                        });
+                        const result = await response.json();
+                        if (!response.ok || !result.success) throw new Error(result.message || 'Failed to create venue.');
+                        venueId = result.id; // Get the ID of the newly created venue
+                    } catch (error) {
+                        statusDiv.textContent = `Error: ${error.message}`;
+                        statusDiv.className = 'text-center text-red-500';
+                        submitButton.disabled = false;
+                        return;
+                    }
+                }
+
+                if (!venueId) {
+                    statusDiv.textContent = 'Error: Please select or create a venue.';
+                    statusDiv.className = 'text-center text-red-500';
+                    submitButton.disabled = false;
+                    return;
+                }
+                
+                // Step 2: Submit the event with the correct venue ID
+                const formData = new FormData();
+                formData.append('event-name', form.elements['event-name'].value);
+                formData.append('date', form.elements['date'].value);
+                formData.append('start-time', form.elements['start-time'].value);
+                formData.append('description', form.elements['description'].value);
+                formData.append('link', form.elements['link'].value);
+                formData.append('recurring-info', form.elements['recurring-info'].value);
+                formData.append('promo-image', form.elements['promo-image'].files[0]);
+                formData.append('venueId', venueId);
+
+                try {
+                     const response = await fetch('/.netlify/functions/event-submission', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (!response.ok) throw new Error('Server error during event submission.');
+                    
+                    statusDiv.textContent = 'Success! Your event has been submitted for review.';
+                    statusDiv.className = 'text-center text-green-400';
+                    form.reset();
+                    tomSelect.clear();
+
+                } catch (error) {
+                    statusDiv.textContent = `Error: ${error.message}`;
+                    statusDiv.className = 'text-center text-red-500';
+                    submitButton.disabled = false;
+                }
+            });
         });
     </script>
 </body>

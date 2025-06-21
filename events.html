@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Details | Brum Out Loud</title>
-    
+    <title>Events | Brum Out Loud</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -16,7 +15,7 @@
         <nav class="container mx-auto flex justify-between items-center">
             <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
             <div class="hidden md:flex items-center space-x-8">
-                <a href="/events.html" class="nav-link">EVENTS</a>
+                <a href="/events.html" class="nav-link active">EVENTS</a>
                 <a href="/all-venues.html" class="nav-link">VENUES</a>
                 <a href="/community.html" class="nav-link">COMMUNITY</a>
                 <a href="/get-listed.html" class="nav-link">GET LISTED</a>
@@ -25,129 +24,74 @@
     </header>
 
     <main class="container mx-auto px-8 py-16">
-        <section id="event-detail-container" class="max-w-5xl mx-auto">
-            <div id="loading-state" class="text-center">
-                <p class="text-2xl text-white">Loading Event Details...</p>
+        <section class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">UPCOMING <span class="accent-color">EVENTS</span></h1>
+                <p class="mt-4 text-xl text-gray-300">What's on in Birmingham. Discover gigs, club nights, and more.</p>
+            </div>
+            
+            <div class="mb-12">
+                <input type="text" id="search-filter" placeholder="Filter by event name, venue, or genre..." class="w-full p-4 bg-gray-900/50 rounded-lg border border-gray-700 text-white placeholder-gray-500">
             </div>
 
-            <div id="error-state" class="text-center hidden">
-                <h1 class="font-anton text-6xl heading-gradient">ERROR</h1>
-                <p id="error-message" class="mt-4 text-xl text-red-400">Could not load event details.</p>
-                <a href="/events.html" class="mt-8 inline-block bg-accent-color text-white font-bold py-3 px-8 rounded-lg">Back to All Events</a>
+            <div id="loading-state" class="text-center text-white">
+                <p class="text-xl">Loading events...</p>
             </div>
 
-            <div id="event-content" class="hidden grid md:grid-cols-3 gap-12">
-                <div class="md:col-span-2">
-                    <h1 id="event-name" class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient"></h1>
-                    <div class="mt-6 flex items-center space-x-6 text-2xl text-gray-200">
-                        <div class="flex items-center"><i class="fa-solid fa-calendar-day fa-fw mr-3 accent-color-secondary"></i><span id="event-date"></span></div>
-                        <div class="flex items-center"><i class="fa-solid fa-clock fa-fw mr-3 accent-color-secondary"></i><span id="event-time"></span></div>
-                    </div>
-                     <div class="mt-4 flex items-center text-2xl text-gray-200">
-                        <i class="fa-solid fa-location-dot fa-fw mr-3 accent-color-secondary"></i>
-                        <span id="event-venue-container"></span>
-                    </div>
-
-                    <div class="mt-8 prose prose-lg prose-invert max-w-none">
-                        <p id="event-description"></p>
-                    </div>
+            <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 </div>
-                <div>
-                    <img id="event-image" src="" alt="Event Promo Image" class="rounded-lg w-full">
-                    <div id="ticket-link-container" class="mt-6">
-                        
-                    </div>
-                    <div id="recurring-info-container" class="mt-6 text-center">
 
-                    </div>
-                </div>
+            <div id="no-results-state" class="hidden text-center text-white">
+                <p class="text-xl">No events match your filter.</p>
             </div>
-
         </section>
     </main>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const container = document.getElementById('event-detail-container');
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('events-grid');
+            const searchInput = document.getElementById('search-filter');
             const loadingState = document.getElementById('loading-state');
-            const errorState = document.getElementById('error-state');
-            const errorMessage = document.getElementById('error-message');
-            const eventContent = document.getElementById('event-content');
+            const noResultsState = document.getElementById('no-results-state');
+            let allEvents = [];
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const eventId = urlParams.get('id');
+            const createEventCard = (event) => `
+                <a href="/.netlify/functions/get-event-details?id=${event.id}" class="card-bg block rounded-lg overflow-hidden group">
+                    <img src="${event.imageUrl || 'https://placehold.co/600x400/1a202c/FFF?text=Brum+Out+Loud'}" alt="Promo image for ${event.name}" class="w-full h-48 object-cover group-hover:opacity-80 transition-opacity">
+                    <div class="p-6">
+                        <p class="text-sm font-semibold text-accent-color-secondary">${new Date(event.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                        <h3 class="font-anton text-2xl text-white mt-2 leading-tight">${event.name}</h3>
+                        <p class="text-gray-400 mt-2 flex items-center"><i class="fa-solid fa-location-dot fa-fw mr-2"></i> ${event.venueName}</p>
+                    </div>
+                </a>
+            `;
 
-            if (!eventId) {
-                showError('No Event ID provided in the URL.');
-                return;
-            }
+            const renderEvents = (events) => {
+                grid.innerHTML = events.map(createEventCard).join('');
+                noResultsState.classList.toggle('hidden', events.length > 0);
+            };
 
-            try {
-                const response = await fetch(`/.netlify/functions/get-event-details?id=${eventId}`);
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.error || `HTTP error! status: ${response.status}`);
-                }
-                const event = await response.json();
-                renderEvent(event);
+            fetch('/.netlify/functions/get-events')
+                .then(response => response.json())
+                .then(events => {
+                    allEvents = events;
+                    renderEvents(allEvents);
+                    loadingState.classList.add('hidden');
+                })
+                .catch(error => {
+                    console.error('Error fetching events:', error);
+                    loadingState.innerHTML = '<p class="text-red-500">Could not load events.</p>';
+                });
 
-            } catch (error) {
-                console.error('Fetch error:', error);
-                showError(error.message);
-            }
-
-            function renderEvent(event) {
-                // Hide loading, show content
-                loadingState.classList.add('hidden');
-                eventContent.classList.remove('hidden');
-
-                // Populate fields
-                document.getElementById('event-name').textContent = event.name;
-                document.getElementById('event-date').textContent = new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-                document.getElementById('event-time').textContent = event.startTime;
-                document.getElementById('event-description').textContent = event.description || 'No description provided.';
-                
-                // Set image
-                const eventImage = document.getElementById('event-image');
-                if (event.imageUrl) {
-                    eventImage.src = event.imageUrl;
-                    eventImage.alt = `${event.name} promo image`;
-                } else {
-                    eventImage.style.display = 'none'; // Hide if no image
-                }
-
-                // Handle Venue Display Logic
-                const venueContainer = document.getElementById('event-venue-container');
-                if (event.venueListingStatus === 'Listed' && event.venueId) {
-                    // Create a hyperlink for listed venues
-                    const venueLink = document.createElement('a');
-                    venueLink.href = `/venues.html?id=${event.venueId}`;
-                    venueLink.textContent = event.venueName;
-                    venueLink.className = 'hover:text-accent-color transition-colors';
-                    venueContainer.appendChild(venueLink);
-                } else {
-                    // Display plain text for unlisted venues
-                    venueContainer.textContent = event.venueName || 'Venue not specified';
-                }
-
-                // Handle Ticket Link
-                const ticketContainer = document.getElementById('ticket-link-container');
-                if (event.ticketLink) {
-                    ticketContainer.innerHTML = `<a href="${event.ticketLink}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-8 rounded-lg hover:opacity-90 transition-opacity text-xl">Get Tickets</a>`;
-                }
-
-                // Handle Recurring Info
-                const recurringContainer = document.getElementById('recurring-info-container');
-                if(event.recurringInfo) {
-                    recurringContainer.innerHTML = `<p class="text-gray-400"><i class="fa-solid fa-repeat mr-2"></i> ${event.recurringInfo}</p>`;
-                }
-            }
-
-            function showError(message) {
-                loadingState.classList.add('hidden');
-                errorMessage.textContent = message;
-                errorState.classList.remove('hidden');
-            }
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const filteredEvents = allEvents.filter(event => 
+                    event.name.toLowerCase().includes(searchTerm) ||
+                    event.venueName.toLowerCase().includes(searchTerm) ||
+                    (event.genre && event.genre.toLowerCase().includes(searchTerm))
+                );
+                renderEvents(filteredEvents);
+            });
         });
     </script>
 </body>

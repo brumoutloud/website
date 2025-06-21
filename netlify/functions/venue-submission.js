@@ -41,6 +41,11 @@ async function uploadImage(file) {
     }
 }
 
+// Helper to ensure checkbox values are always arrays for Airtable
+const toArray = (value) => {
+    if (value === undefined) return [];
+    return Array.isArray(value) ? value : [value];
+};
 
 // --- Main Handler ---
 
@@ -57,23 +62,36 @@ exports.handler = async function (event, context) {
     const photoFile = submission.files.find(f => f.fieldname === 'photo');
     const uploadedImageUrls = await uploadImage(photoFile);
 
+    // Determine if submission is from admin-add-venue.html (which auto-approves)
+    // by checking for fields unique to that form (e.g., accessibility-rating, vibe-tags)
+    const isFromAdminAddVenue = submission['accessibility-rating'] !== undefined || submission['vibe-tags'] !== undefined;
+
     const record = {
-        "Name": submission['venue-name'],
-        "Description": submission.description,
-        "Address": submission.address,
-        "Contact Email": submission['contact-email'],
-        "Status": "Pending Review",
+        // Use 'name' if present (from admin form), fallback to 'venue-name' (from public form)
+        "Name": submission.name || submission['venue-name'],
+        "Description": submission.description || '',
+        "Address": submission.address || '',
+        "Contact Email": submission['contact-email'] || '',
+        // Set status based on the originating form
+        "Status": isFromAdminAddVenue ? "Approved" : "Pending Review",
     };
 
+    // Optional text fields
     if (submission['opening-hours']) record['Opening Hours'] = submission['opening-hours'];
     if (submission.accessibility) record['Accessibility'] = submission.accessibility;
     if (submission.website) record.Website = submission.website;
     if (submission.instagram) record.Instagram = submission.instagram;
     if (submission.facebook) record.Facebook = submission.facebook;
     if (submission.tiktok) record.TikTok = submission.tiktok;
+    if (submission['contact-phone']) record['Contact Phone'] = submission['contact-phone'];
+    if (submission['accessibility-rating']) record['Accessibility Rating'] = submission['accessibility-rating'];
+    if (submission['parking-exception']) record['Parking Exception'] = submission['parking-exception'];
 
-    // **FINAL FIX:** We are now ONLY sending the image URLs to Airtable, not the attachment object.
-    // This matches how the original site worked and avoids conflicts with computed fields.
+    // Handle multiple-select checkbox fields, ensuring they are arrays
+    record['Vibe Tags'] = toArray(submission['vibe-tags']);
+    record['Venue Features'] = toArray(submission['venue-features']);
+    record['Accessibility Features'] = toArray(submission['accessibility-features']);
+
     if (uploadedImageUrls) {
         record['Photo URL'] = uploadedImageUrls.original;
         record['Photo Medium URL'] = uploadedImageUrls.medium;
@@ -82,11 +100,20 @@ exports.handler = async function (event, context) {
 
     await base('Venues').create([{ fields: record }]);
     
-    return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'text/html' },
-        body: `<!DOCTYPE html><html><head><title>Success</title><meta http-equiv="refresh" content="3;url=/all-venues.html"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;"><h1>Thank You!</h1><p>Your venue has been submitted for review.</p><p>You will be redirected shortly.</p></body></html>`
-    };
+    // Return different responses based on the originating form
+    if (isFromAdminAddVenue) {
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ success: true, message: `Venue "${record.Name}" created successfully.` }),
+        };
+    } else {
+        // Original success message for public form
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'text/html' },
+            body: `<!DOCTYPE html><html><head><title>Success</title><meta http-equiv="refresh" content="3;url=/all-venues.html"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;"><h1>Thank You!</h1><p>Your venue has been submitted for review.</p><p>You will be redirected shortly.</p></body></html>`
+        };
+    }
 
   } catch (error) {
     console.error("!!! An error occurred in the main handler:", error);

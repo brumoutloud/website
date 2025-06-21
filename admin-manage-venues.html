@@ -32,14 +32,18 @@
         .filter-button:hover:not(.active) {
             background-color: rgba(255, 255, 255, 0.1);
         }
-        /* Custom form styling for input and select elements within the modal */
+        /*
+         * Corrected Custom form styling for input and select elements within the modal
+         * Matches admin-add-venue.html precisely
+         */
         #edit-form input[type="text"],
         #edit-form input[type="email"],
         #edit-form input[type="tel"],
         #edit-form input[type="url"],
         #edit-form textarea,
         #edit-form select {
-            @apply w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white;
+            /* Applied these styles directly in the HTML string for consistency in populateEditForm */
+            /* @apply w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none; */
         }
         #edit-form input[type="file"] {
             @apply w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600;
@@ -207,18 +211,24 @@
             // Use original photo if available, otherwise medium, or null
             const currentPhotoUrl = item?.photo?.original || item?.photo?.medium || null; 
 
-            // Form fields, identical to admin-add-venue.html, pre-populated with item data
+            // Form fields, with classes matching admin-add-venue.html for consistent styling
+            const inputClass = "w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none";
+            const textareaClass = "w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none";
+            const selectClass = "w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none";
+            const fileInputClass = "w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600";
+            const labelClass = "block text-sm font-semibold mb-2 accent-color-secondary"; // Changed mb-1 to mb-2 for labels
+
             const formHtml = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label for="name">Venue Name</label><input type="text" id="name" name="Name" value="${item.name || ''}" required></div>
-                    <div><label for="address">Address</label><input type="text" id="address" name="Address" value="${item.address || ''}" required></div>
+                    <div><label for="name" class="${labelClass}">Venue Name</label><input type="text" id="name" name="Name" value="${item.name || ''}" class="${inputClass}" required></div>
+                    <div><label for="address" class="${labelClass}">Address</label><input type="text" id="address" name="Address" value="${item.address || ''}" class="${inputClass}" required></div>
                 </div>
-                <div><label for="description">Description</label><textarea id="description" name="Description" rows="4">${item.description || ''}</textarea></div>
-                <div><label for="opening-hours">Opening Hours</label><textarea id="opening-hours" name="Opening Hours" rows="4" placeholder="e.g., Mon-Thu: 5pm - 12am...">${item['Opening Hours'] || ''}</textarea></div>
-                <div><label for="accessibility">Accessibility Info</label><textarea id="accessibility" name="Accessibility" rows="3">${item.accessibility || ''}</textarea></div>
+                <div><label for="description" class="${labelClass}">Description</label><textarea id="description" name="Description" rows="4" class="${textareaClass}">${item.description || ''}</textarea></div>
+                <div><label for="opening-hours" class="${labelClass}">Opening Hours</label><textarea id="opening-hours" name="Opening Hours" rows="4" class="${textareaClass}" placeholder="e.g., Mon-Thu: 5pm - 12am...">${item['Opening Hours'] || ''}</textarea></div>
+                <div><label for="accessibility" class="${labelClass}">Accessibility Info</label><textarea id="accessibility" name="Accessibility" rows="3" class="${textareaClass}">${item.accessibility || ''}</textarea></div>
                 
                 <div>
-                    <label>Vibe Tags</label>
+                    <label class="${labelClass}">Vibe Tags</label>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
                         <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Lively" ${item['Vibe Tags']?.includes('Lively') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Lively</span></label>
                         <label class="inline-flex items-center gap-2"><input type="checkbox" name="Vibe Tags" value="Relaxed" ${item['Vibe Tags']?.includes('Relaxed') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Relaxed</span></label>
@@ -230,7 +240,7 @@
                 </div>
 
                 <div>
-                    <label>Venue Features</label>
+                    <label class="${labelClass}">Venue Features</label>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
                         <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Drag Shows" ${item['Venue Features']?.includes('Drag Shows') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Drag Shows</span></label>
                         <label class="inline-flex items-center gap-2"><input type="checkbox" name="Venue Features" value="Karaoke" ${item['Venue Features']?.includes('Karaoke') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Karaoke</span></label>
@@ -243,8 +253,8 @@
                 </div>
 
                 <div>
-                    <label for="accessibility-rating">Accessibility Rating</label>
-                    <select id="accessibility-rating" name="Accessibility Rating">
+                    <label for="accessibility-rating" class="${labelClass}">Accessibility Rating</label>
+                    <select id="accessibility-rating" name="Accessibility Rating" class="${selectClass}">
                         <option value="">Select a rating</option>
                         <option value="Fully Accessible" ${item['Accessibility Rating'] === 'Fully Accessible' ? 'selected' : ''}>Fully Accessible</option>
                         <option value="Partially Accessible" ${item['Accessibility Rating'] === 'Partially Accessible' ? 'selected' : ''}>Partially Accessible</option>
@@ -254,7 +264,7 @@
                 </div>
 
                 <div>
-                    <label>Accessibility Features</label>
+                    <label class="${labelClass}">Accessibility Features</label>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
                         <label class="inline-flex items-center gap-2"><input type="checkbox" name="Accessibility Features" value="Step-Free Access" ${item['Accessibility Features']?.includes('Step-Free Access') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Step-Free Access</span></label>
                         <label class="inline-flex items-center gap-2"><input type="checkbox" name="Accessibility Features" value="Accessible Toilets" ${item['Accessibility Features']?.includes('Accessible Toilets') ? 'checked' : ''} class="form-checkbox"><span class="text-white">Accessible Toilets</span></label>
@@ -265,32 +275,32 @@
                 </div>
 
                 <div>
-                    <label for="parking-exception">Parking Exception</label>
-                    <textarea id="parking-exception" name="Parking Exception" rows="3" placeholder="e.g., On-site car park available after 6 pm.">${item['Parking Exception'] || ''}</textarea>
+                    <label for="parking-exception" class="${labelClass}">Parking Exception</label>
+                    <textarea id="parking-exception" name="Parking Exception" rows="3" class="${textareaClass}" placeholder="e.g., On-site car park available after 6 pm.">${item['Parking Exception'] || ''}</textarea>
                 </div>
 
                 <div class="border-t border-gray-700 pt-6">
                     <h3 class="font-bold text-xl mb-4 text-white text-center">Contact Information</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div><label for="contact-email">Contact Email</label><input type="email" id="contact-email" name="Contact Email" value="${item['Contact Email'] || ''}"></div>
-                        <div><label for="contact-phone">Contact Phone</label><input type="tel" id="contact-phone" name="Contact Phone" value="${item['Contact Phone'] || ''}"></div>
+                        <div><label for="contact-email" class="${labelClass}">Contact Email</label><input type="email" id="contact-email" name="Contact Email" value="${item['Contact Email'] || ''}" class="${inputClass}"></div>
+                        <div><label for="contact-phone" class="${labelClass}">Contact Phone</label><input type="tel" id="contact-phone" name="Contact Phone" value="${item['Contact Phone'] || ''}" class="${inputClass}"></div>
                     </div>
                 </div>
 
                 <div class="border-t border-gray-700 pt-6">
                     <h3 class="font-bold text-xl mb-4 text-white text-center">Social & Website Links</h3>
                      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div><label for="website">Website URL</label><input type="url" id="website" name="Website" value="${item.website || ''}"></div>
-                         <div><label for="instagram">Instagram URL</label><input type="url" id="instagram" name="Instagram" value="${item.instagram || ''}"></div>
-                         <div><label for="facebook">Facebook URL</label><input type="url" id="facebook" name="Facebook" value="${item.facebook || ''}"></div>
-                         <div><label for="tiktok">TikTok URL</label><input type="url" id="tiktok" name="TikTok" value="${item.tiktok || ''}"></div>
+                         <div><label for="website" class="${labelClass}">Website URL</label><input type="url" id="website" name="Website" value="${item.website || ''}" class="${inputClass}"></div>
+                         <div><label for="instagram" class="${labelClass}">Instagram URL</label><input type="url" id="instagram" name="Instagram" value="${item.instagram || ''}" class="${inputClass}"></div>
+                         <div><label for="facebook" class="${labelClass}">Facebook URL</label><input type="url" id="facebook" name="Facebook" value="${item.facebook || ''}" class="${inputClass}"></div>
+                         <div><label for="tiktok" class="${labelClass}">TikTok URL</label><input type="url" id="tiktok" name="TikTok" value="${item.tiktok || ''}" class="${inputClass}"></div>
                      </div>
                 </div>
                 <div>
-                    <label>Current Photo</label>
+                    <label class="${labelClass}">Current Photo</label>
                     ${currentPhotoUrl ? `<img src="${currentPhotoUrl}" alt="Current Venue Photo" class="max-h-32 rounded-md mb-2 object-cover border border-gray-700">` : '<p class="text-gray-400">No image submitted.</p>'}
-                    <label for="photo">Upload New Photo</label>
-                    <input type="file" id="photo" name="photo" accept="image/png, image/jpeg, image/webp">
+                    <label for="photo" class="${labelClass}">Upload New Photo</label>
+                    <input type="file" id="photo" name="photo" accept="image/png, image/jpeg, image/webp" class="${fileInputClass}">
                 </div>
             `;
             
@@ -307,7 +317,7 @@
             // Event listener for the "Add New Venue" button
             addVenueBtn.addEventListener('click', () => {
                 // Redirect to admin-add-venue.html for adding new venues
-                window.location.href = '/admin-add-venue.html'; // Assuming this is the correct path
+                window.location.href = '/admin-add-venue.html'; // Corrected path
             });
 
             // Event listener for the "Cancel" button in the edit modal

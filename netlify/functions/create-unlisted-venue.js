@@ -21,8 +21,12 @@ exports.handler = async function (event, context) {
             fields: {
                 "Name": venueName,
                 "Address": address,
-                "Status": "Approved", // It's an approved venue, just not listed publicly
-                "Listing Status": "Unlisted" // Explicitly set the listing status
+                "Status": "Approved",
+                "Listing Status": "Unlisted",
+                // --- FIX: Add default empty values for other required fields ---
+                "Vibe Tags": [],
+                "Venue Features": [],
+                "Accessibility Features": []
             }
         }]);
 

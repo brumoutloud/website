@@ -75,7 +75,6 @@ exports.handler = async function (event, context) {
                         </div>
                         <div class="relative z-10 p-4">
                             <h4 class="font-extrabold text-white text-2xl">${suggEventName}</h4>
-                            <p class="text-gray-200 text-base">${suggEventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
                     </a>
                 `;
@@ -123,7 +122,7 @@ exports.handler = async function (event, context) {
                     </div>
                     <div class="flex-grow">
                         <h4 class="font-bold text-white text-xl">${instance['Event Name']}</h4>
-                        <p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+                        <p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
                     </div>
                     <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
                 </a>`;

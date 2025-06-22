@@ -3,25 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Events Final Featured Mockup | Brum Out Loud</title>
+    <title>Events | Brum Out Loud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <!-- Assuming main.css contains the site's base styles -->
-    <link rel="stylesheet" href="/css/main.css"> 
+    <link rel="stylesheet" href="/css/main.css">
+    <script src="/js/main.js" defer></script>
     <style>
-        /* Replicating key styles from main.css for standalone viewing */
-        body { background-color: #111; color: #f5f5f5; }
-        .font-anton { font-family: 'Anton', sans-serif; }
-        .font-poppins { font-family: 'Poppins', sans-serif; }
-        .heading-gradient { background-image: linear-gradient(to right, #E83A99, #B564F7); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .accent-color { color: #E83A99; }
-        .card-bg { background-color: #1a1a1a; }
+        /* Existing styles from original code - PRESERVED */
+        .popover {
+            display: none;
+            position: absolute;
+            margin-top: 0.5rem;
+            width: 18rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1rem;
+            z-index: 20;
+            background-color: #1e1e1e;
+            border: 1px solid #2e2e2e;
+        }
+        .popover.show {
+            display: block;
+        }
+        .popover-option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            color: #D1D5DB;
+        }
+        .popover-option:hover {
+            background-color: #374151;
+        }
+        .category-tag {
+            display: inline-block;
+            background-color: rgba(181, 100, 247, 0.1);
+            color: #B564F7;
+            font-size: 0.75rem; /* Default for larger screens */
+            font-weight: 600;
+            padding: 0.25rem 0.75rem; /* Default for larger screens */
+            border-radius: 9999px;
+            flex-shrink: 0; /* Prevent tags from shrinking */
+        }
 
-        /* --- Featured Banner (Slideshow) Styles --- */
-        .slideshow-wrapper { margin-bottom: 4rem; filter: drop-shadow(0 0 20px rgba(232, 58, 153, 0.25)); }
-        /* --- NEW: Reduced height for a more compact design --- */
+        @media (max-width: 767px) { /* For mobile devices */
+            .category-tag {
+                font-size: 0.625rem; /* Smaller font for mobile (10px) */
+                padding: 0.125rem 0.5rem; /* Reduced padding for mobile */
+            }
+        }
+
+        .tags-popover {
+            width: max-content; /* Ensure it's only as wide as its content */
+            white-space: normal; /* Allow content to wrap inside popover */
+            display: flex; /* Make it a flex container */
+            flex-wrap: wrap; /* Allow tags inside to wrap */
+            gap: 0.5rem; /* Consistent gap between tags */
+        }
+
+        .more-tags-indicator {
+            display: inline-block; /* Behave like a block, but flow with text */
+            background-color: rgba(181, 100, 247, 0.1); /* Same background as category-tag */
+            color: #B564F7; /* Same text color as category-tag */
+            font-size: 0.75rem; /* Same font size as category-tag */
+            font-weight: 600; /* Same font weight as category-tag */
+            padding: 0.25rem 0.75rem; /* Same padding as category-tag */
+            border-radius: 9999px; /* Same border-radius as category-tag */
+            cursor: pointer;
+            position: absolute; /* Position absolutely within the wrapper */
+            right: 0;
+            top: 0;
+            z-index: 4; /* Increased z-index to appear above the gradient */
+        }
+
+        @media (max-width: 767px) {
+            .more-tags-indicator {
+                font-size: 0.625rem;
+                padding: 0.125rem 0.5rem;
+            }
+        }
+        
+        .event-tags-wrapper {
+            position: relative; /* Ensure positioning context for ::after */
+            /* Existing flex flex-nowrap overflow-hidden gap-2 classes will apply from HTML */
+        }
+        .event-tags-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            width: 40px; /* Width of the gradient fade */
+            background: linear-gradient(to right, transparent, #1e1e1e 80%); /* Fade from transparent to card background */
+            pointer-events: none; /* Allow clicks to pass through to the indicator below */
+            z-index: 3; /* Needs to be above the indicator */
+        }
+
+        .hamburger { cursor: pointer; width: 24px; height: 24px; transition: all 0.25s; position: relative; }
+        .hamburger-top, .hamburger-middle, .hamburger-bottom { position: absolute; top: 0; left: 0; width: 24px; height: 3px; background: #fff; transform: rotate(0); transition: all 0.5s; }
+        .hamburger-middle { transform: translateY(7px); }
+        .hamburger-bottom { transform: translateY(14px); }
+        .open .hamburger-top { transform: rotate(45deg) translateY(6px) translateX(6px); }
+        .open .hamburger-middle { display: none; }
+        .open .hamburger-bottom { transform: rotate(-45deg) translateY(6px) translateX(-6px); }
+
+        /* --- NEW: Featured Banner (Slideshow) Styles from prototype, adapted to existing accent color --- */
+        .slideshow-wrapper { margin-bottom: 4rem; filter: drop-shadow(0 0 20px rgba(181, 100, 247, 0.25)); /* Using existing accent-color */ }
         .slideshow-container { position: relative; width: 100%; height: 350px; border-radius: 1rem; overflow: hidden; }
         .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1s ease-in-out; display: flex; flex-direction: column; justify-content: flex-end; }
         .slide.active { opacity: 1; }
@@ -29,102 +119,440 @@
         .slide:hover .slide-background { transform: scale(1.05); }
         .slide-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9) 10%, rgba(0,0,0,0.6) 40%, transparent 100%); z-index: 2; }
         .slide-content { position: relative; padding: 2rem; z-index: 3; color: white; }
-        .slide-content .date { font-weight: 600; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #E83A99; }
+        .slide-content .date { font-weight: 600; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #B564F7; /* Using existing accent-color */ }
         .slide-content h3 { font-family: 'Anton', sans-serif; font-size: 3.5rem; line-height: 1; text-shadow: 0 4px 15px rgba(0,0,0,0.6); }
         .slide-content p { margin-top: 0.25rem; font-size: 1.125rem; opacity: 0.9; }
-        .slide-content .cta-button { margin-top: 1rem; background-color: #E83A99; color: white; font-weight: 700; padding: 0.6rem 1.25rem; border-radius: 0.5rem; text-decoration: none; display: inline-block; transition: background-color 0.2s; font-size: 0.875rem;}
-        .slide-content .cta-button:hover { background-color: #d82a89; }
+        .slide-content .cta-button { margin-top: 1rem; background-color: #B564F7; /* Using existing accent-color */ color: white; font-weight: 700; padding: 0.6rem 1.25rem; border-radius: 0.5rem; text-decoration: none; display: inline-block; transition: background-color 0.2s; font-size: 0.875rem;}
+        .slide-content .cta-button:hover { background-color: #9d4fd6; /* Darker shade of existing accent-color */ }
         .slideshow-dots { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 0.75rem; }
         .dot { width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.4); cursor: pointer; transition: background-color 0.3s ease; }
         .dot.active { background-color: white; }
         .featured-tag { position: absolute; top: 1.5rem; left: 1.5rem; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); color: white; padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 700; z-index: 4; display: flex; align-items: center; gap: 0.5rem; border: 1px solid rgba(255,255,255,0.2); }
 
-        /* --- Standard & Featured Listing Card Styles --- */
-        .item-card { background-color: #1a1a1a; transition: transform 0.3s ease; border: 1px solid transparent; }
-        .item-card:hover { transform: translateY(-5px); }
-        .item-card-image-container { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
-        .item-card-image { width: 100%; height: 100%; object-fit: cover; }
-        .category-tag { display: inline-block; background-color: rgba(181, 100, 247, 0.1); color: #B564F7; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 9999px; }
-        
-        .item-card.featured-listing {
-            background-color: #2a2a2a;
-            border-color: #E83A99;
-            box-shadow: 0 0 20px rgba(232, 58, 153, 0.2);
-            position: relative;
+        /* --- NEW: Boosted Listing Card Styles from prototype, adapted to existing accent color/card background --- */
+        .item-card.boosted-listing {
+            background-color: #2e2e2e; /* Slightly darker than original card-bg #1e1e1e */
+            border-color: #B564F7; /* Using existing accent-color */
+            box-shadow: 0 0 20px rgba(181, 100, 247, 0.2); /* Glow effect using existing accent-color */
+            position: relative; /* Needed for the tag positioning */
         }
-        .featured-listing-tag { position: absolute; top: 0.75rem; right: 0.75rem; background-color: #E83A99; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; z-index: 2; }
-
-        .filter-button{padding:.5rem 1rem;border-radius:.5rem;font-weight:600;transition:background-color .2s,color .2s;background-color:rgba(255,255,255,.05);color:#d1d5db}.filter-button.active{background-color:#E83A99;color:#fff}.filter-button:hover:not(.active){background-color:rgba(255,255,255,.1)}
+        .boosted-listing-tag {
+            position: absolute; 
+            top: 0.75rem; 
+            right: 0.75rem; 
+            background-color: #B564F7; /* Using existing accent-color */
+            color: white; 
+            padding: 0.25rem 0.5rem; 
+            border-radius: 0.25rem; 
+            font-size: 0.75rem; 
+            font-weight: 600; 
+            z-index: 2; /* Ensure tag is above image */
+        }
+        /* Mobile specific layout for cards - Image left, details right (PRESERVED) */
+        @media (max-width: 767px) {
+            .item-card {
+                flex-direction: row; /* Horizontal layout on mobile */
+                align-items: center; /* Align items vertically in the middle */
+            }
+            .item-card .item-card-image-container {
+                width: 35%; /* Image takes up 35% of the card width */
+                min-width: 35%; /* Ensure it doesn't shrink too much */
+                aspect-ratio: 1/1; /* Keep image square */
+                border-radius: 1rem 0 0 1rem; /* Rounded corners only on the left side */
+                overflow: hidden;
+            }
+            .item-card .item-card-image {
+                border-radius: 1rem 0 0 1rem; /* Match container corners */
+            }
+            .item-card .p-6 {
+                width: 65%; /* Details take up 65% of the card width */
+                padding-left: 1rem; /* Adjust padding for side-by-side */
+                padding-right: 1rem;
+                padding-top: 0.75rem; /* Adjust vertical padding */
+                padding-bottom: 0.75rem; /* Adjust vertical padding */
+            }
+            /* Adjust font sizes for mobile card details to save space */
+            .item-card h3 {
+                font-size: 1.1rem; /* Slightly smaller heading */
+                line-height: 1.3;
+                -webkit-line-clamp: 2; /* Ensure event title wraps to max 2 lines */
+            }
+            .item-card p {
+                font-size: 0.8rem; /* Smaller text for date/venue */
+            }
+        }
     </style>
 </head>
-<body class="antialiased font-poppins">
+<body class="antialiased">
 
-    <header class="p-8 border-b border-gray-800"><nav class="container mx-auto flex justify-between items-center"><a href="#" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a></nav></header>
+    <div id="header-placeholder"></div>
 
     <main class="container mx-auto px-8 py-16">
-        <section id="all-events">
-            <div class="text-center mb-8">
+        <section id="whats-on">
+            <div class="text-center mb-16">
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">WHAT'S <span class="accent-color">ON</span></h1>
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
             
-            <!-- Section for "Don't Miss" Heading and Slideshow -->
-            <div class="mb-12">
-                 <h2 class="font-anton text-5xl text-white mb-6 text-center">Don't Miss!</h2>
+            <!-- NEW: Section for Featured Banner -->
+            <div class="mb-12" id="featured-events-section">
                  <div id="featured-banner" class="slideshow-wrapper">
                      <div class="slideshow-container">
-                        <!-- Slide 1 -->
-                        <div class="slide active">
-                            <img class="slide-background" src="https://images.unsplash.com/photo-1543364195-bfe6e4932397?q=80&w=1200&auto=format&fit=crop" alt="Featured Event 1">
-                            <div class="featured-tag"><i class="fas fa-star"></i> FEATURED BANNER</div>
-                            <div class="slide-overlay"></div>
-                            <div class="slide-content">
-                                <p class="date">Saturday, 28th June</p>
-                                <h3>THE GLITTER COVEN</h3>
-                                <p>The Nightingale Club</p>
-                                <a href="#" class="cta-button">View Event</a>
-                            </div>
-                        </div>
-                        <!-- Slide 2 -->
-                        <div class="slide">
-                            <img class="slide-background" src="https://images.unsplash.com/photo-1587397845743-152617f7b880?q=80&w=1200&auto=format&fit=crop" alt="Featured Event 2">
-                            <div class="featured-tag"><i class="fas fa-star"></i> FEATURED BANNER</div>
-                            <div class="slide-overlay"></div>
-                            <div class="slide-content">
-                                <p class="date">Every Thursday</p>
-                                <h3>QUEER AS JOKE</h3>
-                                <p>The Loft</p>
-                                 <a href="#" class="cta-button">View Event</a>
-                            </div>
-                        </div>
+                        <!-- Slides will be dynamically inserted here by JavaScript -->
                         <div class="slideshow-dots">
-                            <span class="dot active" data-slide="0"></span>
-                            <span class="dot" data-slide="1"></span>
+                            <!-- Dots will be dynamically inserted here by JavaScript -->
                         </div>
                      </div>
                 </div>
             </div>
              
-             <!-- Filters -->
-             <div id="filter-bar-container" class="mb-12 flex flex-wrap gap-3">
-                <button class="filter-button active">All Upcoming</button>
-                <button class="filter-button">Today</button>
-                <button class="filter-button">This Weekend</button>
-            </div>
-            
-            <!-- Standard & Featured Listing Event Grid -->
-            <div id="event-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Standard Card -->
-                <a href="#" class="item-card block rounded-lg overflow-hidden"><div class="item-card-image-container"><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=800&auto=format&fit=crop" alt="Event" class="item-card-image"></div><div class="p-6"><div class="mb-2 flex flex-wrap gap-2"><span class="category-tag">Live Music</span></div><h3 class="font-bold text-xl text-white mb-2 group-hover:accent-color">Acoustic Tuesdays</h3><p class="text-gray-400 mb-1">The Fox</p></div></a>
+            <div id="filter-bar-container" class="mb-12 flex flex-wrap gap-3">
+                <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
+                <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
+                <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
                 
-                <!-- NEW: Featured Listing Card -->
-                <a href="#" class="item-card featured-listing block rounded-lg overflow-hidden"><div class="featured-listing-tag">FEATURED</div><div class="item-card-image-container"><img src="https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?q=80&w=800&auto=format&fit=crop" alt="Event" class="item-card-image"></div><div class="p-6"><div class="mb-2 flex flex-wrap gap-2"><span class="category-tag">Party</span></div><h3 class="font-bold text-xl text-white mb-2 group-hover:accent-color">Saturday Night Fever</h3><p class="text-gray-400 mb-1">Sidewalk</p></div></a>
+                <div class="relative" id="custom-date-popover-container">
+                    <button id="custom-date-btn" class="filter-button">Custom Date</button>
+                    <div id="custom-date-popover" class="popover">
+                        <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
+                        <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
+                        <label for="date-to" class="block text-sm font-semibold mb-1 text-gray-400">To</label>
+                        <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md text-white">
+                    </div>
+                </div>
 
-                <!-- Standard Card -->
-                 <a href="#" class="item-card block rounded-lg overflow-hidden"><div class="item-card-image-container"><img src="https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=800&auto=format&fit=crop" alt="Event" class="item-card-image"></div><div class="p-6"><div class="mb-2 flex flex-wrap gap-2"><span class="category-tag">Quiz</span></div><h3 class="font-bold text-xl text-white mb-2 group-hover:accent-color">The Big Queer Quiz</h3><p class="text-gray-400 mb-1">The Loft</p></div></a>
+                 <div class="relative" id="category-popover-container">
+                    <button id="category-btn" class="filter-button">
+                        <span>All Categories</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="category-popover" class="popover max-h-80 overflow-y-auto">
+                         <p class="text-gray-400">Loading categories...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="event-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="col-span-full text-center text-gray-400 flex justify-center items-center gap-4">
+                    <div class="loader"></div>
+                    <span>Loading events...</span>
+                </div>
+            </div>
+             <div id="no-results-message" class="hidden text-center card-bg p-12 col-span-full">
+                <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-accent-color">
+                    <i class="fas fa-search fa-2x"></i>
+                </div>
+                <h3 class="mt-4 text-xl font-semibold text-white">No Results Found</h3>
+                <p class="mt-2 text-gray-400">We couldn't find any events matching your filters. Try adjusting your search.</p>
+                <button id="clear-filters-btn" class="mt-6 filter-button active">Clear Filters</button>
             </div>
         </section>
     </main>
-    <script> /* Slideshow JS from previous version remains the same */ </script>
+    
+    <div id="event-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="w-full max-w-4xl">
+             <form name="event-submission" class="card-bg p-8 md:p-12 space-y-6 relative" method="POST" action="/.netlify/functions/event-submission" enctype="multipart/form-data">
+                <button type="button" onclick="hideEventModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl">&times;</button>
+                <h3 class="font-anton text-4xl text-center heading-gradient mb-6">Submit an <span class="accent-color">Event</span></h3>
+                <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div class="space-y-6">
+                        <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" id="event-name" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                        <div><label for="venue" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="venue" name="venue" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                        <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="8" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                    </div>
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" id="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                            <div><label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" id="start-time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                        </div>
+                        <div><label for="link" class="block text-sm font-semibold mb-2 accent-color-secondary">Ticket Link (Optional)</label><input type="url" id="link" name="link" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="https://"></div>
+                        <div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday, or First Sunday of the month"></div>
+                        <div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" id="promo-image" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div>
+                    </div>
+                </div>
+                <div class="text-right pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="footer-placeholder"></div>
+
+    <script>
+        // --- Global State ---
+        let allEvents = [];
+        let featuredEvents = []; // New array for featured events
+        let activeDateFilter = { type: 'all', from: null, to: null };
+        let activeCategoryFilter = 'all';
+        
+        // --- DOM Elements ---
+        const eventGrid = document.getElementById('event-grid');
+        const noResultsMessage = document.getElementById('no-results-message');
+        const filterBarContainer = document.getElementById('filter-bar-container');
+        const customDateBtn = document.getElementById('custom-date-btn');
+        const customDatePopover = document.getElementById('custom-date-popover');
+        const dateFromInput = document.getElementById('date-from');
+        const dateToInput = document.getElementById('date-to');
+        const categoryBtn = document.getElementById('category-btn');
+        const categoryPopover = document.getElementById('category-popover');
+        const clearFiltersBtn = document.getElementById('clear-filters-btn');
+        // NEW: Featured section DOM elements
+        const featuredEventsSection = document.getElementById('featured-events-section');
+        const slideshowContainer = document.querySelector('#featured-banner .slideshow-container');
+        const slideshowDotsContainer = document.querySelector('#featured-banner .slideshow-dots');
+
+
+        // --- NEW: Slideshow State ---
+        let currentSlide = 0;
+        let slideshowInterval;
+        const SLIDESHOW_INTERVAL_TIME = 5000; // 5 seconds
+
+        // --- Modal Functions ---
+        function showEventModal() { document.getElementById('event-modal').style.display = 'flex'; }
+        function hideEventModal() { document.getElementById('event-modal').style.display = 'none'; }
+        
+        // --- Date Helper ---
+        const getToday = () => { const now = new Date(); now.setHours(0, 0, 0, 0); return now; };
+        
+        // --- Filtering Logic ---
+        function applyFilters() {
+            let filteredEvents = [...allEvents];
+            const today = getToday();
+
+            if (activeDateFilter.type !== 'all') {
+                filteredEvents = filteredEvents.filter(event => {
+                    const eventDate = new Date(event.date);
+                    eventDate.setHours(0, 0, 0, 0);
+                    switch (activeDateFilter.type) {
+                        case 'today': return eventDate.getTime() === today.getTime();
+                        case 'this-weekend':
+                            const dayOfWeek = today.getDay();
+                            const friday = new Date(today);
+                            friday.setDate(today.getDate() - dayOfWeek + 5);
+                            const sunday = new Date(friday);
+                            sunday.setDate(friday.getDate() + 2);
+                            return eventDate >= friday && eventDate <= sunday;
+                        case 'custom':
+                            const from = activeDateFilter.from ? new Date(activeDateFilter.from) : null;
+                            const to = activeDateFilter.to ? new Date(activeDateFilter.to) : null;
+                            if(from) from.setHours(0,0,0,0);
+                            if(to) to.setHours(0,0,0,0);
+                            if (from && to) return eventDate >= from && eventDate <= to;
+                            if (from) return eventDate >= from;
+                            if (to) return eventDate <= to;
+                            return true;
+                    }
+                    return false;
+                });
+            }
+
+            if (activeCategoryFilter !== 'all') {
+                filteredEvents = filteredEvents.filter(e => e.category && e.category.includes(activeCategoryFilter));
+            }
+            renderEvents(filteredEvents);
+        }
+
+        // --- Rendering ---
+        function renderEvents(events) {
+            eventGrid.innerHTML = '';
+            eventGrid.style.display = events.length > 0 ? 'grid' : 'none';
+            noResultsMessage.style.display = events.length > 0 ? 'none' : 'block';
+            
+            events.forEach(event => {
+                const tagsHTML = event.category.map(cat => `<span class="category-tag">${cat}</span>`).join('');
+                const imageUrl = event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
+                
+                // Determine if the event is boosted based on its data
+                // This 'isBoosted' property should come from your Netlify function
+                const isBoosted = event.isBoosted; 
+
+                const eventCard = `
+                    <a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in flex flex-row md:flex-col ${isBoosted ? 'boosted-listing' : ''}">
+                        ${isBoosted ? '<div class="boosted-listing-tag">BOOSTED</div>' : ''}
+                        <div class="item-card-image-container w-1/3 md:w-full flex-shrink-0">
+                            <img src="${imageUrl}" alt="${event.name}" class="item-card-image" loading="lazy">
+                        </div>
+                        <div class="p-6 w-2/3 md:w-full flex-grow">
+                            <div class="mb-2 flex flex-wrap gap-2">${tagsHTML}</div>
+                            <h3 class="font-bold text-xl text-white mb-2 group-hover:accent-color" title="${event.name}" style="overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;">${event.name}</h3>
+                            <p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
+                            <p class="text-gray-400">${event.venue}</p>
+                        </div>
+                    </a>`;
+                eventGrid.insertAdjacentHTML('beforeend', eventCard);
+            });
+        }
+        
+        function renderCategoryOptions() {
+            const categories = [...new Set(allEvents.flatMap(event => event.category))].filter(Boolean).sort();
+            categoryPopover.innerHTML = '';
+            
+            const allButton = document.createElement('button');
+            allButton.className = 'popover-option';
+            allButton.textContent = 'All Categories';
+            allButton.dataset.filterValue = 'all';
+            categoryPopover.appendChild(allButton);
+
+            categories.forEach(cat => {
+                const button = document.createElement('button');
+                button.className = 'popover-option';
+                button.textContent = cat;
+                button.dataset.filterValue = cat;
+                categoryPopover.appendChild(button);
+            });
+        }
+
+        function resetFilters() {
+             activeDateFilter = { type: 'all', from: null, to: null };
+             activeCategoryFilter = 'all';
+             document.querySelectorAll('#filter-bar-container .filter-button').forEach(b => b.classList.remove('active'));
+             document.querySelector('#filter-bar-container .filter-button[data-filter-value="all"]').classList.add('active');
+             categoryBtn.querySelector('span').textContent = 'All Categories';
+             dateFromInput.value = '';
+             dateToInput.value = '';
+             applyFilters();
+        }
+        
+        // --- Popover & Filter Event Listeners ---
+        function setupEventListeners() {
+            filterBarContainer.addEventListener('click', e => {
+                const button = e.target.closest('.filter-button');
+                if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn') return;
+                
+                document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+                
+                activeDateFilter.type = button.dataset.filterValue;
+                activeDateFilter.from = null;
+                activeDateFilter.to = null;
+                applyFilters();
+            });
+
+            customDateBtn.addEventListener('click', (e) => { e.stopPropagation(); categoryPopover.classList.remove('show'); customDatePopover.classList.toggle('show'); });
+            categoryBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.toggle('show'); });
+            clearFiltersBtn.addEventListener('click', resetFilters);
+
+            [dateFromInput, dateToInput].forEach(input => {
+                input.addEventListener('change', () => {
+                    activeDateFilter.type = 'custom';
+                    activeDateFilter.from = dateFromInput.value;
+                    activeDateFilter.to = dateToInput.value;
+                    document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
+                    customDateBtn.classList.add('active');
+                    applyFilters();
+                });
+            });
+            
+            categoryPopover.addEventListener('click', e => {
+                const button = e.target.closest('.popover-option');
+                if(!button) return;
+                activeCategoryFilter = button.dataset.filterValue;
+                categoryBtn.querySelector('span').textContent = button.textContent;
+                categoryPopover.classList.remove('show');
+                applyFilters();
+            });
+            
+            window.addEventListener('click', () => { customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); });
+        }
+
+        // --- NEW: Slideshow Functions ---
+        function showSlide(index) {
+            const slides = slideshowContainer.querySelectorAll('.slide');
+            const dots = slideshowDotsContainer.querySelectorAll('.dot');
+
+            if (slides.length === 0) return;
+
+            // Loop slides if index is out of bounds
+            if (index >= slides.length) currentSlide = 0;
+            else if (index < 0) currentSlide = slides.length - 1;
+            else currentSlide = index;
+
+            // Hide all slides and deactivate all dots
+            slides.forEach(slide => slide.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+
+            // Show the current slide and activate the current dot
+            slides[currentSlide].classList.add('active');
+            dots[currentSlide].classList.add('active');
+
+            // Reset the interval
+            clearInterval(slideshowInterval);
+            slideshowInterval = setInterval(() => showSlide(currentSlide + 1), SLIDESHOW_INTERVAL_TIME);
+        }
+
+        function createSlideshowElements() {
+            slideshowContainer.innerHTML = ''; // Clear existing slides
+            slideshowDotsContainer.innerHTML = ''; // Clear existing dots
+
+            if (featuredEvents.length === 0) {
+                featuredEventsSection.classList.add('hidden'); // Hide the entire section if no featured events
+                return;
+            } else {
+                featuredEventsSection.classList.remove('hidden'); // Show the section if featured events exist
+            }
+
+            featuredEvents.forEach((event, index) => {
+                const slideDiv = document.createElement('div');
+                slideDiv.classList.add('slide');
+                if (index === 0) slideDiv.classList.add('active'); // First slide active by default
+
+                const imageUrl = event.image || 'https://placehold.co/1200x350/1e1e1e/EAEAEA?text=Featured+Event';
+                // Format date similar to existing events.html logic
+                const formattedDate = new Date(event.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+
+                slideDiv.innerHTML = `
+                    <img class="slide-background" src="${imageUrl}" alt="${event.name}">
+                    <div class="featured-tag"><i class="fas fa-star"></i> FEATURED BANNER</div>
+                    <div class="slide-overlay"></div>
+                    <div class="slide-content">
+                        <p class="date">${formattedDate}</p>
+                        <h3>${event.name}</h3>
+                        <p>${event.venue}</p>
+                        <a href="${event.slug}" class="cta-button">View Event</a>
+                    </div>
+                `;
+                slideshowContainer.appendChild(slideDiv);
+
+                const dotSpan = document.createElement('span');
+                dotSpan.classList.add('dot');
+                if (index === 0) dotSpan.classList.add('active');
+                dotSpan.dataset.slide = index;
+                dotSpan.addEventListener('click', () => showSlide(index));
+                slideshowDotsContainer.appendChild(dotSpan);
+            });
+
+            // Start slideshow if there's more than one slide
+            if (featuredEvents.length > 1) {
+                showSlide(0); // Initialize first slide and start interval
+            } else {
+                clearInterval(slideshowInterval); // Clear any existing interval if only one or no slides
+            }
+        }
+
+
+        // --- Initial Data Fetch ---
+        async function initializePage() {
+            try {
+                // Fetch events from your Netlify function
+                const eventsResponse = await fetch('/.netlify/functions/get-events');
+                const fetchedEvents = await eventsResponse.json();
+                
+                // Assuming your Netlify function returns events with isFeatured and isBoosted flags
+                featuredEvents = fetchedEvents.filter(event => event.isFeatured);
+                // Ensure allEvents includes boosted events and is sorted
+                allEvents = fetchedEvents.sort((a, b) => new Date(a.date) - new Date(b.date)); 
+
+                createSlideshowElements(); // Render featured banner
+                renderEvents(allEvents); // Render all events (including boosted in the main grid)
+                renderCategoryOptions();
+                setupEventListeners();
+
+            } catch (error) {
+                console.error("Error fetching events:", error);
+                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', initializePage);
+    </script>
 </body>
 </html>

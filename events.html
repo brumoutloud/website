@@ -704,6 +704,24 @@
         }
         
         document.addEventListener('DOMContentLoaded', initializePage);
+
+        // --- Global Header and Footer Loading (Re-added) ---
+        async function loadGlobalComponents() {
+            try {
+                const headerResponse = await fetch('/global/header.html');
+                const headerHtml = await headerResponse.text();
+                document.getElementById('header-placeholder').innerHTML = headerHtml;
+
+                const footerResponse = await fetch('/global/footer.html');
+                const footerHtml = await footerResponse.text();
+                document.getElementById('footer-placeholder').innerHTML = footerHtml;
+            } catch (error) {
+                console.error('Error loading global components:', error);
+            }
+        }
+
+        // Call this function when the DOM is fully loaded, after other initializations
+        document.addEventListener('DOMContentLoaded', loadGlobalComponents);
     </script>
 </body>
 </html>

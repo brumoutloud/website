@@ -6,10 +6,9 @@
     <title>Events | Brum Out Loud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
-    <script src="/js/main.js" defer></script>
     <style>
         /* Existing styles from original code - PRESERVED */
         .popover {
@@ -110,26 +109,174 @@
         .open .hamburger-middle { display: none; }
         .open .hamburger-bottom { transform: rotate(-45deg) translateY(6px) translateX(-6px); }
 
-        /* --- NEW: Featured Banner (Slideshow) Styles from prototype, adapted to existing accent color --- */
+        /* --- NEW: Featured Banner (Slideshow) Styles with 2-column layout --- */
         .slideshow-wrapper { margin-bottom: 4rem; filter: drop-shadow(0 0 20px rgba(181, 100, 247, 0.25)); /* Using existing accent-color */ }
         .slideshow-container { position: relative; width: 100%; height: 350px; border-radius: 1rem; overflow: hidden; }
-        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1s ease-in-out; display: flex; flex-direction: column; justify-content: flex-end; }
+        
+        /* Each slide is a flex container for its inner content */
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            display: flex; /* Make slide a flex container */
+            flex-direction: column; /* Default to column on small screens */
+            justify-content: flex-end;
+        }
         .slide.active { opacity: 1; }
-        .slide-background { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; transition: transform 0.4s ease; }
-        .slide:hover .slide-background { transform: scale(1.05); }
-        .slide-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; background: linear-gradient(to top, rgba(0,0,0,0.9) 10%, rgba(0,0,0,0.6) 40%, transparent 100%); z-index: 2; }
-        .slide-content { position: relative; padding: 2rem; z-index: 3; color: white; }
-        .slide-content .date { font-weight: 600; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #B564F7; /* Using existing accent-color */ }
-        .slide-content h3 { font-family: 'Anton', sans-serif; font-size: 3.5rem; line-height: 1; text-shadow: 0 4px 15px rgba(0,0,0,0.6); }
-        .slide-content p { margin-top: 0.25rem; font-size: 1.125rem; opacity: 0.9; }
-        .slide-content .cta-button { margin-top: 1rem; background-color: #B564F7; /* Using existing accent-color */ color: white; font-weight: 700; padding: 0.6rem 1.25rem; border-radius: 0.5rem; text-decoration: none; display: inline-block; transition: background-color 0.2s; font-size: 0.875rem;}
+
+        .slide-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 80%); /* Gradient over the text side */
+            z-index: 2;
+        }
+
+        /* Inner content for the two columns */
+        .slide-inner-content {
+            position: relative; /* Positioning context for children */
+            display: flex;
+            flex-direction: column; /* Stack columns on mobile */
+            height: 100%; /* Take full height of slide */
+            width: 100%;
+            z-index: 3; /* Above overlay */
+        }
+
+        .slide-text-content {
+            flex: 1; /* Takes remaining space */
+            padding: 2rem;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center content vertically */
+            background: rgba(0,0,0,0.7); /* Background for text area on mobile */
+            border-radius: 1rem; /* Full rounded corners on mobile */
+        }
+        
+        .slide-poster-container {
+            width: 100%; /* Full width on mobile */
+            height: 50%; /* Image takes top half on mobile */
+            overflow: hidden;
+            border-radius: 1rem 1rem 0 0; /* Rounded corners on top for mobile */
+        }
+
+        .slide-poster-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+        .slide:hover .slide-poster-image {
+            transform: scale(1.05);
+        }
+
+        /* Responsive adjustments for desktop/larger screens */
+        @media (min-width: 768px) {
+            .slide-inner-content {
+                flex-direction: row; /* Two columns on desktop */
+            }
+            .slide-text-content {
+                flex: 1; /* Takes roughly half */
+                max-width: 60%; /* Limit text width */
+                justify-content: flex-end; /* Align content to bottom */
+                background: transparent; /* No background on desktop, relies on overlay */
+                border-radius: 0;
+            }
+            .slide-poster-container {
+                width: 40%; /* Image takes 40% on desktop */
+                height: 100%; /* Full height of slide */
+                border-radius: 0 1rem 1rem 0; /* Rounded corners on right for desktop */
+                position: absolute; /* Position to the right */
+                right: 0;
+                top: 0;
+            }
+            .slide-poster-image {
+                 border-radius: 0 1rem 1rem 0; /* Match container corners */
+            }
+            .slide-overlay {
+                background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 80%);
+            }
+        }
+
+
+        .featured-banner-label { /* New element for "Featured Event" text on the banner */
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #B564F7; /* Using existing accent-color */
+            margin-bottom: 0.5rem;
+        }
+        .slide-title { 
+            font-family: 'Anton', sans-serif; 
+            font-size: 2.5rem; /* Adjusted for this layout */
+            line-height: 1; 
+            text-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            margin-bottom: 0.5rem;
+        }
+        @media (min-width: 768px) {
+            .slide-title {
+                font-size: 3.5rem; /* Larger on desktop */
+            }
+        }
+        .slide-venue {
+            margin-top: 0.25rem;
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+        .slide-description { /* For longer text */
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-top: 0.75rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3; /* Limit description to 3 lines */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .slide-content .cta-button { 
+            margin-top: 1rem; 
+            background-color: #B564F7; /* Using existing accent-color */ 
+            color: white; 
+            font-weight: 700; 
+            padding: 0.6rem 1.25rem; 
+            border-radius: 0.5rem; 
+            text-decoration: none; 
+            display: inline-block; 
+            transition: background-color 0.2s; 
+            font-size: 0.875rem;
+        }
         .slide-content .cta-button:hover { background-color: #9d4fd6; /* Darker shade of existing accent-color */ }
+        
         .slideshow-dots { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 0.75rem; }
         .dot { width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.4); cursor: pointer; transition: background-color 0.3s ease; }
         .dot.active { background-color: white; }
-        .featured-tag { position: absolute; top: 1.5rem; left: 1.5rem; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); color: white; padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 700; z-index: 4; display: flex; align-items: center; gap: 0.5rem; border: 1px solid rgba(255,255,255,0.2); }
+        /* The featured-tag for the banner itself */
+        .featured-tag { 
+            position: absolute; 
+            top: 1.5rem; 
+            left: 1.5rem; 
+            background-color: rgba(0,0,0,0.5); 
+            backdrop-filter: blur(5px); 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border-radius: 9999px; 
+            font-size: 0.875rem; 
+            font-weight: 700; 
+            z-index: 4; 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+            border: 1px solid rgba(255,255,255,0.2); 
+        }
 
-        /* --- NEW: Boosted Listing Card Styles from prototype, adapted to existing accent color/card background --- */
+        /* --- NEW: Boosted Listing Card Styles (PRESERVED ACCENT/CARD-BG COLORS) --- */
         .item-card.boosted-listing {
             background-color: #2e2e2e; /* Slightly darker than original card-bg #1e1e1e */
             border-color: #B564F7; /* Using existing accent-color */
@@ -199,9 +346,8 @@
                  <div id="featured-banner" class="slideshow-wrapper">
                      <div class="slideshow-container">
                         <!-- Slides will be dynamically inserted here by JavaScript -->
-                        <div class="slideshow-dots">
-                            <!-- Dots will be dynamically inserted here by JavaScript -->
-                        </div>
+                        <!-- Dots will be dynamically inserted here by JavaScript -->
+                        <div class="slideshow-dots"></div>
                      </div>
                 </div>
             </div>
@@ -500,14 +646,19 @@
                 const formattedDate = new Date(event.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
                 slideDiv.innerHTML = `
-                    <img class="slide-background" src="${imageUrl}" alt="${event.name}">
                     <div class="featured-tag"><i class="fas fa-star"></i> FEATURED BANNER</div>
                     <div class="slide-overlay"></div>
-                    <div class="slide-content">
-                        <p class="date">${formattedDate}</p>
-                        <h3>${event.name}</h3>
-                        <p>${event.venue}</p>
-                        <a href="${event.slug}" class="cta-button">View Event</a>
+                    <div class="slide-inner-content">
+                        <div class="slide-text-content">
+                            <p class="featured-banner-label">Featured Event</p>
+                            <h3 class="slide-title">${event.name}</h3>
+                            <p class="slide-venue">${event.venue}</p>
+                            <p class="slide-description">${event.description || ''}</p>
+                            <a href="${event.slug}" class="cta-button">View Event</a>
+                        </div>
+                        <div class="slide-poster-container">
+                            <img class="slide-poster-image" src="${imageUrl}" alt="${event.name} Poster">
+                        </div>
                     </div>
                 `;
                 slideshowContainer.appendChild(slideDiv);

@@ -59,8 +59,8 @@
             </div>
             
             <div class="mt-12 text-center card-bg p-8">
-                 <h3 class="font-anton text-2xl text-white">After You Submit</h3>
-                 <p class="text-gray-400 mt-2">Our smart system will parse the details from your file or poster. You will then be asked to review and approve the extracted information before it is sent to our team for final approval.</p>
+                 <h3 class="font-anton text-2xl text-white">After You Submit with Poster or Spreadsheet</h3>
+                 <p class="text-gray-400 mt-2">Our smart system will parse the details from your file. You will then be asked to review and approve the extracted information before it is sent to our team for final approval.</p>
             </div>
 
             <div id="status-message" class="mt-8 text-center text-lg font-semibold hidden"></div>
@@ -71,42 +71,97 @@
     <div id="footer-placeholder"></div>
 
     <script>
-        // All JavaScript from the original file remains the same.
-        // It handles the poster and bulk upload forms which are still on this page.
-        const posterForm = document.getElementById('poster-form');
-        const bulkUploadForm = document.getElementById('bulk-upload-form');
-        const promoterEmailInput = document.getElementById('promoter-email'); // This element doesn't seem to exist in the HTML, but keeping the JS in case it's added elsewhere.
-        const fileInput = document.getElementById('poster-file');
-        const imagePreviewContainer = document.getElementById('image-preview');
-        const previewImg = document.getElementById('preview-img');
-        const resultsContainer = document.getElementById('results-container');
-        const statusMessage = document.getElementById('status-message');
+        document.addEventListener('DOMContentLoaded', () => {
+            const posterForm = document.getElementById('poster-form');
+            const bulkUploadForm = document.getElementById('bulk-upload-form');
+            const fileInput = document.getElementById('poster-file');
+            const imagePreviewContainer = document.getElementById('image-preview');
+            const previewImg = document.getElementById('preview-img');
+            const resultsContainer = document.getElementById('results-container');
+            const statusMessage = document.getElementById('status-message');
+            const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
 
-        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
-
-        fileInput.addEventListener('change', () => {
-            const file = fileInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => { previewImg.src = e.target.result; imagePreviewContainer.classList.remove('hidden'); };
-                reader.readAsDataURL(file);
+            if(fileInput) {
+                fileInput.addEventListener('change', () => {
+                    const file = fileInput.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => { previewImg.src = e.target.result; imagePreviewContainer.classList.remove('hidden'); };
+                        reader.readAsDataURL(file);
+                    }
+                });
             }
-        });
-        
-        function renderEventForm(eventData, index) {
-            // This function is for rendering review forms after poster/spreadsheet parsing
-            // This logic can remain as is.
-        }
-        
-        async function handleFormSubmit(formElement, endpoint) {
-            // This logic can also remain as is.
-        }
 
-        posterForm.addEventListener('submit', (e) => { e.preventDefault(); handleFormSubmit(posterForm, '/.netlify/functions/process-poster'); });
-        bulkUploadForm.addEventListener('submit', (e) => { e.preventDefault(); handleFormSubmit(bulkUploadForm, '/.netlify/functions/process-spreadsheet'); });
+            function renderEventForm(eventData, index) {
+                const categoryOptions = VALID_CATEGORIES.map(cat => {
+                    const isSelected = (Array.isArray(eventData.categories) && eventData.categories.includes(cat));
+                    return `<option value="${cat}" ${isSelected ? 'selected' : ''}>${cat}</option>`;
+                }).join('');
 
-        resultsContainer.addEventListener('click', async (e) => {
-           // This logic can also remain as is.
+                const formHtml = `
+                    <form class="event-review-form card-bg p-6 space-y-4" data-index="${index}">
+                        <h3 class="font-anton text-2xl text-white">Review Event ${index + 1}</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Name</label><input type="text" name="name" value="${eventData.name || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                            <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label><input type="text" name="venue" value="${eventData.venue || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Date</label><input type="date" name="date" value="${eventData.date || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                            <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Time (24hr)</label><input type="time" name="time" value="${eventData.time || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
+                        </div>
+                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
+                        <div class="flex justify-end gap-4 pt-2">
+                            <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
+                            <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Submit for Final Review</button>
+                        </div>
+                    </form>
+                `;
+                resultsContainer.insertAdjacentHTML('beforeend', formHtml);
+            }
+
+            async function handleFormSubmit(formElement, endpoint) {
+                const submitBtn = formElement.querySelector('button[type=submit]');
+                const originalBtnContent = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="loader w-5 h-5 border-2"></span><span class="ml-2">Processing...</span>';
+                
+                resultsContainer.innerHTML = '';
+                statusMessage.textContent = 'Contacting our smart system... This may take a moment.';
+                statusMessage.classList.remove('hidden');
+
+                try {
+                    const formData = new FormData(formElement);
+                    const response = await fetch(endpoint, { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message || 'An unknown server error occurred.');
+                    
+                    statusMessage.textContent = `Smart system found ${result.events.length} event(s). Please review the details below.`;
+                    if(result.events.length === 0) { statusMessage.textContent = "Could not find any clear event details in the file."; }
+                    
+                    const encodedData = btoa(JSON.stringify(result.events));
+                    window.location.href = `/admin-review#${encodedData}`;
+
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.toString()}`;
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnContent;
+                }
+            }
+
+            if(posterForm) {
+                posterForm.addEventListener('submit', (e) => { 
+                    e.preventDefault(); 
+                    handleFormSubmit(posterForm, '/.netlify/functions/process-poster'); 
+                });
+            }
+
+            if(bulkUploadForm) {
+                bulkUploadForm.addEventListener('submit', (e) => { 
+                    e.preventDefault(); 
+                    handleFormSubmit(bulkUploadForm, '/.netlify/functions/process-spreadsheet'); 
+                });
+            }
         });
     </script>
 </body>

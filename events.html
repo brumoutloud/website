@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Events | Brum Out Loud</title>
     
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link href="[https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap](https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap)" rel="stylesheet">
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css)">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script src="/js/main.js" defer></script>
     <style>
@@ -17,7 +17,7 @@
             margin-top: 0.5rem;
             width: 18rem;
             border-radius: 0.75rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 44px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             padding: 1rem;
             z-index: 20;
             background-color: #1e1e1e;
@@ -70,7 +70,7 @@
             font-size: 0.75rem; /* Same font size as category-tag */
             font-weight: 600; /* Same font weight as category-tag */
             padding: 0.25rem 0.75rem; /* Same padding as category-tag */
-            border-radius: 9999px; /* Same border-radius as category-2 */
+            border-radius: 9999px; /* Same border-radius as category-tag */
             cursor: pointer;
             position: absolute; /* Position absolutely within the wrapper */
             right: 0;
@@ -263,7 +263,7 @@
             
             events.forEach(event => {
                 const tagsHTML = event.category.map(cat => `<span class="category-tag">${cat}</span>`).join('');
-                const imageUrl = event.image || '[https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event](https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event)';
+                const imageUrl = event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
 
                 const eventCard = `
                     <a href="/event/${event.slug}" class="item-card card-bg block group animate-fade-in">
@@ -374,6 +374,11 @@
                 return;
             }
 
+            let totalWidth = 0;
+            let hiddenCount = 0;
+            const wrapperWidth = wrapper.clientWidth; // Get the actual rendered width of the wrapper
+
+            // Temporarily use a hidden div to measure tag widths accurately
             const tempDiv = document.createElement('div');
             tempDiv.style.visibility = 'hidden';
             tempDiv.style.position = 'absolute';
@@ -381,75 +386,33 @@
             tempDiv.style.overflow = 'visible';
             document.body.appendChild(tempDiv);
 
-            // --- Measure the potential width of the moreIndicator ---
-            let indicatorActualWidth = 0;
-            // Temporarily make it visible in tempDiv to measure its rendered width
-            moreIndicator.textContent = '+99'; // Use max possible text to get worst-case width
-            moreIndicator.classList.remove('hidden'); // Ensure it's rendered for measurement
-            tempDiv.appendChild(moreIndicator);
-            indicatorActualWidth = moreIndicator.offsetWidth + 8; // Add 8px for gap-2
-            tempDiv.removeChild(moreIndicator);
-            moreIndicator.classList.add('hidden'); // Hide it again for actual display logic
-            // --- End measurement ---
-            
-            // Populate popover with all tags' outerHTML
+            // Populate popover immediately with all tags' outerHTML
             tagsPopover.innerHTML = tags.map(tag => tag.outerHTML).join('');
 
-            const wrapperWidth = wrapper.clientWidth;
-            let finalVisibleCount = tags.length; // Assume all are visible initially
-
-            // Pass 1: Determine how many tags fit without reserving space for the indicator
-            let currentWidthNoIndicator = 0;
-            let potentialVisibleCountNoIndicator = 0;
             for (let i = 0; i < tags.length; i++) {
                 const clonedTag = tags[i].cloneNode(true);
+                // Temporarily add to tempDiv to measure
                 tempDiv.appendChild(clonedTag);
-                const tagWidth = clonedTag.offsetWidth + (i < tags.length - 1 ? 8 : 0); // Tag width + gap
+                // Measure tag width including potential margins/gaps
+                const currentTagWidth = clonedTag.offsetWidth + (i < tags.length - 1 ? 8 : 0); // Account for gap-2 (0.5rem = 8px) between tags
 
-                if (currentWidthNoIndicator + tagWidth <= wrapperWidth) {
-                    currentWidthNoIndicator += tagWidth;
-                    potentialVisibleCountNoIndicator++;
+                // Check if adding this tag exceeds the wrapper's width
+                // Allowing space for the "+N" indicator if it appears (approx 30px)
+                const indicatorWidthAllowance = (hiddenCount > 0 || i === tags.length -1 || totalWidth + currentTagWidth > wrapperWidth - 30) ? 30 : 0;
+
+
+                if (totalWidth + currentTagWidth <= wrapperWidth - indicatorWidthAllowance) {
+                    totalWidth += currentTagWidth;
+                    tags[i].style.display = 'inline-block'; // Ensure tag is visible
                 } else {
-                    break;
+                    tags[i].style.display = 'none'; // Hide the tag
+                    hiddenCount++;
                 }
             }
-            
-            // Pass 2: Adjust if the indicator is needed
-            if (potentialVisibleCountNoIndicator < tags.length) {
-                // Indicator is needed, so reserve space for it
-                let currentWidthWithIndicator = 0;
-                let adjustedVisibleCount = 0;
-                for (let i = 0; i < tags.length; i++) {
-                    const clonedTag = tags[i].cloneNode(true);
-                    tempDiv.appendChild(clonedTag);
-                    const tagWidth = clonedTag.offsetWidth + (i < tags.length - 1 ? 8 : 0); // Tag width + gap
-
-                    // Reserve space for indicator from the wrapper width, with a small buffer (-5)
-                    if (currentWidthWithIndicator + tagWidth <= (wrapperWidth - indicatorActualWidth - 5)) {
-                        currentWidthWithIndicator += tagWidth;
-                        adjustedVisibleCount++;
-                    } else {
-                        break;
-                    }
-                }
-                finalVisibleCount = adjustedVisibleCount;
-            }
-
             document.body.removeChild(tempDiv); // Clean up temp div
 
-            // Apply visibility based on finalVisibleCount
-            let actualHiddenCount = 0;
-            for (let i = 0; i < tags.length; i++) {
-                if (i < finalVisibleCount) {
-                    tags[i].style.display = 'inline-block';
-                } else {
-                    tags[i].style.display = 'none';
-                    actualHiddenCount++;
-                }
-            }
-
-            if (actualHiddenCount > 0) {
-                moreIndicator.textContent = `+${actualHiddenCount}`;
+            if (hiddenCount > 0) {
+                moreIndicator.textContent = `+${hiddenCount}`;
                 moreIndicator.classList.remove('hidden');
 
                 // Hover logic for the indicator and wrapper
@@ -459,11 +422,12 @@
                 wrapper.addEventListener('mouseleave', () => {
                     tagsPopover.classList.remove('show');
                 });
+
             } else {
-                moreIndicator.classList.add('hidden');
+                moreIndicator.classList.add('hidden'); // Ensure it's hidden if no overflow
             }
         }
-
+        
         // --- Initial Data Fetch ---
         async function initializePage() {
             try {

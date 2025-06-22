@@ -188,14 +188,14 @@
             }
             .slide-text-content {
                 flex: 1; /* Takes roughly half */
-                max-width: 60%; /* Limit text width */
-                justify-content: flex-end; /* Align content to bottom */
+                max-width: 55%; /* Adjusted width for text content */
+                justify-content: center; /* Center content vertically on desktop */
                 background: transparent; /* No background on desktop, relies on overlay */
                 border-radius: 0;
-                padding-bottom: 3rem; /* Add more padding at bottom for better alignment with poster bottom */
+                padding-bottom: 2rem; /* Adjusted padding-bottom */
             }
             .slide-poster-container {
-                width: 40%; /* Image takes 40% on desktop */
+                width: 45%; /* Adjusted width for image container */
                 height: 100%; /* Full height of slide */
                 border-radius: 0 1rem 1rem 0; /* Rounded corners on right for desktop */
                 position: absolute; /* Position to the right */
@@ -348,12 +348,9 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
             
-            <!-- NEW: Section for Featured Banner -->
             <div class="mb-12" id="featured-events-section">
                  <div id="featured-banner" class="slideshow-wrapper">
                      <div class="slideshow-container">
-                        <!-- Slides will be dynamically inserted here by JavaScript -->
-                        <!-- Dots will be dynamically inserted here by JavaScript -->
                         <div class="slideshow-dots"></div>
                      </div>
                 </div>

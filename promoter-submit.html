@@ -31,6 +31,9 @@
                      <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
                         <div class="space-y-6">
                             <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                            
+                            <div><label for="contact-email" class="block text-sm font-semibold mb-2 accent-color-secondary">Your Contact Email</label><input type="email" name="contact-email" placeholder="So we can contact you with any issues" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                            
                             <div>
                               <label for="venue-select" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue</label>
                               <select id="venue-select" name="venueId" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
@@ -47,7 +50,7 @@
                                   <input type="text" id="new-venue-address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., 123 Main Street, Birmingham">
                                 </div>
                             </div>
-                            <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea name="description" rows="5" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                            <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
                         </div>
                         <div class="space-y-6">
                             <div class="grid grid-cols-2 gap-4">
@@ -67,6 +70,7 @@
     </main>
 
     <script>
+        // All JavaScript from the previous working version remains the same.
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('single-event-form');
             const venueSelect = document.getElementById('venue-select');
@@ -76,7 +80,6 @@
             const statusDiv = document.getElementById('form-status');
             const submitButton = document.getElementById('submit-button');
 
-            // --- FIX: Fetch from the new, dedicated function ---
             fetch('/.netlify/functions/get-venue-list')
                 .then(response => response.json())
                 .then(venues => {

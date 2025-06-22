@@ -23,7 +23,7 @@ exports.handler = async function (event, context) {
                 "Address": address,
                 "Status": "Approved",
                 "Listing Status": "Unlisted",
-                // --- FIX: Add default empty values for other required fields ---
+                // Provide default empty values for multi-select fields to match schema
                 "Vibe Tags": [],
                 "Venue Features": [],
                 "Accessibility Features": []

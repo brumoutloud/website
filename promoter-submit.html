@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Submit an Event | Brum Out Loud</title>
+    <title>Promoter Submissions | Brum Out Loud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -19,24 +19,153 @@
     </header>
 
     <main class="container mx-auto px-8 py-16">
-        <section class="max-w-xl mx-auto">
-            <div class="text-center mb-12">
-                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">SUBMIT AN <span class="accent-color">EVENT</span></h1>
-                <p class="mt-4 text-xl text-gray-300">Let's start with the venue. Enter the name of the venue for your event below.</p>
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">PROMOTER <span class="accent-color">SUBMISSIONS</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Submit your events to be featured on BrumOutLoud.</p>
             </div>
 
             <div class="card-bg p-8 md:p-12">
-                <form action="/.netlify/functions/find-venue" method="GET" class="space-y-4">
-                    <div>
-                        <label for="venue-name-search" class="block text-xl font-semibold mb-3 text-center accent-color-secondary">Venue Name</label>
-                        <input type="text" id="venue-name-search" name="name" class="w-full p-4 text-center text-lg bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., The Nightingale Club" required>
+                <h2 class="font-anton text-3xl text-white mb-6">Submit a Single Event</h2>
+                <form id="single-event-form" class="space-y-6">
+                     <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
+                        <div class="space-y-6">
+                            <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                            <div>
+                              <label for="venue-select" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue</label>
+                              <select id="venue-select" name="venueId" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
+                                  <option value="">Loading venues...</option>
+                              </select>
+                            </div>
+                            <div id="new-venue-fields" class="hidden space-y-6 transition-all duration-300">
+                                <div>
+                                  <label for="new-venue-name" class="block text-sm font-semibold mb-2 accent-color-secondary">New Venue Name</label>
+                                  <input type="text" id="new-venue-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700">
+                                </div>
+                                <div>
+                                  <label for="new-venue-address" class="block text-sm font-semibold mb-2 accent-color-secondary">New Venue Address</label>
+                                  <input type="text" id="new-venue-address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., 123 Main Street, Birmingham">
+                                </div>
+                            </div>
+                            <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea name="description" rows="5" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                                <div><label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
+                            </div>
+                            <div><label for="link" class="block text-sm font-semibold mb-2 accent-color-secondary">Ticket Link (Optional)</label><input type="url" name="link" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="https://"></div>
+                            <div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday"></div>
+                            <div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif"></div>
+                        </div>
                     </div>
-                    <div class="text-center pt-4">
-                        <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity text-lg">Continue</button>
-                    </div>
+                    <div id="form-status" class="text-center hidden p-4 rounded-lg"></div>
+                    <div class="text-right pt-4"><button type="submit" id="submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
                 </form>
             </div>
         </section>
     </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('single-event-form');
+            const venueSelect = document.getElementById('venue-select');
+            const newVenueFields = document.getElementById('new-venue-fields');
+            const newVenueNameInput = document.getElementById('new-venue-name');
+            const newVenueAddressInput = document.getElementById('new-venue-address');
+            const statusDiv = document.getElementById('form-status');
+            const submitButton = document.getElementById('submit-button');
+
+            // --- FIX: Fetch from the new, dedicated function ---
+            fetch('/.netlify/functions/get-venue-list')
+                .then(response => response.json())
+                .then(venues => {
+                    venueSelect.innerHTML = '<option value="" disabled selected>Select an existing venue...</option>';
+                    venues.forEach(venue => {
+                        const option = document.createElement('option');
+                        option.value = venue.id;
+                        option.textContent = venue.name;
+                        venueSelect.appendChild(option);
+                    });
+                    venueSelect.insertAdjacentHTML('beforeend', '<option value="__CREATE_NEW__">-- Add a new venue --</option>');
+                })
+                .catch(error => {
+                    console.error('Failed to load venues:', error);
+                    venueSelect.innerHTML = '<option value="">Could not load venues</option>';
+                });
+
+            venueSelect.addEventListener('change', () => {
+                if (venueSelect.value === '__CREATE_NEW__') {
+                    newVenueFields.classList.remove('hidden');
+                    newVenueNameInput.required = true;
+                    newVenueAddressInput.required = true;
+                } else {
+                    newVenueFields.classList.add('hidden');
+                    newVenueNameInput.required = false;
+                    newVenueAddressInput.required = false;
+                }
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                submitButton.disabled = true;
+                statusDiv.textContent = 'Submitting, please wait...';
+                statusDiv.className = 'text-center p-4 rounded-lg bg-gray-700 text-white';
+                statusDiv.classList.remove('hidden');
+
+                let venueId = venueSelect.value;
+                
+                if (venueId === '__CREATE_NEW__') {
+                    try {
+                        const response = await fetch('/.netlify/functions/create-unlisted-venue', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                venueName: newVenueNameInput.value,
+                                address: newVenueAddressInput.value
+                            })
+                        });
+                        const result = await response.json();
+                        if (!response.ok || !result.success) throw new Error(result.message || 'Failed to create venue.');
+                        venueId = result.id;
+                    } catch (error) {
+                        statusDiv.textContent = `Error: ${error.message}`;
+                        statusDiv.className = 'text-center p-4 rounded-lg bg-red-800 text-white';
+                        submitButton.disabled = false;
+                        return;
+                    }
+                }
+
+                if (!venueId) {
+                    statusDiv.textContent = 'Error: Please select or create a venue.';
+                    statusDiv.className = 'text-center p-4 rounded-lg bg-red-800 text-white';
+                    submitButton.disabled = false;
+                    return;
+                }
+                
+                const formData = new FormData(form);
+                formData.set('venueId', venueId);
+
+                try {
+                     const response = await fetch('/.netlify/functions/event-submission', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (!response.ok) throw new Error('Server error during event submission.');
+                    
+                    statusDiv.textContent = 'Success! Your event has been submitted for review.';
+                    statusDiv.className = 'text-center p-4 rounded-lg bg-green-800 text-white';
+                    form.reset();
+                    newVenueFields.classList.add('hidden');
+                    venueSelect.value = "";
+
+                } catch (error) {
+                    statusDiv.textContent = `Error: ${error.message}`;
+                    statusDiv.className = 'text-center p-4 rounded-lg bg-red-800 text-white';
+                    submitButton.disabled = false;
+                }
+            });
+        });
+    </script>
 </body>
 </html>

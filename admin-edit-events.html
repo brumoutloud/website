@@ -76,7 +76,6 @@
     <div id="footer-placeholder"></div>
     <script src="/js/main.js" defer></script>
     <script>
-        // --- DOM Elements ---
         const eventList = document.getElementById('event-list');
         const loadingState = document.getElementById('loading-state');
         const loadMoreContainer = document.getElementById('load-more-container');
@@ -93,7 +92,6 @@
         const statusMessage = document.getElementById('status-message');
         const filterBar = document.getElementById('filter-bar');
         
-        // --- State ---
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
         let allAdminEvents = [];
         let allVenues = [];
@@ -102,7 +100,6 @@
         let isFetching = false;
         let currentFilter = 'all';
 
-        // --- Functions ---
         function renderEvent(item) {
             const fields = item.fields;
             const eventDate = new Date(fields.Date);
@@ -113,7 +110,6 @@
             
             const card = document.createElement('div');
             card.className = 'card-bg p-4 flex justify-between items-start';
-            // --- FIX: Store item ID instead of full JSON object ---
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex items-center gap-4">
@@ -140,6 +136,7 @@
                 allVenues = await response.json();
             } catch (error) {
                 console.error("Error fetching venues:", error);
+                alert("Warning: Could not load venue list for editing.");
             }
         }
         
@@ -278,7 +275,9 @@
             
             loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
             
-            addEventBtn.addEventListener('click', () => populateEditForm(null));
+            addEventBtn.addEventListener('click', () => {
+                populateEditForm(null);
+            });
 
             cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
 
@@ -346,11 +345,14 @@
                 } else {
                      formData.delete('venueId');
                 }
-                
+
                 let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
                 if (!isAdding) {
                     formData.append('id', currentItemForAction.id);
                     formData.append('type', 'Event'); 
+                } else {
+                    // This is for adding a new event, ensure it gets approved status
+                    formData.append('Status', 'Approved');
                 }
                 
                 try {
@@ -379,7 +381,7 @@
                     if (!response.ok) throw new Error(result.message);
                     statusMessage.textContent = `Cleanup Complete: ${result.message}`;
                     statusMessage.classList.remove('hidden');
-                    await fetchAndRenderEvents(null); // Re-fetch to show changes
+                    await fetchAndRenderEvents(null);
                 } catch (error) {
                     statusMessage.textContent = `Error during cleanup: ${error.toString()}`;
                     statusMessage.classList.remove('hidden');

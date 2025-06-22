@@ -44,8 +44,7 @@
             <div class="space-y-8">
                 <div class="card-bg p-8 md:p-12">
                     <h2 class="font-anton text-3xl text-white mb-4">Submit a Single Event</h2>
-                    <p class="text-gray-400 mb-6">Use this form to submit one event at a time. All fields are required for a complete listing.</p>
-                    <form id="single-event-form" class="space-y-6">
+                     <form id="single-event-form" class="space-y-6">
                          <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
                             <div class="space-y-6">
                                 <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
@@ -80,120 +79,15 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('single-event-form');
-            const newVenueAddressContainer = document.getElementById('new-venue-address-container');
-            const newVenueAddressInput = document.getElementById('new-venue-address');
-            const statusDiv = document.getElementById('form-status');
-            const submitButton = document.getElementById('submit-button');
             const venueSelectElement = document.getElementById('venue-select');
-
-            let isCreatingNewVenue = false;
-            let newVenueName = '';
-
-            const tomSelect = new TomSelect(venueSelectElement, {
-                valueField: 'id',
-                labelField: 'name',
-                searchField: 'name',
+            
+            // This is a simplified test configuration.
+            new TomSelect(venueSelectElement, {
                 create: true,
-                // --- FIX: Logic moved from onCreate to a more reliable combination of load and onItemAdd ---
-                load: (query, callback) => {
-                    if (!query.length) return callback();
-                    fetch(`/.netlify/functions/get-venues?search=${encodeURIComponent(query)}`)
-                        .then(response => response.json())
-                        .then(venues => {
-                             // If no venues are found, Tom Select will automatically offer the "create" option.
-                            callback(venues);
-                        }).catch(() => {
-                            callback();
-                        });
-                },
-                onItemAdd: (value) => {
-                    // Check if the added item is one that was created by the user
-                    // (Tom Select gives it the same value as its text content)
-                    const selectedOption = tomSelect.getOption(value);
-                    if (selectedOption && selectedOption.classList.contains('create')) {
-                        isCreatingNewVenue = true;
-                        newVenueName = value;
-                        newVenueAddressContainer.classList.remove('hidden');
-                        newVenueAddressInput.required = true;
-                        // Clear the "create" text from the select box, as we now handle it separately
-                        tomSelect.clear();
-                        tomSelect.blur();
-                    }
-                },
-                onChange: (value) => {
-                    // If the user selects a regular, existing venue, hide the address field
-                    if (value) {
-                         isCreatingNewVenue = false;
-                         newVenueAddressContainer.classList.add('hidden');
-                         newVenueAddressInput.required = false;
-                    }
-                }
-            });
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                submitButton.disabled = true;
-                statusDiv.textContent = 'Submitting, please wait...';
-                statusDiv.className = 'text-center p-4 rounded-lg bg-gray-700 text-white';
-                statusDiv.classList.remove('hidden');
-
-                let venueId = tomSelect.getValue();
-                
-                if (isCreatingNewVenue) {
-                    try {
-                        const response = await fetch('/.netlify/functions/create-unlisted-venue', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                venueName: newVenueName,
-                                address: newVenueAddressInput.value
-                            })
-                        });
-                        const result = await response.json();
-                        if (!response.ok || !result.success) throw new Error(result.message || 'Failed to create venue.');
-                        venueId = result.id;
-                    } catch (error) {
-                        statusDiv.textContent = `Error: ${error.message}`;
-                        statusDiv.className = 'text-center p-4 rounded-lg bg-red-800 text-white';
-                        submitButton.disabled = false;
-                        return;
-                    }
-                }
-
-                if (!venueId) {
-                    statusDiv.textContent = 'Error: Please select or create a venue.';
-                    statusDiv.className = 'text-center p-4 rounded-lg bg-red-800 text-white';
-                    submitButton.disabled = false;
-                    return;
-                }
-                
-                const formData = new FormData();
-                formData.append('event-name', form.elements['event-name'].value);
-                formData.append('date', form.elements['date'].value);
-                formData.append('start-time', form.elements['start-time'].value);
-                formData.append('description', form.elements['description'].value);
-                formData.append('link', form.elements['link'].value);
-                formData.append('recurring-info', form.elements['recurring-info'].value);
-                formData.append('promo-image', form.elements['promo-image'].files[0]);
-                formData.append('venueId', venueId);
-
-                try {
-                     const response = await fetch('/.netlify/functions/event-submission', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (!response.ok) throw new Error('Server error during event submission.');
-                    
-                    statusDiv.textContent = 'Success! Your event has been submitted for review.';
-                    statusDiv.className = 'text-center p-4 rounded-lg bg-green-800 text-white';
-                    form.reset();
-                    tomSelect.clear();
-
-                } catch (error) {
-                    statusDiv.textContent = `Error: ${error.message}`;
-                    statusDiv.className = 'text-center p-4 rounded-lg bg-red-800 text-white';
-                    submitButton.disabled = false;
+                onCreate: function(value) {
+                    alert('Create event has fired! The venue name is: ' + value);
+                    // This function should return false to prevent the item from being added to the dropdown immediately.
+                    return false;
                 }
             });
         });

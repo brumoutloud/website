@@ -111,7 +111,7 @@
 
         /* --- NEW: Featured Banner (Slideshow) Styles with 2-column layout --- */
         .slideshow-wrapper { margin-bottom: 4rem; filter: drop-shadow(0 0 20px rgba(181, 100, 247, 0.25)); /* Using existing accent-color */ }
-        .slideshow-container { position: relative; width: 100%; height: 350px; border-radius: 1rem; overflow: hidden; }
+        .slideshow-container { position: relative; width: 100%; height: 450px; /* Increased height for poster aspect ratio */ border-radius: 1rem; overflow: hidden; }
         
         /* Each slide is a flex container for its inner content */
         .slide {
@@ -125,6 +125,7 @@
             display: flex; /* Make slide a flex container */
             flex-direction: column; /* Default to column on small screens */
             justify-content: flex-end;
+            background-color: #1e1e1e; /* Ensure background color for entire slide */
         }
         .slide.active { opacity: 1; }
 
@@ -164,12 +165,16 @@
             height: 50%; /* Image takes top half on mobile */
             overflow: hidden;
             border-radius: 1rem 1rem 0 0; /* Rounded corners on top for mobile */
+            background-color: black; /* Added background for contain mode */
+            display: flex; /* Use flex to center image if it doesn't fill container */
+            justify-content: center;
+            align-items: center;
         }
 
         .slide-poster-image {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain; /* Changed to contain to show full poster aspect ratio */
             transition: transform 0.4s ease;
         }
         .slide:hover .slide-poster-image {
@@ -187,6 +192,7 @@
                 justify-content: flex-end; /* Align content to bottom */
                 background: transparent; /* No background on desktop, relies on overlay */
                 border-radius: 0;
+                padding-bottom: 3rem; /* Add more padding at bottom for better alignment with poster bottom */
             }
             .slide-poster-container {
                 width: 40%; /* Image takes 40% on desktop */
@@ -195,6 +201,7 @@
                 position: absolute; /* Position to the right */
                 right: 0;
                 top: 0;
+                background-color: black; /* Keep background for contain mode */
             }
             .slide-poster-image {
                  border-radius: 0 1rem 1rem 0; /* Match container corners */
@@ -354,7 +361,7 @@
              
             <div id="filter-bar-container" class="mb-12 flex flex-wrap gap-3">
                 <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
-                <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
+                <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</s-button>
                 <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
                 
                 <div class="relative" id="custom-date-popover-container">

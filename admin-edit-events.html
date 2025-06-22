@@ -76,6 +76,7 @@
     <div id="footer-placeholder"></div>
     <script src="/js/main.js" defer></script>
     <script>
+        // --- DOM Elements ---
         const eventList = document.getElementById('event-list');
         const loadingState = document.getElementById('loading-state');
         const loadMoreContainer = document.getElementById('load-more-container');
@@ -92,6 +93,7 @@
         const statusMessage = document.getElementById('status-message');
         const filterBar = document.getElementById('filter-bar');
         
+        // --- State ---
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
         let allAdminEvents = [];
         let allVenues = [];
@@ -100,6 +102,7 @@
         let isFetching = false;
         let currentFilter = 'all';
 
+        // --- Functions ---
         function renderEvent(item) {
             const fields = item.fields;
             const eventDate = new Date(fields.Date);
@@ -107,9 +110,10 @@
             if (!fields['Promo Image']) tagsHtml += '<span class="tag-missing">No Image</span>';
             if (!fields.Description) tagsHtml += '<span class="tag-missing">No Description</span>';
             if (!fields.Category || fields.Category.length === 0) tagsHtml += '<span class="tag-missing">No Category</span>';
-            const itemString = JSON.stringify(item).replace(/'/g, '&apos;');
+            
             const card = document.createElement('div');
             card.className = 'card-bg p-4 flex justify-between items-start';
+            // --- FIX: Store item ID instead of full JSON object ---
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex items-center gap-4">
@@ -124,7 +128,7 @@
                     </div>
                     <div class="mt-2 pl-[80px] flex gap-2 flex-wrap">${tagsHtml}</div>
                 </div>
-                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0 ml-4" data-item='${itemString}'>Edit</button>
+                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0 ml-4" data-id="${item.id}">Edit</button>
             `;
             return card;
         }
@@ -156,7 +160,6 @@
             const formHtml = `
                 <div class="grid md:grid-cols-2 gap-4">
                     <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
-                    <div><label>Parent Event Name</label><input type="text" name="Parent Event Name" value="${fields['Parent Event Name'] || ''}" placeholder="e.g. Glittershit"></div>
                 </div>
                 <div>
                     <label>Venue</label>
@@ -190,10 +193,6 @@
 
             if (fields.Venue && fields.Venue.length > 0) {
                 venueSelect.value = fields.Venue[0];
-            } else if (!fields.Venue && fields.VenueText) {
-                // If it's an old event with only VenueText, we can't select a venue.
-                // In a future step, we could try to match it. For now, leave dropdown blank.
-                venueSelect.value = "";
             }
             
             venueSelect.addEventListener('change', () => {
@@ -209,7 +208,6 @@
             if (isFetching) return;
             isFetching = true;
             const button = loadMoreBtn;
-            const originalButtonText = button.textContent;
             if (offset) {
                 button.textContent = 'Loading...';
                 button.disabled = true;
@@ -222,17 +220,17 @@
                 let url = '/.netlify/functions/get-events?view=admin';
                 if (offset) url += `&offset=${offset}`;
                 const response = await fetch(url);
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({details: 'Server returned an invalid response'}));
-                    throw new Error(errorData.details || 'Failed to fetch events.');
-                }
+                if (!response.ok) throw new Error('Failed to fetch events.');
+                
                 const data = await response.json();
                 loadingState.style.display = 'none';
                 const events = data.events || [];
+
                 if (events.length > 0) {
                     allAdminEvents = allAdminEvents.concat(events);
-                    applyFilters(); // Apply filters to the full list
+                    applyFilters();
                 }
+
                 if (allAdminEvents.length === 0) {
                     eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
                 }
@@ -247,7 +245,7 @@
             } finally {
                 isFetching = false;
                 if (offset) {
-                    button.textContent = originalButtonText;
+                    button.textContent = "Load More";
                     button.disabled = false;
                 }
             }
@@ -287,13 +285,12 @@
             eventList.addEventListener('click', (e) => {
                 const editButton = e.target.closest('.edit-btn');
                 if (editButton) {
-                    try {
-                        const itemData = editButton.dataset.item.replace(/&apos;/g, "'");
-                        const item = JSON.parse(itemData);
+                    const itemId = editButton.dataset.id;
+                    const item = allAdminEvents.find(event => event.id === itemId);
+                    if (item) {
                         populateEditForm(item);
-                    } catch (error) {
-                        console.error("Failed to parse event data:", error);
-                        alert("Could not open the editor for this event due to a data error.");
+                    } else {
+                        alert("Could not find event data. Please refresh the page.");
                     }
                 }
             });
@@ -349,7 +346,7 @@
                 } else {
                      formData.delete('venueId');
                 }
-
+                
                 let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
                 if (!isAdding) {
                     formData.append('id', currentItemForAction.id);
@@ -371,8 +368,28 @@
                 }
             });
 
-            // Cleanup button logic remains unchanged
-            cleanupBtn.addEventListener('click', async () => { /* ... */ });
+            cleanupBtn.addEventListener('click', async () => {
+                cleanupBtn.disabled = true;
+                cleanupBtnText.textContent = 'Processing...';
+                cleanupLoader.classList.remove('hidden');
+                statusMessage.classList.add('hidden');
+                try {
+                    const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message);
+                    statusMessage.textContent = `Cleanup Complete: ${result.message}`;
+                    statusMessage.classList.remove('hidden');
+                    await fetchAndRenderEvents(null); // Re-fetch to show changes
+                } catch (error) {
+                    statusMessage.textContent = `Error during cleanup: ${error.toString()}`;
+                    statusMessage.classList.remove('hidden');
+                } finally {
+                    cleanupBtn.disabled = false;
+                    cleanupBtnText.textContent = 'AI Category Cleanup';
+                    cleanupLoader.classList.add('hidden');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                }
+            });
         });
     </script>
 </body>

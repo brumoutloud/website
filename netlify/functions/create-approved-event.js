@@ -5,47 +5,55 @@ const fetch = require('node-fetch');
 // Firebase and other initializations remain the same...
 
 async function getDatesFromAI(startDate, recurrenceData, modelName) {
-    // --- NEW: Build a structured prompt ---
-    let prompt = `Based on a start date of ${startDate}, generate a comma-separated list of all dates for the next 3 months in YYYY-MM-DD format. The event repeats ${recurrenceData.frequency}`;
+    let recurrenceRule = "";
     if (recurrenceData.frequency === 'weekly') {
-        prompt += `, every ${recurrenceData.interval || 1} week(s)`;
+        recurrenceRule = `the event repeats weekly, every ${recurrenceData.interval || 1} week(s)`;
         if (recurrenceData.days && recurrenceData.days.length > 0) {
-            prompt += ` on ${recurrenceData.days.join(', ')}.`;
+            recurrenceRule += ` on ${recurrenceData.days.join(', ')}`;
+        }
+    } else if (recurrenceData.frequency === 'monthly') {
+        recurrenceRule = `the event repeats monthly, every ${recurrenceData.interval || 1} month(s)`;
+        if (recurrenceData.monthly_type === 'day_of_month') {
+            recurrenceRule += ` on day ${recurrenceData.monthly_day} of the month`;
+        } else if (recurrenceData.monthly_type === 'day_of_week') {
+            recurrenceRule += ` on the ${recurrenceData.monthly_ordinal} ${recurrenceData.monthly_weekday} of the month`;
         }
     }
-    prompt += ` IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
+
+    const prompt = `Based on a start date of ${startDate}, and the rule that "${recurrenceRule}", provide a comma-separated list of all dates for the next 3 months in format YYYY-MM-DD. IMPORTANT: Only return the comma-separated list of dates and nothing else.`;
     
     console.log(`[getDatesFromAI] AI PROMPT: "${prompt}"`);
 
-    // The rest of the AI call logic remains the same...
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
-    // ...
+    // The rest of the AI call logic remains the same...
 }
 
 exports.handler = async function (event, context) {
-    const geminiModel = 'gemini-1.5-flash'; // Hardcoded for simplicity, can be fetched from Firestore
+    const geminiModel = 'gemini-1.5-flash';
     
     try {
-        const submission = JSON.parse(event.body); // Assuming JSON body from "Approve All"
+        const submission = JSON.parse(event.body); 
         const eventsToCreate = submission.events;
 
         for (const eventData of eventsToCreate) {
             let datesToCreate = [];
             const startDate = eventData.date;
             
-            // --- NEW: Check for structured recurrence data ---
             if (eventData.recurrence_frequency && eventData.recurrence_frequency !== 'none' && startDate) {
                 const recurrenceData = {
                     frequency: eventData.recurrence_frequency,
                     interval: eventData.recurrence_interval,
-                    days: eventData.recurrence_days // This should be an array of day strings
+                    days: eventData.recurrence_days,
+                    monthly_type: eventData.monthly_type,
+                    monthly_day: eventData.monthly_day,
+                    monthly_ordinal: eventData.monthly_ordinal,
+                    monthly_weekday: eventData.monthly_weekday
                 };
                 datesToCreate = await getDatesFromAI(startDate, recurrenceData, geminiModel);
             } else if (startDate) {
                 datesToCreate.push(startDate);
             } else {
-                console.error("Skipping event due to missing date:", eventData);
-                continue; // Skip this event if no date is provided
+                continue; 
             }
 
             const recordsToCreate = datesToCreate.map((date, index) => {
@@ -56,9 +64,7 @@ exports.handler = async function (event, context) {
                     'Status': 'Approved',
                     'Link': eventData.link
                 };
-                if (eventData.venueId) {
-                    fields['Venue'] = [eventData.venueId];
-                }
+                if (eventData.venueId) fields['Venue'] = [eventData.venueId];
                 return { fields };
             });
 

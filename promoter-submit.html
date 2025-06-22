@@ -3,28 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Promoter Submissions | Brum Out Loud</title>
+    <title>Submit an Event | Brum Out Loud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/main.css">
-    <style>
-        .ts-control {
-            background-color: rgb(22 22 22 / 0.5) !important;
-            border: 1px solid #4a5568 !important;
-            border-radius: 0.5rem !important;
-            padding: 0.75rem !important;
-        }
-        .ts-dropdown, .ts-control, .ts-input, .ts-control > input, .ts-control > div {
-            color: white !important;
-            background-color: #161616;
-        }
-        .ts-dropdown .create {
-            color: #B564F7;
-        }
-    </style>
 </head>
 <body class="antialiased">
 
@@ -35,62 +19,24 @@
     </header>
 
     <main class="container mx-auto px-8 py-16">
-        <section class="max-w-4xl mx-auto">
-            <div class="text-center mb-16">
-                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">PROMOTER <span class="accent-color">SUBMISSIONS</span></h1>
-                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Submit your events to be featured on BrumOutLoud. Choose a submission method below.</p>
+        <section class="max-w-xl mx-auto">
+            <div class="text-center mb-12">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">SUBMIT AN <span class="accent-color">EVENT</span></h1>
+                <p class="mt-4 text-xl text-gray-300">Let's start with the venue. Enter the name of the venue for your event below.</p>
             </div>
 
-            <div class="space-y-8">
-                <div class="card-bg p-8 md:p-12">
-                    <h2 class="font-anton text-3xl text-white mb-4">Submit a Single Event</h2>
-                     <form id="single-event-form" class="space-y-6">
-                         <div class="grid md:grid-cols-2 gap-x-8 gap-y-6">
-                            <div class="space-y-6">
-                                <div><label for="event-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Event Name</label><input type="text" name="event-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                                <div>
-                                  <label for="venue-select" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label>
-                                  <select id="venue-select" required placeholder="Search for or create a new venue..."></select>
-                                </div>
-                                <div id="new-venue-address-container" class="hidden transition-all duration-300">
-                                  <label for="new-venue-address" class="block text-sm font-semibold mb-2 accent-color-secondary">New Venue Address</label>
-                                  <input type="text" id="new-venue-address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., 123 Main Street, Birmingham">
-                                </div>
-                                <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea name="description" rows="5" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
-                            </div>
-                            <div class="space-y-6">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div><label for="date" class="block text-sm font-semibold mb-2 accent-color-secondary">Date</label><input type="date" name="date" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                                    <div><label for="start-time" class="block text-sm font-semibold mb-2 accent-color-secondary">Start Time</label><input type="time" name="start-time" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                                </div>
-                                <div><label for="link" class="block text-sm font-semibold mb-2 accent-color-secondary">Ticket Link (Optional)</label><input type="url" name="link" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="https://"></div>
-                                <div><label for="recurring-info" class="block text-sm font-semibold mb-2 accent-color-secondary">Recurring Info (Optional)</label><input type="text" id="recurring-info" name="recurring-info" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Every Thursday"></div>
-                                <div><label for="promo-image" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label><input type="file" name="promo-image" id="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif"></div>
-                            </div>
-                        </div>
-                        <div id="form-status" class="text-center hidden p-4 rounded-lg"></div>
-                        <div class="text-right pt-4"><button type="submit" id="submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
-                    </form>
-                </div>
+            <div class="card-bg p-8 md:p-12">
+                <form action="/.netlify/functions/find-venue" method="GET" class="space-y-4">
+                    <div>
+                        <label for="venue-name-search" class="block text-xl font-semibold mb-3 text-center accent-color-secondary">Venue Name</label>
+                        <input type="text" id="venue-name-search" name="name" class="w-full p-4 text-center text-lg bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., The Nightingale Club" required>
+                    </div>
+                    <div class="text-center pt-4">
+                        <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity text-lg">Continue</button>
+                    </div>
+                </form>
             </div>
         </section>
     </main>
-
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const venueSelectElement = document.getElementById('venue-select');
-            
-            // This is a simplified test configuration.
-            new TomSelect(venueSelectElement, {
-                create: true,
-                onCreate: function(value) {
-                    alert('Create event has fired! The venue name is: ' + value);
-                    // This function should return false to prevent the item from being added to the dropdown immediately.
-                    return false;
-                }
-            });
-        });
-    </script>
 </body>
 </html>

@@ -23,33 +23,35 @@ async function uploadImage(file) {
     }
 }
 
-
 exports.handler = async function (event, context) {
     try {
         const submission = await parser.parse(event);
         
         const imageUrl = await uploadImage(submission.files.find(f => f.fieldname === 'promo-image'));
+        const venueId = submission.venueId || null;
+
+        // --- FIX: Combine date and time from the form into a single ISO string for Airtable ---
+        const eventDate = submission.date;
+        const eventTime = submission['start-time'] || '00:00'; // Default to midnight if time isn't provided
+        const combinedDateTime = new Date(`${eventDate}T${eventTime}`).toISOString();
+        // --- END FIX ---
 
         const eventRecord = {
-            "Event Name": submission['event-name'],
-            "Date": submission.date,
-            "Start Time": submission['start-time'],
-            "Description": submission.description,
-            "Link": submission.link,
-            "Recurring Info": submission['recurring-info'],
-            "Status": "Pending Review",
+            "Event Name":      submission['event-name'] || 'Untitled Event',
+            "Date":            combinedDateTime,
+            "Description":     submission.description || '',
+            "Link":            submission.link || '',
+            "Recurring Info":  submission['recurring-info'] || '',
+            "Status":          "Pending Review",
         };
 
         if (imageUrl) {
             eventRecord["Promo Image"] = [{ url: imageUrl }];
         }
         
-        // --- FIX: Read the venueId from the form submission and use it to link the record ---
-        const venueId = submission.venueId;
         if (venueId && venueId.startsWith('rec')) {
-            eventRecord["Venue"] = [venueId]; // Link to the venue record
+            eventRecord["Venue"] = [venueId];
         }
-        // --- END FIX ---
 
         await base('Events').create([{ fields: eventRecord }]);
     
@@ -63,7 +65,7 @@ exports.handler = async function (event, context) {
         console.error("!!! An error occurred in event-submission handler:", error);
         return {
             statusCode: 500,
-            body: `<html><body><h1>Internal Server Error</h1><p>An unexpected error occurred.</p></body></html>`
+            body: `<html><body><h1>Internal Server Error</h1><p>An unexpected error occurred: ${error.toString()}</p></body></html>`
         };
     }
 };

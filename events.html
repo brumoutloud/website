@@ -45,6 +45,7 @@
             font-weight: 600;
             padding: 0.25rem 0.75rem; /* Default for larger screens */
             border-radius: 9999px;
+            flex-shrink: 0; /* Prevent tags from shrinking */
         }
 
         @media (max-width: 767px) { /* For mobile devices */
@@ -52,6 +53,14 @@
                 font-size: 0.625rem; /* Smaller font for mobile (10px) */
                 padding: 0.125rem 0.5rem; /* Reduced padding for mobile */
             }
+        }
+
+        .tags-popover {
+            width: max-content; /* Ensure it's only as wide as its content */
+            white-space: normal; /* Allow content to wrap inside popover */
+            display: flex; /* Make it a flex container */
+            flex-wrap: wrap; /* Allow tags inside to wrap */
+            gap: 0.5rem; /* Consistent gap between tags */
         }
 
         .hamburger { cursor: pointer; width: 24px; height: 24px; transition: all 0.25s; position: relative; }
@@ -224,13 +233,22 @@
                             <img src="${imageUrl}" alt="${event.name}" class="item-card-image" loading="lazy">
                         </div>
                         <div class="p-6">
-                            <div class="mb-2 flex flex-wrap gap-2">${tagsHTML}</div>
+                            <div class="mb-2 flex flex-nowrap overflow-hidden gap-2 relative event-tags-wrapper">
+                                ${tagsHTML}
+                                <span class="more-tags-indicator absolute right-0 top-0 bg-gradient-to-l from-[#1e1e1e] to-transparent pl-4 pr-1 text-xs font-semibold text-gray-400 cursor-pointer hidden"></span>
+                                <div class="tags-popover popover absolute top-full left-0 mt-1 p-2 card-bg z-30 w-max hidden"></div>
+                            </div>
                             <h3 class="font-bold text-xl text-white mb-2 group-hover:accent-color" title="${event.name}" style="overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;">${event.name}</h3>
                             <p class="text-gray-400 mb-1">${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })}</p>
                             <p class="text-gray-400">${event.venue}</p>
                         </div>
                     </a>`;
                 eventGrid.insertAdjacentHTML('beforeend', eventCard);
+            });
+
+            // After all cards are rendered, process them for tag overflow
+            document.querySelectorAll('.item-card').forEach(card => {
+                handleTagsOverflow(card);
             });
         }
         
@@ -306,6 +324,72 @@
             window.addEventListener('click', () => { customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); });
         }
 
+        // --- Tag Overflow Handling ---
+        function handleTagsOverflow(cardElement) {
+            const wrapper = cardElement.querySelector('.event-tags-wrapper');
+            const tags = Array.from(wrapper.querySelectorAll('.category-tag'));
+            const moreIndicator = wrapper.querySelector('.more-tags-indicator');
+            const tagsPopover = wrapper.querySelector('.tags-popover');
+
+            if (!wrapper || tags.length === 0) {
+                if (moreIndicator) moreIndicator.classList.add('hidden');
+                return;
+            }
+
+            let totalWidth = 0;
+            let hiddenCount = 0;
+            const wrapperWidth = wrapper.clientWidth; // Get the actual rendered width of the wrapper
+
+            // Temporarily use a hidden div to measure tag widths accurately
+            const tempDiv = document.createElement('div');
+            tempDiv.style.visibility = 'hidden';
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.whiteSpace = 'nowrap';
+            tempDiv.style.overflow = 'visible';
+            document.body.appendChild(tempDiv);
+
+            // Populate popover immediately with all tags' outerHTML
+            tagsPopover.innerHTML = tags.map(tag => tag.outerHTML).join('');
+
+            for (let i = 0; i < tags.length; i++) {
+                const clonedTag = tags[i].cloneNode(true);
+                // Temporarily add to tempDiv to measure
+                tempDiv.appendChild(clonedTag);
+                // Measure tag width including potential margins/gaps
+                const currentTagWidth = clonedTag.offsetWidth + (i < tags.length - 1 ? 8 : 0); // Account for gap-2 (0.5rem = 8px) between tags
+
+                // Check if adding this tag exceeds the wrapper's width
+                // Allowing space for the "+N" indicator if it appears (approx 30px)
+                const indicatorWidthAllowance = (hiddenCount > 0 || i === tags.length -1 || totalWidth + currentTagWidth > wrapperWidth - 30) ? 30 : 0;
+
+
+                if (totalWidth + currentTagWidth <= wrapperWidth - indicatorWidthAllowance) {
+                    totalWidth += currentTagWidth;
+                    tags[i].style.display = 'inline-block'; // Ensure tag is visible
+                } else {
+                    tags[i].style.display = 'none'; // Hide the tag
+                    hiddenCount++;
+                }
+            }
+            document.body.removeChild(tempDiv); // Clean up temp div
+
+            if (hiddenCount > 0) {
+                moreIndicator.textContent = `+${hiddenCount}`;
+                moreIndicator.classList.remove('hidden');
+
+                // Hover logic for the indicator and wrapper
+                wrapper.addEventListener('mouseenter', () => {
+                    tagsPopover.classList.add('show');
+                });
+                wrapper.addEventListener('mouseleave', () => {
+                    tagsPopover.classList.remove('show');
+                });
+
+            } else {
+                moreIndicator.classList.add('hidden'); // Ensure it's hidden if no overflow
+            }
+        }
+        
         // --- Initial Data Fetch ---
         async function initializePage() {
             try {

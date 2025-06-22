@@ -136,7 +136,6 @@
                 allVenues = await response.json();
             } catch (error) {
                 console.error("Error fetching venues:", error);
-                alert("Warning: Could not load venue list for editing.");
             }
         }
         
@@ -168,8 +167,8 @@
                 </div>
                 <div class="hidden space-y-2 p-4 mt-2 bg-gray-800 rounded-lg" id="new-venue-fields">
                     <label class="font-semibold text-white">New Venue Details</label>
-                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" required>
-                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" required>
+                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name">
+                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address">
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
@@ -188,15 +187,18 @@
             const venueSelect = editFormFields.querySelector('.venue-select');
             const newVenueFields = editFormFields.querySelector('#new-venue-fields');
 
-            if (fields.Venue && fields.Venue.length > 0) {
-                venueSelect.value = fields.Venue[0];
+            // --- FIX: Add a check to ensure venueSelect exists before adding a listener ---
+            if (venueSelect) {
+                if (fields.Venue && fields.Venue.length > 0) {
+                    venueSelect.value = fields.Venue[0];
+                }
+                
+                venueSelect.addEventListener('change', () => {
+                    const showNew = venueSelect.value === '__CREATE_NEW__';
+                    newVenueFields.classList.toggle('hidden', !showNew);
+                    newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
+                });
             }
-            
-            venueSelect.addEventListener('change', () => {
-                const showNew = venueSelect.value === '__CREATE_NEW__';
-                newVenueFields.classList.toggle('hidden', !showNew);
-                newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
-            });
 
             editModal.classList.remove('hidden');
         }

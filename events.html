@@ -348,9 +348,12 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
             
-            <div class="mb-12" id="featured-events-section">
+            <!-- NEW: Section for Featured Banner -->
+            <div class="mb-12 hidden" id="featured-events-section"> <!-- Added 'hidden' class here -->
                  <div id="featured-banner" class="slideshow-wrapper">
                      <div class="slideshow-container">
+                        <!-- Slides will be dynamically inserted here by JavaScript -->
+                        <!-- Dots will be dynamically inserted here by JavaScript -->
                         <div class="slideshow-dots"></div>
                      </div>
                 </div>
@@ -691,12 +694,14 @@
                 const eventsResponse = await fetch('/.netlify/functions/get-events');
                 const fetchedEvents = await eventsResponse.json();
                 
-                // Assuming your Netlify function returns events with isFeatured and isBoosted flags
-                featuredEvents = fetchedEvents.filter(event => event.isFeatured);
+                // Comment out this line to disable the featured banner temporarily
+                // featuredEvents = fetchedEvents.filter(event => event.isFeatured); 
+                featuredEvents = []; // Explicitly clear featuredEvents to hide the banner
+
                 // Ensure allEvents includes boosted events and is sorted
                 allEvents = fetchedEvents.sort((a, b) => new Date(a.date) - new Date(b.date)); 
 
-                createSlideshowElements(); // Render featured banner
+                createSlideshowElements(); // Render featured banner (will be hidden due to empty featuredEvents)
                 renderEvents(allEvents); // Render all events (including boosted in the main grid)
                 renderCategoryOptions();
                 setupEventListeners();

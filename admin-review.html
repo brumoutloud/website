@@ -60,7 +60,7 @@
                 const parsedVenueName = (event.venue || '').trim().toLowerCase();
                 const matchedVenue = allVenues.find(v => v.name.trim().toLowerCase() === parsedVenueName);
                 const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                const ordinals = ['first', 'second', 'third', 'fourth', 'last'];
+                const ordinals = [{v:'first',t:'First'},{v:'second',t:'Second'},{v:'third',t:'Third'},{v:'fourth',t:'Fourth'},{v:'last',t:'Last'}];
 
                 const card = document.createElement('div');
                 card.id = `event-card-${index}`;
@@ -68,11 +68,11 @@
                 card.innerHTML = `
                     <form class="event-review-form" data-index="${index}">
                         <div class="grid md:grid-cols-2 gap-x-8 gap-y-4">
-                            <div><label>Event Name</label><input type="text" name="name" value="${event.eventName || ''}"></div>
+                            <div><label>Event Name</label><input type="text" name="name" value="${event.name || ''}"></div>
                             <div><label>Venue</label><select name="venueId" class="venue-select">${venueOptionsHtml}</select></div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div><label>Date</label><input type="date" name="date" value="${event.date || ''}"></div>
-                                <div><label>Start Time</label><input type="time" name="time" value="${event.startTime || ''}"></div>
+                                <div><label>Time</label><input type="time" name="time" value="${event.time || ''}"></div>
                             </div>
                             <div><label>Ticket Link</label><input type="url" name="link" value="${event.ticketLink || ''}" placeholder="https://"></div>
                             <div class="md:col-span-2"><label>Description</label><textarea name="description" rows="3">${event.description || ''}</textarea></div>
@@ -80,19 +80,23 @@
                             <div class="md:col-span-2 border-t border-gray-700 pt-4 space-y-4">
                                 <label class="block text-sm font-semibold accent-color-secondary">Recurrence</label>
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div><label class="text-xs">Frequency</label><select name="recurrence_frequency" class="recurrence-control"><option value="none">Does not repeat</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-                                    <div class="recurrence-weekly-options recurrence-monthly-options hidden"><label class="text-xs">Repeats every</label><input type="number" name="recurrence_interval" value="1" min="1"></div>
+                                    <div><label class="text-xs">Frequency</label><select name="recurrence_frequency" class="recurrence-control"><option value="none" selected>Does not repeat</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+                                    <div class="recurrence-options recurrence-weekly-options recurrence-monthly-options hidden"><label class="text-xs">Repeats every</label><input type="number" name="recurrence_interval" value="1" min="1"><span>&nbsp;weeks/months</span></div>
                                 </div>
-                                <div class="recurrence-weekly-options hidden"><label class="text-xs">On these days</label><div class="grid grid-cols-4 gap-2">${daysOfWeek.map(day => `<label class="text-center p-2 rounded-md border border-gray-700 has-[:checked]:bg-accent-color"><input type="checkbox" name="recurrence_days" value="${day}" class="sr-only"><span>${day}</span></label>`).join('')}</div></div>
-                                <div class="recurrence-monthly-options hidden space-y-2"><label class="text-xs">On</label><div class="flex items-center gap-2"><input type="radio" name="monthly_type" value="day_of_month" checked><span>Day</span><input type="number" name="monthly_day" value="1" min="1" max="31" class="w-16 p-1"><span>of the month</span></div><div class="flex items-center gap-2"><input type="radio" name="monthly_type" value="day_of_week"><span>The</span><select name="monthly_ordinal" class="p-1">${ordinals.map(o => `<option value="${o}">${o}</option>`).join('')}</select><select name="monthly_weekday" class="p-1">${daysOfWeek.map(day => `<option value="${day}">${day}</option>`).join('')}</select></div></div>
+                                <div class="recurrence-options recurrence-weekly-options hidden"><label class="text-xs">On these days</label><div class="grid grid-cols-4 lg:grid-cols-7 gap-2">${daysOfWeek.map(day => `<label class="text-center p-2 rounded-md border border-gray-700 has-[:checked]:bg-accent-color has-[:checked]:border-accent-color cursor-pointer"><input type="checkbox" name="recurrence_days" value="${day}" class="sr-only"><span>${day}</span></label>`).join('')}</div></div>
+                                <div class="recurrence-options recurrence-monthly-options hidden space-y-3"><label class="text-xs">On</label>
+                                    <div class="flex items-center gap-x-2"><input type="radio" name="monthly_type_${index}" value="day_of_month" id="day_of_month_${index}" checked class="form-radio bg-gray-800"><label for="day_of_month_${index}" class="flex items-center gap-x-2"><span>Day</span><input type="number" name="monthly_day" value="1" min="1" max="31" class="w-16 p-1 text-center"><span>of the month</span></label></div>
+                                    <div class="flex items-center gap-x-2"><input type="radio" name="monthly_type_${index}" value="day_of_week" id="day_of_week_${index}" class="form-radio bg-gray-800"><label for="day_of_week_${index}" class="flex items-center gap-x-2"><span>The</span><select name="monthly_ordinal">${ordinals.map(o => `<option value="${o.v}">${o.t}</option>`).join('')}</select><select name="monthly_weekday">${daysOfWeek.map(day => `<option value="${day}">${day}</option>`).join('')}</select></label></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="text-right mt-4"><label class="text-sm mr-2"><input type="checkbox" name="approved" checked>Approve</label></div>
+                        <div class="text-right mt-4"><label class="text-sm mr-2"><input type="checkbox" name="approved" class="form-checkbox bg-gray-800" checked>Approve</label></div>
                     </form>
                 `;
                 reviewContainer.appendChild(card);
                 
-                card.querySelectorAll('input:not([type=checkbox]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700');
+                card.querySelectorAll('input:not([type=checkbox]):not([type=radio]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700');
+                card.querySelectorAll('input[type=radio]').forEach(el => el.className = 'form-radio bg-gray-800 border-gray-600 text-accent-color focus:ring-accent-color');
                 
                 const venueSelect = card.querySelector('.venue-select');
                 if (matchedVenue) venueSelect.value = matchedVenue.id;
@@ -112,11 +116,68 @@
                     if(events && events.length > 0) {
                         events.forEach(createEventCard);
                         approveAllContainer.classList.remove('hidden');
-                    }
-                } catch (e) { console.error("Error parsing data:", e); }
-            }
+                    } else { reviewContainer.innerHTML = '<p class="text-gray-400 text-center">The AI could not find any events in the provided file.</p>'; }
+                } catch (e) { reviewContainer.innerHTML = '<p class="text-red-500 text-center">Could not parse event data. Please try uploading again.</p>'; }
+            } else { reviewContainer.innerHTML = '<p class="text-gray-400 text-center">No event data found. Please submit through the promoter tools page.</p>'; }
 
-            document.getElementById('approve-all-btn').addEventListener('click', async () => { /* ... existing logic ... */ });
+            document.getElementById('approve-all-btn').addEventListener('click', async () => {
+                const eventsToCreate = [];
+                reviewContainer.querySelectorAll('.event-review-form').forEach(form => {
+                    if (!form.elements.approved.checked) return;
+                    
+                    const eventData = {};
+                    const formData = new FormData(form);
+                    for (const [key, value] of formData.entries()) {
+                         // Handle checkbox array for recurrence days
+                        if (key === 'recurrence_days') {
+                            if (!eventData[key]) eventData[key] = [];
+                            eventData[key].push(value);
+                        } else {
+                            eventData[key] = value;
+                        }
+                    }
+                    
+                    // Use the correct radio button value for monthly_type
+                    eventData.monthly_type = form.querySelector(`input[name="monthly_type_${form.dataset.index}"]:checked`).value;
+                    
+                    if (eventData.venueId) {
+                        eventsToCreate.push(eventData);
+                    }
+                });
+
+                if(eventsToCreate.length === 0) {
+                    statusMessage.textContent = "No events with linked venues are selected for approval.";
+                    statusMessage.className = "mt-8 text-center text-lg font-semibold text-yellow-400";
+                    statusMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                const approveAllBtn = document.getElementById('approve-all-btn');
+                statusMessage.textContent = `Approving ${eventsToCreate.length} event(s)...`;
+                statusMessage.className = "mt-8 text-center text-lg font-semibold text-white";
+                statusMessage.classList.remove('hidden');
+                approveAllBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/.netlify/functions/create-approved-event', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ events: eventsToCreate }),
+                    });
+                    if (!response.ok) {
+                         const errData = await response.json();
+                         throw new Error(errData.message || 'Server responded with an error.');
+                    }
+                    statusMessage.textContent = 'Successfully approved events! They are now being added to the site.';
+                    statusMessage.className = "mt-8 text-center text-lg font-semibold text-green-400";
+                    approveAllContainer.style.display = 'none';
+                    reviewContainer.innerHTML = '';
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                    statusMessage.className = "mt-8 text-center text-lg font-semibold text-red-500";
+                    approveAllBtn.disabled = false;
+                }
+            });
         });
     </script>
 </body>

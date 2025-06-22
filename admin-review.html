@@ -3,234 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Review Parsed Events | Brum Out Loud</title>
+    <title>Review Bulk Submissions | Brum Out Loud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
-    <style>
-        .ts-control {
-            background-color: rgb(22 22 22 / 0.5) !important;
-            border: 1px solid #4a5568 !important;
-            border-radius: 0.5rem !important;
-            padding: 0.5rem !important;
-        }
-        .ts-dropdown, .ts-control, .ts-input, .ts-control > input, .ts-control > div {
-            color: white !important;
-            background-color: #161616;
-        }
-        .ts-dropdown .create {
-            color: #B564F7;
-        }
-    </style>
 </head>
 <body class="antialiased">
 
     <header class="p-8">
         <nav class="container mx-auto flex justify-between items-center">
             <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
-            <a href="/admin/settings" class="text-gray-300 hover:text-white">Back to Admin Settings</a>
         </nav>
     </header>
 
     <main class="container mx-auto px-8 py-16">
-        <section class="max-w-4xl mx-auto">
+        <section class="max-w-6xl mx-auto">
             <div class="text-center mb-16">
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">REVIEW <span class="accent-color">EVENTS</span></h1>
-                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">The smart system has extracted the following events. Please review, edit if necessary, and approve them to add them to the site.</p>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Review the events parsed from your file. Match the venue and make any corrections before approving them for the site.</p>
             </div>
 
-            <div id="results-container" class="space-y-6">
+            <div id="review-container" class="space-y-6">
                 </div>
-            <div id="status-message" class="mt-8 text-center"></div>
+            
+            <div class="mt-12 text-center hidden" id="approve-all-container">
+                <button id="approve-all-btn" class="bg-green-600 text-white font-bold py-4 px-10 rounded-lg hover:bg-green-700 transition-colors text-lg">Approve All Correct Events</button>
+            </div>
+
+            <div id="status-message" class="mt-8 text-center text-lg font-semibold hidden"></div>
+
         </section>
     </main>
 
-    <div id="add-venue-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
-        <div class="card-bg p-8 rounded-lg max-w-md w-full">
-            <h2 class="font-anton text-3xl text-white mb-4">Add New Location</h2>
-            <p class="text-gray-400 mb-6">This location isn't on our list. Add its details below to continue.</p>
-            <form id="add-venue-form" class="space-y-4">
-                <div>
-                    <label for="new-venue-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label>
-                    <input type="text" id="new-venue-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
-                </div>
-                <div>
-                    <label for="new-venue-address" class="block text-sm font-semibold mb-2 accent-color-secondary">Address</label>
-                    <input type="text" id="new-venue-address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
-                </div>
-                <div id="modal-error" class="text-red-500 text-sm hidden"></div>
-                <div class="flex justify-end space-x-4 pt-4">
-                    <button type="button" id="cancel-venue-btn" class="text-gray-400 hover:text-white">Cancel</button>
-                    <button type="submit" class="bg-accent-color text-white font-bold py-2 px-6 rounded-lg hover:opacity-90">Save Location</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
-        const resultsContainer = document.getElementById('results-container');
-        const statusMessage = document.getElementById('status-message');
-        const venueModal = document.getElementById('add-venue-modal');
-        const venueForm = document.getElementById('add-venue-form');
-        const cancelVenueBtn = document.getElementById('cancel-venue-btn');
-        const newVenueNameInput = document.getElementById('new-venue-name');
-        const modalError = document.getElementById('modal-error');
-        
-        let tomSelectInstances = {};
-        let activeTomSelect = null; // Track which dropdown triggered the modal
+        document.addEventListener('DOMContentLoaded', async () => {
+            const reviewContainer = document.getElementById('review-container');
+            const approveAllContainer = document.getElementById('approve-all-container');
+            const statusMessage = document.getElementById('status-message');
+            let allVenues = [];
 
-        // --- NEW: Modal Logic ---
-        cancelVenueBtn.addEventListener('click', () => venueModal.classList.add('hidden'));
-        venueForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            modalError.classList.add('hidden');
-            const newVenue = {
-                venueName: newVenueNameInput.value,
-                address: document.getElementById('new-venue-address').value,
+            // 1. Fetch all venues to be used in the dropdowns
+            try {
+                const response = await fetch('/.netlify/functions/get-venue-list');
+                if (!response.ok) throw new Error('Could not load venues');
+                allVenues = await response.json();
+            } catch (error) {
+                console.error(error);
+                statusMessage.textContent = 'Warning: Could not load venue list for matching.';
+                statusMessage.classList.remove('hidden');
+            }
+
+            // 2. Render the event cards
+            const createEventCard = (event, index) => {
+                const venueOptionsHtml = allVenues.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                
+                // Try to find a matching venue from the parsed text
+                const parsedVenueName = (event.venue || '').trim().toLowerCase();
+                const matchedVenue = allVenues.find(v => v.name.trim().toLowerCase() === parsedVenueName);
+
+                const card = document.createElement('div');
+                card.id = `event-card-${index}`;
+                card.className = `card-bg p-6 rounded-lg ${!matchedVenue ? 'border-2 border-yellow-500' : 'border-2 border-transparent'}`;
+                card.innerHTML = `
+                    <form class="event-review-form" data-index="${index}">
+                        <div class="grid md:grid-cols-2 gap-x-8 gap-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 accent-color-secondary">Event Name</label>
+                                <input type="text" name="name" value="${event.eventName || ''}" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label>
+                                <select name="venueId" class="venue-select w-full p-2 bg-gray-900/50 rounded-md border border-gray-700">
+                                    <option value="">-- Select a Venue --</option>
+                                    ${venueOptionsHtml}
+                                </select>
+                                ${!matchedVenue ? `<p class="text-xs text-yellow-400 mt-1">Parsed venue '${event.venue}' not found. Please select from list.</p>` : ''}
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 accent-color-secondary">Date</label>
+                                    <input type="date" name="date" value="${event.date || ''}" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1 accent-color-secondary">Start Time</label>
+                                    <input type="time" name="time" value="${event.startTime || ''}" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700">
+                                </div>
+                            </div>
+                             <div>
+                                <label class="block text-sm font-semibold mb-1 accent-color-secondary">Ticket Link</label>
+                                <input type="url" name="link" value="${event.ticketLink || ''}" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700" placeholder="https://">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label>
+                                <textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700">${event.description || ''}</textarea>
+                            </div>
+                        </div>
+                        <div class="text-right mt-4">
+                            <label class="text-sm mr-2"><input type="checkbox" name="approved" class="form-checkbox bg-gray-800" checked> Approve this event</label>
+                        </div>
+                    </form>
+                `;
+                reviewContainer.appendChild(card);
+
+                const venueSelect = card.querySelector('.venue-select');
+                if (matchedVenue) {
+                    venueSelect.value = matchedVenue.id;
+                }
             };
 
-            try {
-                const response = await fetch('/.netlify/functions/create-unlisted-venue', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newVenue),
-                });
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.message || 'Failed to create venue.');
+            // 3. Get data from URL and render forms
+            if (window.location.hash) {
+                try {
+                    const encodedData = window.location.hash.substring(1);
+                    const events = JSON.parse(atob(encodedData));
+                    if(events && events.length > 0) {
+                        events.forEach(createEventCard);
+                        approveAllContainer.classList.remove('hidden');
+                    } else {
+                        reviewContainer.innerHTML = '<p class="text-gray-400 text-center">The AI could not find any events in the provided file.</p>';
+                    }
+                } catch (e) {
+                    reviewContainer.innerHTML = '<p class="text-red-500 text-center">Could not parse event data. Please try uploading again.</p>';
+                    console.error("Error parsing data from URL:", e);
+                }
+            } else {
+                reviewContainer.innerHTML = '<p class="text-gray-400 text-center">No event data found. Please submit through the promoter tools page.</p>';
+            }
 
-                if (activeTomSelect) {
-                    activeTomSelect.addOption({ id: result.id, name: newVenue.venueName });
-                    activeTomSelect.setValue(result.id);
+            // 4. Handle "Approve All" submission
+            const approveAllBtn = document.getElementById('approve-all-btn');
+            approveAllBtn.addEventListener('click', async () => {
+                const eventsToCreate = [];
+                const eventForms = reviewContainer.querySelectorAll('.event-review-form');
+
+                eventForms.forEach(form => {
+                    const isApproved = form.querySelector('[name="approved"]').checked;
+                    if (isApproved) {
+                        const eventData = {
+                            name: form.elements.name.value,
+                            date: form.elements.date.value,
+                            time: form.elements.time.value,
+                            description: form.elements.description.value,
+                            link: form.elements.link.value,
+                            venueId: form.elements.venueId.value
+                        };
+                        if (eventData.venueId) { // Only include events where a venue has been selected
+                           eventsToCreate.push(eventData);
+                        }
+                    }
+                });
+
+                if(eventsToCreate.length === 0) {
+                    statusMessage.textContent = "No events with linked venues are selected for approval.";
+                    statusMessage.className = "mt-8 text-center text-lg font-semibold text-yellow-400";
+                    statusMessage.classList.remove('hidden');
+                    return;
                 }
                 
-                venueModal.classList.add('hidden');
-                venueForm.reset();
-                activeTomSelect = null;
+                statusMessage.textContent = `Approving ${eventsToCreate.length} event(s)...`;
+                statusMessage.className = "mt-8 text-center text-lg font-semibold text-white";
+                statusMessage.classList.remove('hidden');
+                approveAllBtn.disabled = true;
 
-            } catch (error) {
-                modalError.textContent = error.message;
-                modalError.classList.remove('hidden');
-            }
-        });
+                try {
+                    // This reuses the create-approved-event function but we send an array of events
+                    const response = await fetch('/.netlify/functions/create-approved-event', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ events: eventsToCreate }),
+                    });
 
+                    if (!response.ok) {
+                         const errData = await response.json();
+                         throw new Error(errData.message || 'Server responded with an error.');
+                    }
+                    
+                    statusMessage.textContent = 'Successfully approved events! They are now being added to the site.';
+                    statusMessage.className = "mt-8 text-center text-lg font-semibold text-green-400";
+                    approveAllContainer.style.display = 'none';
+                    reviewContainer.innerHTML = '';
 
-        function renderEventForm(eventData, index) {
-            const categories = Array.isArray(eventData.categories) ? eventData.categories.join(', ') : '';
-            const cardId = `event-card-${index}`;
-            // --- MODIFIED: Venue input is now a select ---
-            const formHtml = `
-                <form class="event-review-form card-bg p-6 space-y-4" data-index="${index}">
-                    <h3 class="font-anton text-2xl text-white">Review Event ${index + 1}</h3>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Name</label><input type="text" name="name" value="${eventData.name || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
-                        <div>
-                            <label class="block text-sm font-semibold mb-1 accent-color-secondary">Venue</label>
-                            <select name="venueId" class="venue-select" placeholder="Search or add a venue..."></select>
-                        </div>
-                    </div>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Date</label><input type="date" name="date" value="${eventData.date || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
-                        <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Time (24hr)</label><input type="time" name="time" value="${eventData.time || ''}" class="w-full p-2 bg-gray-900/50 rounded-md"></div>
-                    </div>
-                    <div><label class="block text-sm font-semibold mb-1 accent-color-secondary">Description</label><textarea name="description" rows="3" class="w-full p-2 bg-gray-900/50 rounded-md">${eventData.description || ''}</textarea></div>
-                    <div class="flex justify-end gap-4 pt-2">
-                        <button type="button" class="reject-btn bg-red-600/20 text-red-300 font-bold py-2 px-4 rounded-lg">Reject</button>
-                        <button type="submit" class="approve-btn bg-green-600/20 text-green-300 font-bold py-2 px-4 rounded-lg">Approve & Add</button>
-                    </div>
-                </form>
-            `;
-            resultsContainer.insertAdjacentHTML('beforeend', formHtml);
-
-            // --- NEW: Initialize TomSelect for each new form ---
-            const newForm = resultsContainer.querySelector(`[data-index="${index}"]`);
-            const venueSelect = newForm.querySelector('.venue-select');
-            
-            tomSelectInstances[cardId] = new TomSelect(venueSelect, {
-                valueField: 'id',
-                labelField: 'name',
-                searchField: ['name'],
-                create: true,
-                createFilter: (input) => input.length > 2,
-                render: {
-                    option_create: (data, escape) => `<div class="create">✨ Add a new location: <strong>${escape(data.input)}</strong></div>`,
-                },
-                load: (query, callback) => {
-                    fetch(`/.netlify/functions/get-venues?search=${encodeURIComponent(query)}`)
-                        .then(res => res.json()).then(callback).catch(() => callback());
-                },
-                onCreate: (value) => {
-                    activeTomSelect = tomSelectInstances[cardId];
-                    newVenueNameInput.value = value;
-                    venueModal.classList.remove('hidden');
-                    return false;
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                    statusMessage.className = "mt-8 text-center text-lg font-semibold text-red-500";
+                    approveAllBtn.disabled = false;
                 }
             });
 
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            try {
-                const encodedData = window.location.hash.substring(1);
-                if (!encodedData) {
-                    statusMessage.textContent = 'No event data found to review.';
-                    return;
-                }
-                const jsonData = atob(decodeURIComponent(encodedData));
-                const parsedEvents = JSON.parse(jsonData);
-
-                if (parsedEvents && parsedEvents.length > 0) {
-                    parsedEvents.forEach(renderEventForm);
-                } else {
-                    statusMessage.textContent = 'No events were found in the uploaded file.';
-                }
-            } catch (e) {
-                console.error("Error parsing data from URL:", e);
-                statusMessage.textContent = 'Could not read the event data. Please try uploading again.';
-            }
         });
-        
-        resultsContainer.addEventListener('click', async (e) => {
-            const target = e.target;
-            const reviewForm = target.closest('.event-review-form');
-            if (!reviewForm) return;
-
-            if (target.classList.contains('reject-btn')) {
-                reviewForm.style.opacity = '0.5';
-                reviewForm.innerHTML = '<p class="text-center text-red-400 font-bold">Rejected</p>';
-            }
-
-            if (target.classList.contains('approve-btn')) {
-                e.preventDefault();
-                target.disabled = true;
-                target.textContent = 'Adding...';
-
-                const formData = new FormData(reviewForm);
-                const eventData = Object.fromEntries(formData.entries());
-                
-                try {
-                    const response = await fetch('/.netlify/functions/create-approved-event', {
-                        method: 'POST',
-                        body: JSON.stringify(eventData)
-                    });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.message);
-                    
-                    reviewForm.style.opacity = '0.5';
-                    reviewForm.innerHTML = `<p class="text-center text-green-400 font-bold">Approved & Added: ${eventData.name}</p>`;
-
-                } catch (error) {
-                    target.disabled = false;
-                    target.textContent = 'Approve & Add';
-                    alert(`Error adding event: ${error.toString()}`);
-                }
-            }
-        });
-
     </script>
 </body>
 </html>

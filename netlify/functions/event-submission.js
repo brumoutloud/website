@@ -29,12 +29,7 @@ exports.handler = async function (event, context) {
         
         const imageUrl = await uploadImage(submission.files.find(f => f.fieldname === 'promo-image'));
         const venueId = submission.venueId || null;
-
-        // --- FIX: Combine date and time from the form into a single ISO string for Airtable ---
-        const eventDate = submission.date;
-        const eventTime = submission['start-time'] || '00:00'; // Default to midnight if time isn't provided
-        const combinedDateTime = new Date(`${eventDate}T${eventTime}`).toISOString();
-        // --- END FIX ---
+        const combinedDateTime = new Date(`${submission.date}T${submission['start-time'] || '00:00'}`).toISOString();
 
         const eventRecord = {
             "Event Name":      submission['event-name'] || 'Untitled Event',
@@ -43,6 +38,8 @@ exports.handler = async function (event, context) {
             "Link":            submission.link || '',
             "Recurring Info":  submission['recurring-info'] || '',
             "Status":          "Pending Review",
+            // --- NEW FIELD ADDED HERE ---
+            "Submitter Email": submission['contact-email'] || null
         };
 
         if (imageUrl) {

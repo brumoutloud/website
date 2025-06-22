@@ -168,8 +168,8 @@
                 </div>
                 <div class="hidden space-y-2 p-4 mt-2 bg-gray-800 rounded-lg" id="new-venue-fields">
                     <label class="font-semibold text-white">New Venue Details</label>
-                    <input type="text" id="new-venue-name" placeholder="New Venue Name" required>
-                    <input type="text" id="new-venue-address" placeholder="New Venue Address" required>
+                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" required>
+                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" required>
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
@@ -345,14 +345,11 @@
                 } else {
                      formData.delete('venueId');
                 }
-
+                
                 let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
                 if (!isAdding) {
                     formData.append('id', currentItemForAction.id);
                     formData.append('type', 'Event'); 
-                } else {
-                    // This is for adding a new event, ensure it gets approved status
-                    formData.append('Status', 'Approved');
                 }
                 
                 try {

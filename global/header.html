@@ -6,14 +6,9 @@
 
 <header class="p-8">
     <nav class="container mx-auto flex justify-between items-center">
-        <!-- Updated site name with a more subtle, on-brand queer gradient -->
+        <!-- Site name reverted to white text, using Omnes Pro -->
         <a href="/" class="text-2xl tracking-widest text-white"
-           style="font-family: 'Omnes Pro', sans-serif;
-                  background-image: linear-gradient(to right, #B564F7, #FF69B4, #87CEEB); /* Purple, Hot Pink, Sky Blue */
-                  -webkit-background-clip: text;
-                  background-clip: text;
-                  -webkit-text-fill-color: transparent;
-                  text-fill-color: transparent;">
+           style="font-family: 'Omnes Pro', sans-serif;">
             Brum Outloud
         </a>
         <div class="hidden lg:flex items-center space-x-8">
@@ -21,7 +16,16 @@
             <a href="/all-venues.html" class="text-gray-300 hover:text-white">VENUES</a>
             <a href="/community.html" class="text-gray-300 hover:text-white">COMMUNITY</a>
             <a href="/contact.html" class="text-gray-300 hover:text-white">CONTACT</a>
-            <a href="/promoter-tool.html" class="inline-block bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors duration-200">GET LISTED</a>
+            <!-- GET LISTED button with subtle queer gradient on hover -->
+            <a href="/promoter-tool.html"
+               class="inline-block text-white font-bold py-2 px-4 rounded-lg transition-all duration-300"
+               style="background-color: #B564F7; /* Default background: your accent-color purple */
+                      border: none; /* Ensure no default border interferes with the background */
+                      /* Smooth transition for background changes */
+                      transition: background-image 0.3s ease-in-out, background-color 0.3s ease-in-out;"
+               onmouseover="this.style.backgroundImage = 'linear-gradient(to right, #B564F7, #FF99DD, #9BDDFF)'; this.style.backgroundColor = 'transparent';"
+               onmouseout="this.style.backgroundImage = 'none'; this.style.backgroundColor = '#B564F7';"
+            >GET LISTED</a>
         </div>
         <div class="lg:hidden relative z-[60]">
             <button id="menu-btn" class="text-white text-2xl">

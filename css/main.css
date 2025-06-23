@@ -1,3 +1,12 @@
+/* Add this to the very top of your main.css file */
+@font-face {
+    font-family: 'Omnes Pro'; /* Use 'Omnes Pro' as the family name for consistency */
+    src: url('./fonts/Omnes Bold.woff') format('woff'); /* Path to your Omnes Bold font file relative to main.css */
+    font-weight: bold; /* This font file is specifically for bold weight */
+    font-style: normal;
+    font-display: swap; /* Ensures text is visible during font loading */
+}
+
 /* Custom Styles for BrumOutLoud */
 body {
     background-color: #121212;
@@ -28,7 +37,7 @@ body {
 .card-bg {
     background-color: #1e1e1e; border: 1px solid #2e2e2e;
     border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    overflow: hidden; 
+    overflow: hidden;
 }
 
 .heading-gradient {

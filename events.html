@@ -206,6 +206,21 @@
                 eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
             }
         }
+
+// --- Global Header and Footer Loading (Re-added) ---
+        async function loadGlobalComponents() {
+            try {
+                const headerResponse = await fetch('/global/header.html');
+                const headerHtml = await headerResponse.text();
+                document.getElementById('header-placeholder').innerHTML = headerHtml;
+
+                const footerResponse = await fetch('/global/footer.html');
+                const footerHtml = await footerResponse.text();
+                document.getElementById('footer-placeholder').innerHTML = footerHtml;
+            } catch (error) {
+                console.error('Error loading global components:', error);
+            }
+        }
         
         document.addEventListener('DOMContentLoaded', initializePage);
         // Any other setup logic from your original file would go here.

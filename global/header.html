@@ -6,14 +6,13 @@
 
 <header class="p-8">
     <nav class="container mx-auto flex justify-between items-center">
-        <!-- Site name reverted to white text, using Omnes Pro, now with flag image -->
+        <!-- Site name with consolidated flag image and fallback -->
         <a href="/" class="flex items-center text-2xl tracking-widest text-white"
            style="font-family: 'Omnes Pro', sans-serif;">
             <span>Brum Outloud</span>
-            <!-- Added header_flag.png to the right of the site name -->
-            <img src="/header_flag.png" alt="LGBTQ+ Flag" class="h-6 ml-2 inline-block rounded-md">
-            <!-- Added a fallback placeholder image in case header_flag.png isn't found -->
-            <img src="https://placehold.co/24x24/000000/FFFFFF?text=🏳️‍🌈" alt="Placeholder Flag" class="h-6 ml-2 inline-block rounded-md" onerror="this.style.display='inline-block'; this.previousElementSibling.style.display='none';">
+            <!-- Consolidated flag image: tries to load header_flag.png, falls back to emoji placeholder -->
+            <img src="/header_flag.png" alt="LGBTQ+ Flag" class="h-6 ml-2 inline-block rounded-md"
+                 onerror="this.src='https://placehold.co/24x24/000000/FFFFFF?text=🏳️‍🌈'; this.onerror=null;">
         </a>
         <div class="hidden lg:flex items-center space-x-8">
             <a href="/events.html" class="text-gray-300 hover:text-white">WHAT'S ON</a>

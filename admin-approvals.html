@@ -391,16 +391,25 @@
         // Event handlers for Approve, Reject, Edit buttons on the approval cards
         approvalList.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
-            if (!button) return;
+            if (!button) {
+                console.log('Clicked, but not a button or child of button.'); // Diagnostic
+                return;
+            }
 
             const card = e.target.closest('.approval-card');
-            if (!card) return;
+            if (!card) {
+                console.log('Clicked button is not within an approval card.'); // Diagnostic
+                return;
+            }
+            console.log('Button clicked:', button.dataset.action, 'on card ID:', card.dataset.id, 'type:', card.dataset.type); // Diagnostic
 
             // Fetch the entire item's data to ensure we have all fields for populateEditForm
             try {
                 // Since we only fetch Events now, simplify endpoint
+                // FIX: Ensure get-event-details takes 'id' not 'slug' for admin approval
                 const endpoint = '/.netlify/functions/get-event-details';
-                const response = await fetch(`${endpoint}?id=${card.dataset.id}`); // Assuming details functions take ID
+                console.log(`Fetching details for ${card.dataset.type} ID: ${card.dataset.id} from ${endpoint}`); // Diagnostic
+                const response = await fetch(`${endpoint}?id=${card.dataset.id}`); 
                 const fetchedItem = await response.json();
 
                 if (!response.ok || !fetchedItem || !fetchedItem.fields) {
@@ -409,16 +418,20 @@
                 // Assign the fetched item with full fields to currentItemForAction
                 currentItemForAction = {
                     id: card.dataset.id,
-                    type: 'Event', // Type is always 'Event' now
+                    type: 'Event', // Type is always 'Event' now as per get-pending-items.js
                     fields: fetchedItem.fields // Use the full fields from the details endpoint
                 };
+                console.log('Fetched item details:', currentItemForAction); // Diagnostic
 
             } catch (error) {
+                console.error('Error in fetching item details:', error); // More robust error log
                 showStatusMessage(`Error loading item details for edit: ${error.message}`, true);
                 return; // Stop execution if details cannot be fetched
             }
 
+
             const action = button.dataset.action;
+            console.log('Performing action:', action); // Diagnostic
 
             if (action === 'edit') {
                 populateEditForm(currentItemForAction);
@@ -435,6 +448,7 @@
                 const handleCancelRejection = () => {
                     rejectionModal.classList.add('hidden');
                     rejectionReasonInput.value = '';
+                    // Remove listeners to prevent memory leaks and duplicate calls
                     cancelRejectionBtn.removeEventListener('click', handleCancelRejection);
                     confirmRejectionBtn.removeEventListener('click', handleConfirmRejection);
                 };
@@ -442,13 +456,16 @@
                     rejectionReason = rejectionReasonInput.value;
                     rejectionModal.classList.add('hidden');
                     rejectionReasonInput.value = '';
+                    // Remove listeners to prevent memory leaks and duplicate calls
                     cancelRejectionBtn.removeEventListener('click', handleCancelRejection);
                     confirmRejectionBtn.removeEventListener('click', handleConfirmRejection);
                     await updateItemStatus(currentItemForAction.id, currentItemForAction.type, actionStatus, rejectionReason);
                 };
 
-                cancelRejectionBtn.addEventListener('click', handleCancelRejection, { once: true });
-                confirmRejectionBtn.addEventListener('click', handleConfirmRejection, { once: true });
+                // Add listeners
+                cancelRejectionBtn.addEventListener('click', handleCancelRejection);
+                confirmRejectionBtn.addEventListener('click', handleConfirmRejection);
+                // Note: Removed { once: true } as previous removal logic handles it.
 
             } else { // It's an 'approve' action
                 await updateItemStatus(currentItemForAction.id, currentItemForAction.type, actionStatus);
@@ -457,6 +474,7 @@
 
         // Function to send status update to Netlify Function
         async function updateItemStatus(id, type, status, rejectionReason = '') {
+            console.log(`Attempting to update status for ${type} ID: ${id} to ${status}`); // Diagnostic
             try {
                 const response = await fetch('/.netlify/functions/update-item-status', {
                     method: 'POST',
@@ -465,11 +483,13 @@
                 });
 
                 const result = await response.json();
+                console.log('update-item-status response:', result); // Diagnostic
                 if (!response.ok) throw new Error(result.message || 'Server error');
 
                 showStatusMessage(`${type} ${status} successfully!`, false);
                 loadPendingItems(); // Refresh the list
             } catch (error) {
+                console.error('Error in updateItemStatus:', error); // More robust error log
                 showStatusMessage(`Error ${status} ${type}: ${error.message}`, true);
             }
         }

@@ -10,7 +10,7 @@ exports.handler = async (event) => {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
-    const { id, slug } = event.queryStringParameters; // Can receive either ID or slug
+    const { id, slug } = event.queryStringParameters;
 
     if (!id && !slug) {
         return {
@@ -20,20 +20,27 @@ exports.handler = async (event) => {
         };
     }
 
-    let filterFormula;
-    if (id) {
-        filterFormula = `{Record ID} = '${id}'`; // Filter by Airtable's internal Record ID
-    } else {
-        filterFormula = `{Slug} = '${slug}'`; // Filter by the 'Slug' field (for public pages)
-    }
-
     try {
-        const records = await base('Events').select({ // Assuming 'Events' is your table name
-            filterByFormula: filterFormula,
-            maxRecords: 1, // Expecting only one record
-        }).firstPage();
+        let eventRecord;
 
-        if (records.length === 0) {
+        if (id) {
+            console.log(`Attempting to find event by ID: ${id}`);
+            // FIX: Use Airtable's .find() method for direct record ID lookup
+            eventRecord = await base('Events').find(id);
+            console.log(`Found record by ID: ${eventRecord ? eventRecord.id : 'None'}`);
+
+        } else if (slug) {
+            console.log(`Attempting to find event by slug: ${slug}`);
+            // Keep filterByFormula for slug as it's not a direct ID lookup
+            const records = await base('Events').select({
+                filterByFormula: `{Slug} = '${slug}'`,
+                maxRecords: 1,
+            }).firstPage();
+            eventRecord = records.length > 0 ? records[0] : null;
+            console.log(`Found record by slug: ${eventRecord ? eventRecord.id : 'None'}`);
+        }
+
+        if (!eventRecord) {
             return {
                 statusCode: 404,
                 body: JSON.stringify({ success: false, message: 'Event not found.' }),
@@ -41,13 +48,12 @@ exports.handler = async (event) => {
             };
         }
 
-        const eventRecord = records[0];
         return {
             statusCode: 200,
             body: JSON.stringify({
                 success: true,
                 id: eventRecord.id,
-                fields: eventRecord.fields, // Return all fields
+                fields: eventRecord.fields,
             }),
             headers: { 'Content-Type': 'application/json' },
         };

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Events | Admin Panel</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -24,7 +24,7 @@
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">EVENTS</span></h1>
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Add, edit, and bulk-process events on the site.</p>
             </div>
-            
+
             <div class="card-bg p-8 md:p-12 mb-8">
                 <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools</h2>
                 <p class="text-gray-400 mb-6">Run tools to process and clean up existing event data.</p>
@@ -66,13 +66,16 @@
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
-             <div class="flex justify-end gap-4 pt-4">
-                <button type="button" id="cancel-edit-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg">Cancel</button>
-                <button type="submit" class="bg-accent-color text-white font-bold px-6 py-2 rounded-lg">Save Changes</button>
+             <div class="flex justify-between items-center pt-4"> <!-- Adjusted for delete button -->
+                <button type="button" id="delete-event-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">Delete Event</button>
+                <div class="flex gap-4">
+                    <button type="button" id="cancel-edit-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">Cancel</button>
+                    <button type="submit" class="bg-accent-color text-white font-bold px-6 py-2 rounded-lg hover:opacity-90">Save Changes</button>
+                </div>
              </div>
         </form>
     </div>
-    
+
     <div id="footer-placeholder"></div>
     <script src="/js/main.js" defer></script>
     <script>
@@ -91,11 +94,12 @@
         const cleanupLoader = document.getElementById('cleanup-loader');
         const statusMessage = document.getElementById('status-message');
         const filterBar = document.getElementById('filter-bar');
-        
+        const deleteEventBtn = document.getElementById('delete-event-btn'); // New: Delete button reference
+
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
         let allAdminEvents = [];
         let allVenues = [];
-        let currentItemForAction = null;
+        let currentItemForAction = null; // Stores the event object being edited/added
         let currentOffset = null;
         let isFetching = false;
         let currentFilter = 'all';
@@ -107,7 +111,7 @@
             if (!fields['Promo Image']) tagsHtml += '<span class="tag-missing">No Image</span>';
             if (!fields.Description) tagsHtml += '<span class="tag-missing">No Description</span>';
             if (!fields.Category || fields.Category.length === 0) tagsHtml += '<span class="tag-missing">No Category</span>';
-            
+
             const card = document.createElement('div');
             card.className = 'card-bg p-4 flex justify-between items-start';
             card.innerHTML = `
@@ -138,21 +142,28 @@
                 console.error("Error fetching venues:", error);
             }
         }
-        
+
         function populateEditForm(item) {
             currentItemForAction = item;
             const isAdding = !item;
             const fields = isAdding ? {} : item.fields;
             modalTitle.textContent = isAdding ? 'Add New Event' : 'Edit Event';
-            
+
+            // Show/hide delete button based on whether we are adding or editing
+            if (isAdding) {
+                deleteEventBtn.classList.add('hidden');
+            } else {
+                deleteEventBtn.classList.remove('hidden');
+            }
+
             const currentCategories = fields.Category || [];
             const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
-            
+
             const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
             const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
-            
+
             const venueOptionsHtml = allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('');
-            
+
             const formHtml = `
                 <div class="grid md:grid-cols-2 gap-4">
                     <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
@@ -167,8 +178,8 @@
                 </div>
                 <div class="hidden space-y-2 p-4 mt-2 bg-gray-800 rounded-lg" id="new-venue-fields">
                     <label class="font-semibold text-white">New Venue Details</label>
-                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name">
-                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address">
+                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
@@ -176,23 +187,38 @@
                 </div>
                 <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
                 <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
+                <div><label>Recurring Info (Optional)</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g., Every Thursday"></div>
+                <div>
+                    <label for="promo-image-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
+                    <input type="file" id="promo-image-file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
+                    ${!isAdding && fields['Promo Image'] ? `<p class="text-xs text-gray-500 mt-1">Current image: <a href="${fields['Promo Image'][0].url}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
+                </div>
                 <div class="border-t border-gray-700 pt-4"><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
             `;
-            
+
             editFormFields.innerHTML = formHtml;
-            // Apply common styling
-            editForm.querySelectorAll('input:not([type=checkbox]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
-            editForm.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
+            // Apply common styling to dynamically added inputs/textareas/selects
+            editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
+            editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
 
             const venueSelect = editFormFields.querySelector('.venue-select');
             const newVenueFields = editFormFields.querySelector('#new-venue-fields');
 
-            // --- FIX: Add a check to ensure venueSelect exists before adding a listener ---
             if (venueSelect) {
-                if (fields.Venue && fields.Venue.length > 0) {
+                // Set current venue if editing
+                if (!isAdding && fields.Venue && fields.Venue.length > 0) {
                     venueSelect.value = fields.Venue[0];
+                } else if (isAdding) {
+                    // Default to no venue when adding, unless you want to default to CREATE_NEW
+                    venueSelect.value = ''; // Or '__CREATE_NEW__' if that's preferred for new events
                 }
-                
+
+                // Initial visibility state for new venue fields
+                const showNewInitially = venueSelect.value === '__CREATE_NEW__';
+                newVenueFields.classList.toggle('hidden', !showNewInitially);
+                newVenueFields.querySelectorAll('input').forEach(input => input.required = showNewInitially);
+
+                // Add change listener
                 venueSelect.addEventListener('change', () => {
                     const showNew = venueSelect.value === '__CREATE_NEW__';
                     newVenueFields.classList.toggle('hidden', !showNew);
@@ -220,7 +246,7 @@
                 if (offset) url += `&offset=${offset}`;
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Failed to fetch events.');
-                
+
                 const data = await response.json();
                 loadingState.style.display = 'none';
                 const events = data.events || [];
@@ -233,7 +259,7 @@
                 if (allAdminEvents.length === 0) {
                     eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
                 }
-                currentOffset = data.offset; 
+                currentOffset = data.offset;
                 if (currentOffset && currentFilter === 'all') {
                     loadMoreContainer.style.display = 'block';
                 } else {
@@ -249,7 +275,7 @@
                 }
             }
         }
-        
+
         function applyFilters() {
             eventList.innerHTML = '';
             const filtered = allAdminEvents.filter(item => {
@@ -271,17 +297,61 @@
             }
         }
 
+        // New function to handle event deletion
+        async function confirmAndDeleteEvent() {
+            if (!currentItemForAction || !currentItemForAction.id) {
+                console.error("No event selected for deletion.");
+                return;
+            }
+
+            // Using a custom modal for confirmation instead of alert/confirm
+            // You'll need to implement a simple modal UI (e.g., a div with Yes/No buttons)
+            // For now, let's use a basic alert for demonstration, but note it should be replaced.
+            const userConfirmed = window.confirm(`Are you sure you want to delete "${currentItemForAction.fields['Event Name']}"? This cannot be undone.`);
+
+            if (userConfirmed) {
+                try {
+                    const deleteBtn = document.getElementById('delete-event-btn');
+                    deleteBtn.disabled = true;
+                    deleteBtn.textContent = 'Deleting...';
+
+                    const response = await fetch('/.netlify/functions/delete-event', { // You need to create this Netlify Function
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: currentItemForAction.id, type: 'Event' })
+                    });
+
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.message || 'Server returned an error');
+                    }
+
+                    alert('Event deleted successfully!'); // Replace with custom message box
+                    location.reload(); // Reload the page to reflect changes
+
+                } catch (error) {
+                    alert(`Error deleting event: ${error.toString()}`); // Replace with custom message box
+                    const deleteBtn = document.getElementById('delete-event-btn'); // Re-enable button on error
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = 'Delete Event';
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
-            await fetchVenues(); 
-            await fetchAndRenderEvents(null); 
-            
+            await fetchVenues();
+            await fetchAndRenderEvents(null);
+
             loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
-            
+
             addEventBtn.addEventListener('click', () => {
-                populateEditForm(null);
+                populateEditForm(null); // Passing null indicates adding a new event
             });
 
             cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+
+            // New: Event listener for the delete button
+            deleteEventBtn.addEventListener('click', confirmAndDeleteEvent);
 
             eventList.addEventListener('click', (e) => {
                 const editButton = e.target.closest('.edit-btn');
@@ -291,7 +361,13 @@
                     if (item) {
                         populateEditForm(item);
                     } else {
-                        alert("Could not find event data. Please refresh the page.");
+                        // Using a custom modal/message box instead of alert
+                        console.error("Could not find event data for ID:", itemId);
+                        // Example of how you might display a custom message
+                        statusMessage.textContent = "Could not find event data. Please refresh the page.";
+                        statusMessage.classList.remove('hidden', 'text-green-400');
+                        statusMessage.classList.add('text-red-400');
+                        setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                     }
                 }
             });
@@ -319,7 +395,11 @@
                     const newVenueName = document.getElementById('new-venue-name').value;
                     const newVenueAddress = document.getElementById('new-venue-address').value;
                     if (!newVenueName || !newVenueAddress) {
-                        alert('Please provide a name and address for the new venue.');
+                        // Using a custom modal/message box instead of alert
+                        statusMessage.textContent = 'Please provide a name and address for the new venue.';
+                        statusMessage.classList.remove('hidden', 'text-green-400');
+                        statusMessage.classList.add('text-red-400');
+                        setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                         submitBtn.disabled = false;
                         submitBtn.textContent = 'Save Changes';
                         return;
@@ -334,36 +414,48 @@
                         if (!result.success) throw new Error(result.message);
                         venueId = result.id;
                     } catch (error) {
-                        alert(`Error creating new venue: ${error.message}`);
+                        // Using a custom modal/message box instead of alert
+                        statusMessage.textContent = `Error creating new venue: ${error.message}`;
+                        statusMessage.classList.remove('hidden', 'text-green-400');
+                        statusMessage.classList.add('text-red-400');
+                        setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                         submitBtn.disabled = false;
                         submitBtn.textContent = 'Save Changes';
                         return;
                     }
                 }
-                
+
                 const formData = new FormData(editForm);
                 if (venueId) {
                      formData.set('venueId', venueId);
                 } else {
                      formData.delete('venueId');
                 }
-                
+
                 let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
                 if (!isAdding) {
                     formData.append('id', currentItemForAction.id);
-                    formData.append('type', 'Event'); 
+                    formData.append('type', 'Event');
                 }
-                
+
                 try {
                     const response = await fetch(endpoint, { method: 'POST', body: formData });
                     if (!response.ok) {
                         const err = await response.json();
                         throw new Error(err.message || 'Server returned an error');
                     }
-                    alert('Success!');
+                    // Using a custom modal/message box instead of alert
+                    statusMessage.textContent = 'Success!';
+                    statusMessage.classList.remove('hidden', 'text-red-400');
+                    statusMessage.classList.add('text-green-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                     location.reload();
                 } catch (error) {
-                    alert(`Error saving changes: ${error.toString()}`);
+                    // Using a custom modal/message box instead of alert
+                    statusMessage.textContent = `Error saving changes: ${error.toString()}`;
+                    statusMessage.classList.remove('hidden', 'text-green-400');
+                    statusMessage.classList.add('text-red-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Save Changes';
                 }
@@ -380,10 +472,12 @@
                     if (!response.ok) throw new Error(result.message);
                     statusMessage.textContent = `Cleanup Complete: ${result.message}`;
                     statusMessage.classList.remove('hidden');
+                    statusMessage.classList.add('text-green-400');
                     await fetchAndRenderEvents(null);
                 } catch (error) {
                     statusMessage.textContent = `Error during cleanup: ${error.toString()}`;
                     statusMessage.classList.remove('hidden');
+                    statusMessage.classList.add('text-red-400');
                 } finally {
                     cleanupBtn.disabled = false;
                     cleanupBtnText.textContent = 'AI Category Cleanup';

@@ -6,7 +6,7 @@
     <title>Manage Events | Admin Panel</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
@@ -66,8 +66,7 @@
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
-             <div class="flex justify-between items-center pt-4"> <!-- Adjusted for delete button -->
-                <button type="button" id="delete-event-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">Delete Event</button>
+             <div class="flex justify-between items-center pt-4"> <button type="button" id="delete-event-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">Delete Event</button>
                 <div class="flex gap-4">
                     <button type="button" id="cancel-edit-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">Cancel</button>
                     <button type="submit" class="bg-accent-color text-white font-bold px-6 py-2 rounded-lg hover:opacity-90">Save Changes</button>
@@ -144,6 +143,7 @@
         }
 
         function populateEditForm(item) {
+            console.log('Populating edit form for item:', item); // Diagnostic log
             currentItemForAction = item;
             const isAdding = !item;
             const fields = isAdding ? {} : item.fields;
@@ -204,6 +204,10 @@
             const venueSelect = editFormFields.querySelector('.venue-select');
             const newVenueFields = editFormFields.querySelector('#new-venue-fields');
 
+            console.log('Form HTML injected. Checking venueSelect and newVenueFields...'); // Diagnostic log
+            console.log('venueSelect exists:', !!venueSelect); // Diagnostic log
+            console.log('newVenueFields exists:', !!newVenueFields); // Diagnostic log
+
             if (venueSelect) {
                 // Set current venue if editing
                 if (!isAdding && fields.Venue && fields.Venue.length > 0) {
@@ -220,9 +224,11 @@
 
                 // Add change listener
                 venueSelect.addEventListener('change', () => {
+                    console.log('Venue select changed to:', venueSelect.value); // Diagnostic log
                     const showNew = venueSelect.value === '__CREATE_NEW__';
                     newVenueFields.classList.toggle('hidden', !showNew);
                     newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
+                    console.log('Should show new venue fields:', showNew); // Diagnostic log
                 });
             }
 
@@ -307,15 +313,16 @@
             // Using a custom modal for confirmation instead of alert/confirm
             // You'll need to implement a simple modal UI (e.g., a div with Yes/No buttons)
             // For now, let's use a basic alert for demonstration, but note it should be replaced.
-            const userConfirmed = window.confirm(`Are you sure you want to delete "${currentItemForAction.fields['Event Name']}"? This cannot be undone.`);
+            const userConfirmed = window.confirm(`Are you sure you want to archive "${currentItemForAction.fields['Event Name']}"? This will hide it from the public site.`);
 
             if (userConfirmed) {
                 try {
                     const deleteBtn = document.getElementById('delete-event-btn');
                     deleteBtn.disabled = true;
-                    deleteBtn.textContent = 'Deleting...';
+                    deleteBtn.textContent = 'Archiving...';
 
-                    const response = await fetch('/.netlify/functions/delete-event', { // You need to create this Netlify Function
+                    // This will call your Netlify Function to update the event's status to archived
+                    const response = await fetch('/.netlify/functions/archive-event', { // You need to create this Netlify Function
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ id: currentItemForAction.id, type: 'Event' })
@@ -326,11 +333,11 @@
                         throw new Error(err.message || 'Server returned an error');
                     }
 
-                    alert('Event deleted successfully!'); // Replace with custom message box
+                    alert('Event archived successfully!'); // Replace with custom message box
                     location.reload(); // Reload the page to reflect changes
 
                 } catch (error) {
-                    alert(`Error deleting event: ${error.toString()}`); // Replace with custom message box
+                    alert(`Error archiving event: ${error.toString()}`); // Replace with custom message box
                     const deleteBtn = document.getElementById('delete-event-btn'); // Re-enable button on error
                     deleteBtn.disabled = false;
                     deleteBtn.textContent = 'Delete Event';
@@ -384,6 +391,7 @@
 
             editForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                console.log('Edit form submitted!'); // Diagnostic log
                 const isAdding = !currentItemForAction;
                 const submitBtn = editForm.querySelector('button[type=submit]');
                 submitBtn.disabled = true;
@@ -426,6 +434,8 @@
                 }
 
                 const formData = new FormData(editForm);
+                // Diagnostic log for FormData (will not show content directly, check Network tab)
+                console.log('FormData prepared. Check browser Network tab for payload.');
                 if (venueId) {
                      formData.set('venueId', venueId);
                 } else {
@@ -437,8 +447,10 @@
                     formData.append('id', currentItemForAction.id);
                     formData.append('type', 'Event');
                 }
+                console.log('Endpoint:', endpoint); // Diagnostic log
 
                 try {
+                    console.log('Attempting fetch to:', endpoint); // Diagnostic log
                     const response = await fetch(endpoint, { method: 'POST', body: formData });
                     if (!response.ok) {
                         const err = await response.json();
@@ -451,6 +463,7 @@
                     setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                     location.reload();
                 } catch (error) {
+                    console.error('Submission error:', error); // Diagnostic log
                     // Using a custom modal/message box instead of alert
                     statusMessage.textContent = `Error saving changes: ${error.toString()}`;
                     statusMessage.classList.remove('hidden', 'text-green-400');

@@ -6,19 +6,62 @@
     <title>Pending Approvals | Brum Out Loud</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
+    <style>
+        /* Add any specific styles for this page here if needed */
+        .approval-card {
+            background-color: #1e1e1e;
+            border: 1px solid #2e2e2e;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .approval-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2e2e2e;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .approval-card-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        .approval-card-detail-item p {
+            font-size: 0.875rem;
+            color: #d1d5db;
+        }
+        .approval-card-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+        .approval-card-actions button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .button-approve { background-color: #10B981; color: white; } /* Green */
+        .button-approve:hover { background-color: #059669; }
+        .button-reject { background-color: #EF4444; color: white; } /* Red */
+        .button-reject:hover { background-color: #DC2626; }
+        .button-edit { background-color: #3B82F6; color: white; } /* Blue */
+        .button-edit:hover { background-color: #2563EB; }
+    </style>
 </head>
 <body class="antialiased">
 
-    <header class="p-8">
-        <nav class="container mx-auto flex justify-between items-center">
-            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
-            <a href="/admin/settings" class="text-gray-300 hover:text-white">Back to Admin Settings</a>
-        </nav>
-    </header>
+    <!-- Header will be injected by main.js if header-placeholder exists, otherwise this static one is used -->
+    <div id="header-placeholder"></div>
 
     <main class="container mx-auto px-8 py-16">
         <section class="max-w-4xl mx-auto">
@@ -41,6 +84,7 @@
         </section>
     </main>
 
+    <!-- Edit Modal (for editing pending submissions before approval/rejection) -->
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 class="font-anton text-3xl text-white">Edit Submission</h3>
@@ -52,6 +96,7 @@
         </form>
     </div>
 
+    <!-- Rejection Modal -->
     <div id="rejection-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="card-bg p-8 w-full max-w-lg">
             <h3 class="font-anton text-3xl text-white mb-4">Reason for Rejection</h3>
@@ -64,6 +109,10 @@
         </div>
     </div>
     
+    <!-- Footer will be injected by main.js if footer-placeholder exists, otherwise no footer -->
+    <div id="footer-placeholder"></div>
+
+    <script src="/js/main.js" defer></script>
     <script>
         const approvalList = document.getElementById('approval-list');
         const loadingState = document.getElementById('loading-state');
@@ -78,132 +127,409 @@
         const confirmRejectionBtn = document.getElementById('confirm-rejection-btn');
         
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
-        let currentItemForAction = null;
-        let allVenues = []; // <-- Variable to hold venues for the dropdown
+        let currentItemForAction = null; // Stores the item (event/venue) currently being reviewed/edited
+        let allVenues = []; // Variable to hold venues for the dropdown in edit form
 
-        // (renderItem function remains the same as your provided file)
-        function renderItem(item) { /* ... existing code ... */ }
-
-        function populateEditForm(item) {
-            currentItemForAction = item;
-            const fields = item.fields;
-            let formHtml = '';
-
-            if (item.type === 'Event') {
-                const currentCategories = fields['Category'] || [];
-                const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
-                const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
-                const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
-                
-                // --- VENUE FIX START ---
-                // Create dropdown options from the pre-fetched venues
-                const venueOptionsHtml = allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('');
-
-                formHtml = `
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}"></div>
-                        <div>
-                            <label>Venue</label>
-                            <select name="venueId" class="venue-select w-full p-2 bg-gray-900/50 rounded-md border border-gray-700">
-                                <option value="">Select an existing venue...</option>
-                                ${venueOptionsHtml}
-                                <option value="__CREATE_NEW__">-- Add a new unlisted venue --</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="hidden space-y-2" id="new-venue-fields">
-                        <input type="text" id="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-800 rounded-md border border-gray-600">
-                        <input type="text" id="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-800 rounded-md border border-gray-600">
-                    </div>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div><label>Date</label><input type="date" name="date" value="${eventDate}"></div>
-                        <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}"></div>
-                    </div>
-                    <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
-                    <div>
-                        <label>Categories</label>
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div>
-                    </div>
-                `;
-                // --- VENUE FIX END ---
-            } else { 
-                // Venue form remains the same
-                formHtml = `... existing venue form HTML ...`;
+        // Helper to display status messages (similar to admin-edit-events.html)
+        function showStatusMessage(message, isError = false) {
+            const statusDiv = document.getElementById('status-message'); // Assume an element with this ID exists if needed, or create one.
+            if (!statusDiv) { // Fallback if no dedicated status div
+                console.log('Status: ' + message);
+                return;
             }
-
-            editFormFields.innerHTML = formHtml;
-            // Add styling to new elements
-            editFormFields.querySelectorAll('input[type=text], input[type=date], input[type=time], textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700');
-            editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
-
-            // Add event listener for the new dropdown
-            const venueSelect = editFormFields.querySelector('.venue-select');
-            if (venueSelect) {
-                venueSelect.addEventListener('change', () => {
-                    const newVenueFields = editFormFields.querySelector('#new-venue-fields');
-                    if (venueSelect.value === '__CREATE_NEW__') {
-                        newVenueFields.classList.remove('hidden');
-                    } else {
-                        newVenueFields.classList.add('hidden');
-                    }
-                });
-            }
-            editModal.classList.remove('hidden');
+            statusDiv.textContent = message;
+            statusDiv.classList.remove('hidden', 'text-green-400', 'text-red-400');
+            statusDiv.classList.add(isError ? 'text-red-400' : 'text-green-400');
+            setTimeout(() => statusDiv.classList.add('hidden'), 5000);
         }
 
+        // Renders a single pending item (event or venue)
+        function renderItem(item) {
+            const fields = item.fields;
+            let title = '';
+            let detailsHtml = '';
+            let imageUrl = 'https://placehold.co/100x100/1e1e1e/EAEAEA?text=No+Image';
+
+            if (item.type === 'Event') {
+                title = fields['Event Name'];
+                const eventDate = new Date(fields['Date']);
+                const formattedDate = eventDate.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const venueName = fields['Venue Name'] && fields['Venue Name'].length > 0 ? fields['Venue Name'][0] : (fields['VenueText'] || 'Venue TBC');
+                const categories = fields['Category'] ? fields['Category'].join(', ') : 'None';
+                imageUrl = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : imageUrl;
+
+                detailsHtml = `
+                    <div class="approval-card-detail-item"><p class="font-bold">Date:</p><p>${formattedDate}</p></div>
+                    <div class="approval-card-detail-item"><p class="font-bold">Venue:</p><p>${venueName}</p></div>
+                    <div class="approval-card-detail-item"><p class="font-bold">Categories:</p><p>${categories}</p></div>
+                    <div class="approval-card-detail-item"><p class="font-bold">Description:</p><p>${fields['Description'] || 'N/A'}</p></div>
+                    ${fields['Link'] ? `<div class="approval-card-detail-item"><p class="font-bold">Link:</p><p><a href="${fields['Link']}" target="_blank" class="text-blue-400 hover:underline">View</a></p></div>` : ''}
+                    ${fields['Recurring Info'] ? `<div class="approval-card-detail-item"><p class="font-bold">Recurring:</p><p>${fields['Recurring Info']}</p></div>` : ''}
+                `;
+            } else if (item.type === 'Venue') {
+                title = fields['Name'];
+                const address = fields['Address'] || 'N/A';
+                const website = fields['Website'] || 'N/A';
+                const listingStatus = fields['Listing Status'] || 'N/A';
+                imageUrl = fields['Logo'] && fields['Logo'].length > 0 ? fields['Logo'][0].url : imageUrl;
+
+                detailsHtml = `
+                    <div class="approval-card-detail-item"><p class="font-bold">Address:</p><p>${address}</p></div>
+                    <div class="approval-card-detail-item"><p class="font-bold">Website:</p><p>${website}</p></div>
+                    <div class="approval-card-detail-item"><p class="font-bold">Listing Status:</p><p>${listingStatus}</p></div>
+                    <div class="approval-card-detail-item"><p class="font-bold">Description:</p><p>${fields['Description'] || 'N/A'}</p></div>
+                `;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'approval-card';
+            card.dataset.id = item.id;
+            card.dataset.type = item.type;
+            card.innerHTML = `
+                <div class="approval-card-header">
+                    <h3 class="text-xl font-bold text-white">${title} <span class="text-sm text-gray-400 ml-2">(${item.type})</span></h3>
+                    <img src="${imageUrl}" alt="${title}" class="w-16 h-16 object-cover rounded-md">
+                </div>
+                <div class="approval-card-details">
+                    ${detailsHtml}
+                </div>
+                <div class="approval-card-actions">
+                    <button class="button-edit" data-action="edit">Edit</button>
+                    <button class="button-reject" data-action="reject">Reject</button>
+                    <button class="button-approve" data-action="approve">Approve</button>
+                </div>
+            `;
+            return card;
+        }
+
+        // Fetches and renders all pending items
+        async function loadPendingItems() {
+            loadingState.classList.remove('hidden');
+            approvalList.innerHTML = ''; // Clear previous list
+            noItemsMessage.classList.add('hidden'); // Hide no items message initially
+
+            try {
+                const response = await fetch('/.netlify/functions/get-pending-items'); // Assuming this function exists and returns events/venues
+                if (!response.ok) throw new Error('Failed to fetch pending items.');
+                
+                const items = await response.json();
+                
+                loadingState.classList.add('hidden');
+
+                if (items && items.length > 0) {
+                    items.forEach(item => {
+                        // Add Airtable record ID and Type to the item object for easier access
+                        item.id = item.id;
+                        item.type = item.fields['Type']; // Assuming your Airtable has a 'Type' field (Event/Venue)
+                        approvalList.appendChild(renderItem(item));
+                    });
+                } else {
+                    noItemsMessage.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Error loading pending items:", error);
+                loadingState.innerHTML = `<p class="text-red-400 text-center">Failed to load pending items: ${error.message}</p>`;
+                loadingState.classList.remove('hidden'); // Keep loading state visible if error
+            }
+        }
+
+        // Populates the edit modal form (similar to admin-edit-events)
+        function populateEditForm(item) {
+            currentItemForAction = item;
+            editModal.classList.remove('hidden'); // Show the modal
+
+            // Clear previous fields
+            editFormFields.innerHTML = '';
+
+            let currentCategories = [];
+            let eventDate = '';
+            let eventTime = '';
+            let venueId = '';
+            let currentPromoImageUrl = '';
+            let venueText = ''; // For unlinked venues
+
+            // Populate fields based on item type
+            if (item.type === 'Event') {
+                const fields = item.fields;
+                currentCategories = fields.Category || [];
+                eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
+                eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
+                venueId = fields.Venue && fields.Venue.length > 0 ? fields.Venue[0] : ''; // Linked venue ID
+                venueText = fields.VenueText || ''; // Fallback for unlinked venue text
+                currentPromoImageUrl = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : '';
+
+                // Event specific fields
+                const eventNameDiv = document.createElement('div');
+                eventNameDiv.innerHTML = `<label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required>`;
+                editFormFields.appendChild(eventNameDiv);
+
+                const contactEmailDiv = document.createElement('div');
+                contactEmailDiv.innerHTML = `<label>Submitter Email</label><input type="email" name="Submitter Email" value="${fields['Submitter Email'] || ''}" placeholder="Contact email if available">`;
+                editFormFields.appendChild(contactEmailDiv);
+
+
+                // Venue select and New Venue Fields (replicated logic from admin-edit-events)
+                const venueSelectDiv = document.createElement('div');
+                const venueSelectLabel = document.createElement('label');
+                venueSelectLabel.textContent = 'Venue';
+                venueSelectDiv.appendChild(venueSelectLabel);
+
+                const venueSelect = document.createElement('select');
+                venueSelect.name = 'venueId';
+                venueSelect.classList.add('venue-select');
+                venueSelect.innerHTML = `<option value="">-- Select or Add Venue --</option>` +
+                                          allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('') +
+                                          `<option value="__CREATE_NEW__">-- Add a new unlisted venue --</option>`;
+                venueSelectDiv.appendChild(venueSelect);
+                editFormFields.appendChild(venueSelectDiv);
+
+                const newVenueFields = document.createElement('div');
+                newVenueFields.id = 'new-venue-fields';
+                newVenueFields.classList.add('hidden', 'space-y-2', 'p-4', 'mt-2', 'bg-gray-800', 'rounded-lg');
+                newVenueFields.innerHTML = `
+                    <label class="font-semibold text-white">New Venue Details</label>
+                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+                `;
+                editFormFields.appendChild(newVenueFields);
+
+                // Set initial venue selection
+                if (venueId) { // If linked venue
+                    venueSelect.value = venueId;
+                } else if (venueText) { // If unlinked venue text is present, pre-fill new venue fields if it's the "__CREATE_NEW__" option
+                    // This is a bit tricky for existing unlinked. Best to let admin select or create.
+                    // For now, if no venueId, default select to empty.
+                    venueSelect.value = '';
+                }
+
+                // Handle change listener for venueSelect (shows/hides new venue fields)
+                venueSelect.addEventListener('change', () => {
+                    const showNew = venueSelect.value === '__CREATE_NEW__';
+                    newVenueFields.classList.toggle('hidden', !showNew);
+                    newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
+                });
+                // Set initial visibility
+                newVenueFields.classList.toggle('hidden', venueSelect.value !== '__CREATE_NEW__');
+                newVenueFields.querySelectorAll('input').forEach(input => input.required = (venueSelect.value === '__CREATE_NEW__'));
+
+
+                const dateTimeDiv = document.createElement('div');
+                dateTimeDiv.classList.add('grid', 'md:grid-cols-2', 'gap-4');
+                dateTimeDiv.innerHTML = `
+                    <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
+                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
+                `;
+                editFormFields.appendChild(dateTimeDiv);
+
+                const descriptionDiv = document.createElement('div');
+                descriptionDiv.innerHTML = `<label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea>`;
+                editFormFields.appendChild(descriptionDiv);
+
+                const linkDiv = document.createElement('div');
+                linkDiv.innerHTML = `<label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}" placeholder="https://">`;
+                editFormFields.appendChild(linkDiv);
+
+                const recurringDiv = document.createElement('div');
+                recurringDiv.innerHTML = `<label>Recurring Info (Optional)</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g., Every Thursday">`;
+                editFormFields.appendChild(recurringDiv);
+
+                const promoImageDiv = document.createElement('div');
+                promoImageDiv.innerHTML = `
+                    <label for="promo-image-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
+                    <input type="file" id="promo-image-file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
+                    ${currentPromoImageUrl ? `<p class="text-xs text-gray-500 mt-1">Current image: <a href="${currentPromoImageUrl}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
+                `;
+                editFormFields.appendChild(promoImageDiv);
+
+                const categoriesDiv = document.createElement('div');
+                categoriesDiv.classList.add('border-t', 'border-gray-700', 'pt-4');
+                categoriesDiv.innerHTML = `<label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div>`;
+                editFormFields.appendChild(categoriesDiv);
+
+            } else if (item.type === 'Venue') {
+                const fields = item.fields;
+                currentPromoImageUrl = fields['Logo'] && fields['Logo'].length > 0 ? fields['Logo'][0].url : '';
+
+                formHtml = `
+                    <div><label>Venue Name</label><input type="text" name="Name" value="${fields['Name'] || ''}" required></div>
+                    <div><label>Address</label><input type="text" name="Address" value="${fields['Address'] || ''}" required></div>
+                    <div><label>Website</label><input type="url" name="Website" value="${fields['Website'] || ''}" placeholder="https://"></div>
+                    <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
+                    <div>
+                        <label for="venue-logo-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Logo</label>
+                        <input type="file" id="venue-logo-file" name="logo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
+                        ${currentPromoImageUrl ? `<p class="text-xs text-gray-500 mt-1">Current logo: <a href="${currentPromoImageUrl}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
+                    </div>
+                `;
+                editFormFields.innerHTML = formHtml; // Direct innerHTML for venue form
+            }
+
+            // Apply common styling to all input elements generated
+            editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
+            editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
+        }
+
+        // Handle form submission from the edit modal
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // --- VENUE FIX: Logic to handle new venue creation before submission ---
-            const venueSelect = editForm.querySelector('.venue-select');
-            let venueId = venueSelect ? venueSelect.value : null;
+            const submitBtn = editForm.querySelector('button[type=submit]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
 
-            if (venueId === '__CREATE_NEW__') {
-                const newVenueName = editForm.querySelector('#new-venue-name').value;
-                const newVenueAddress = editForm.querySelector('#new-venue-address').value;
-                if (!newVenueName || !newVenueAddress) {
-                    alert('Please provide a name and address for the new venue.');
-                    return;
-                }
-                try {
-                    const response = await fetch('/.netlify/functions/create-unlisted-venue', { /* ... create venue logic ... */ });
-                    const result = await response.json();
-                    if (!result.success) throw new Error(result.message);
-                    venueId = result.id;
-                } catch (error) {
-                    alert(`Error creating new venue: ${error.message}`);
-                    return;
+            let venueId = null;
+            const venueSelect = editFormFields.querySelector('.venue-select');
+            if (venueSelect) { // This block only runs for Events
+                venueId = venueSelect.value;
+                if (venueId === '__CREATE_NEW__') {
+                    const newVenueName = editFormFields.querySelector('#new-venue-name').value;
+                    const newVenueAddress = editFormFields.querySelector('#new-venue-address').value;
+                    if (!newVenueName || !newVenueAddress) {
+                        showStatusMessage('Please provide a name and address for the new venue.', true);
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Save Changes';
+                        return;
+                    }
+                    try {
+                        const response = await fetch('/.netlify/functions/create-unlisted-venue', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ venueName: newVenueName, address: newVenueAddress })
+                        });
+                        const result = await response.json();
+                        if (!result.success) throw new Error(result.message);
+                        venueId = result.id; // Use the ID of the newly created venue
+                    } catch (error) {
+                        showStatusMessage(`Error creating new venue: ${error.message}`, true);
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Save Changes';
+                        return;
+                    }
                 }
             }
 
-            // Continue with existing form submission logic, but now using the correct venueId
             const formData = new FormData(editForm);
             formData.append('id', currentItemForAction.id);
-            formData.append('type', currentItemForAction.type);
-            if (venueId) {
-                formData.set('venueId', venueId); // Use .set to override any existing venue field
+            formData.append('type', currentItemForAction.type); // Event or Venue
+
+            if (venueId) { // For events, set the venueId
+                formData.set('venueId', venueId);
+            } else if (currentItemForAction.type === 'Event') {
+                // If venue is explicitly cleared or no selection is made, ensure no venue is linked
+                formData.delete('venueId');
             }
-             
-            // The rest of the submission logic...
-            const response = await fetch('/.netlify/functions/update-submission', { body: formData, method: 'POST' });
-            // ...
+            
+            // For Venue type, if 'logo' field is used, it will be in formData.
+
+            try {
+                const response = await fetch('/.netlify/functions/update-submission', { // Re-using existing update-submission
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Server error');
+
+                showStatusMessage('Submission updated successfully!', false);
+                editModal.classList.add('hidden');
+                loadPendingItems(); // Refresh the list after update
+            } catch (error) {
+                showStatusMessage(`Error updating submission: ${error.message}`, true);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
         });
 
-        async function loadInitialData() {
-            // --- VENUE FIX: Fetch venues first so they are ready for the edit form ---
-            try {
-                const response = await fetch('/.netlify/functions/get-venue-list');
-                if (!response.ok) throw new Error('Could not load venues');
-                allVenues = await response.json();
-            } catch (error) {
-                console.error(error);
-                alert('Warning: Could not load venue list for editing.');
+        // Event handlers for Approve, Reject, Edit buttons on the approval cards
+        approvalList.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+
+            const card = e.target.closest('.approval-card');
+            if (!card) return;
+
+            currentItemForAction = {
+                id: card.dataset.id,
+                type: card.dataset.type,
+                fields: {} // We will refetch fields from get-item-details if needed for edit
+            };
+
+            const action = button.dataset.action;
+
+            if (action === 'edit') {
+                // Fetch full details of the item for editing
+                try {
+                    const endpoint = currentItemForAction.type === 'Event' ? '/.netlify/functions/get-event-details' : '/.netlify/functions/get-venue-details';
+                    const response = await fetch(`${endpoint}?id=${currentItemForAction.id}`);
+                    const result = await response.json();
+                    if (!response.ok || !result) throw new Error(result.message || 'Failed to fetch item details.');
+                    currentItemForAction.fields = result.fields; // Populate full fields
+                    populateEditForm(currentItemForAction);
+                } catch (error) {
+                    showStatusMessage(`Error loading item details for edit: ${error.message}`, true);
+                }
+                return;
             }
-            // Now load pending items
-            // ... existing loadPendingItems logic ...
+
+            // For Approve/Reject actions
+            const actionStatus = action === 'approve' ? 'Approved' : 'Rejected';
+            let rejectionReason = '';
+
+            if (action === 'reject') {
+                rejectionModal.classList.remove('hidden');
+                // Set up handlers for rejection modal buttons
+                cancelRejectionBtn.onclick = () => {
+                    rejectionModal.classList.add('hidden');
+                    rejectionReasonInput.value = '';
+                };
+                confirmRejectionBtn.onclick = async () => {
+                    rejectionReason = rejectionReasonInput.value;
+                    rejectionModal.classList.add('hidden');
+                    rejectionReasonInput.value = '';
+                    await updateItemStatus(currentItemForAction.id, currentItemForAction.type, actionStatus, rejectionReason);
+                };
+            } else { // It's an 'approve' action
+                await updateItemStatus(currentItemForAction.id, currentItemForAction.type, actionStatus);
+            }
+        });
+
+        // Function to send status update to Netlify Function
+        async function updateItemStatus(id, type, status, rejectionReason = '') {
+            try {
+                const response = await fetch('/.netlify/functions/update-item-status', { // You will need to create this Netlify Function
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, type, status, rejectionReason })
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Server error');
+
+                showStatusMessage(`${type} ${status} successfully!`, false);
+                loadPendingItems(); // Refresh the list
+            } catch (error) {
+                showStatusMessage(`Error ${status} ${type}: ${error.message}`, true);
+            }
+        }
+
+        // --- Fetch venues and then load pending items on page load ---
+        async function loadInitialData() {
+            loadingState.classList.remove('hidden');
+            try {
+                // Fetch venues first for the edit form dropdown
+                const venuesResponse = await fetch('/.netlify/functions/get-venue-list');
+                if (!venuesResponse.ok) throw new Error('Failed to fetch venues for dropdown.');
+                allVenues = await venuesResponse.json();
+                console.log('Venues loaded for dropdown:', allVenues.length);
+
+                // Now load the pending items
+                await loadPendingItems();
+            } catch (error) {
+                console.error("Error during initial data load:", error);
+                loadingState.innerHTML = `<p class="text-red-400 text-center">Initialization error: ${error.message}</p>`;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', loadInitialData);
-        // All other event listeners remain the same
     </script>
 </body>
 </html>

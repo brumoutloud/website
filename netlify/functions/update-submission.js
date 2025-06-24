@@ -1,6 +1,6 @@
 // netlify/functions/update-submission.js
 const Airtable = require('airtable');
-const formidable = require('formidable');
+const { formidable } = require('formidable'); // FIX: Correct way to import formidable v3
 const cloudinary = require('cloudinary').v2;
 const stream = require('stream'); // Node.js stream module
 
@@ -19,19 +19,14 @@ cloudinary.config({
 // Helper to parse multipart/form-data with a stream from event.body
 function parseMultipartForm(event) {
     return new Promise((resolve, reject) => {
-        // Create a readable stream from the event body
-        // formidable expects a stream-like object. Netlify's event.body might be a string or Buffer.
-        // We simulate a Node.js IncomingMessage for formidable.
         const req = new stream.PassThrough();
         
-        // Check if event.body is base64 encoded and decode if necessary
         if (event.isBase64Encoded) {
             req.end(Buffer.from(event.body, 'base64'));
         } else {
             req.end(event.body);
         }
 
-        // Mimic request headers for formidable
         req.headers = event.headers;
         req.method = event.httpMethod;
 
@@ -47,21 +42,18 @@ function parseMultipartForm(event) {
             reject(err);
         });
 
-        // Use form.parse(req, ...) where 'req' is the stream
         form.parse(req, (err, fields, files) => {
             if (err) {
                 console.error('Error during form.parse:', err);
                 return reject(err);
             }
-            // formidable returns fields and files as arrays of single elements if multiples: false
-            // We'll process them to extract the single value if present for convenience
             const processedFields = {};
             for (const key in fields) {
-                processedFields[key] = fields[key][0]; // Take the first element of each field array
+                processedFields[key] = fields[key][0];
             }
             const processedFiles = {};
             for (const key in files) {
-                processedFiles[key] = files[key][0]; // Take the first element of each file array
+                processedFiles[key] = files[key][0];
             }
 
             console.log('Formidable parsed fields (processed):', processedFields);
@@ -78,11 +70,9 @@ exports.handler = async (event) => {
 
     try {
         console.log('Starting update-submission function...');
-        // Parse the multipart form data using the updated helper
         const { fields, files } = await parseMultipartForm(event);
         console.log('Multipart form parsed successfully.');
 
-        // Access fields directly without [0] because they are now processed
         const recordId = fields.id;
         const itemType = fields.type;
 
@@ -93,7 +83,6 @@ exports.handler = async (event) => {
 
         console.log(`Processing update for ${itemType} ID: ${recordId}`);
 
-        // Prepare fields for Airtable update
         const updateFields = {
             "Event Name": fields['Event Name'] || '',
             "Date": fields.date || '',
@@ -101,14 +90,12 @@ exports.handler = async (event) => {
             "Description": fields.Description || '',
             "Link": fields.Link || '',
             "Recurring Info": fields['Recurring Info'] || '',
-            // Categories might still be an array from client-side if multiple checkboxes
             "Category": Array.isArray(fields.Category) ? fields.Category : (fields.Category ? [fields.Category] : []),
-            "Venue": fields.venueId ? [fields.venueId] : [], // Airtable linked records are arrays of IDs
+            "Venue": fields.venueId ? [fields.venueId] : [],
         };
         console.log('Airtable updateFields prepared:', updateFields);
 
-        // Handle image upload if a file is provided
-        const promoImageFile = files['promo-image']; // Access directly, no [0] needed after processing
+        const promoImageFile = files['promo-image'];
         if (promoImageFile && promoImageFile.size > 0) {
             console.log(`Image file detected: ${promoImageFile.originalFilename}, path: ${promoImageFile.filepath}, size: ${promoImageFile.size}`);
             try {
@@ -127,7 +114,6 @@ exports.handler = async (event) => {
              console.log('No new promo-image file provided or file is empty.');
         }
 
-        // Perform the Airtable update
         console.log('Attempting Airtable update...');
         await base('Events').update([
             {

@@ -201,11 +201,12 @@
             editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
             editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
 
-            const venueSelect = editFormFields.querySelector('.venue-select');
-            const newVenueFields = editFormFields.querySelector('#new-venue-fields');
+            // FIX: Query venueSelect from editForm directly for stability
+            const venueSelect = editForm.querySelector('.venue-select');
+            const newVenueFields = editForm.querySelector('#new-venue-fields');
 
             console.log('Form HTML injected. Checking venueSelect and newVenueFields...'); // Diagnostic log
-            console.log('venueSelect exists:', !!venueSelect); // Diagnostic log
+            console.log('venueSelect exists:', !!venueSelect); // Diagnostic log (should now be true)
             console.log('newVenueFields exists:', !!newVenueFields); // Diagnostic log
 
             if (venueSelect) {

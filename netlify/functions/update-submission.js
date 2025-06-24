@@ -3,6 +3,7 @@ const Airtable = require('airtable');
 const { formidable } = require('formidable');
 const cloudinary = require('cloudinary').v2;
 const stream = require('stream'); // Node.js stream module
+// Removed: const { formatInTimeZone } = require('date-fns-tz'); // No longer needed as per user request
 
 // Initialize Airtable with the correct environment variable name
 const AIRTABLE_PERSONAL_ACCESS_TOKEN = process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN;
@@ -34,7 +35,7 @@ function parseMultipartForm(event) {
             multiples: false,
             keepExtensions: true,
             allowEmptyFiles: true,
-            minFileSize: 0, // FIX: Allow files with 0 bytes
+            minFileSize: 0,
             maxFileSize: 5 * 1024 * 1024 // 5 MB limit
         });
 
@@ -84,15 +85,41 @@ exports.handler = async (event) => {
 
         console.log(`Processing update for ${itemType} ID: ${recordId}`);
 
+        // --- FIX: Combine date and time into a single datetime string for Airtable 'Date' field ---
+        const eventDateString = fields.date;
+        const eventTimeString = fields.time; // This is the 'HH:MM' string from the form
+        let combinedDateTime = '';
+
+        if (eventDateString && eventTimeString) {
+            // Concatenate date and time and create an ISO string for Airtable.
+            // Airtable's Date field (with time) generally accepts ISO 8601 format.
+            // Example: '2025-11-21T19:30:00.000Z' (UTC) if time is also provided.
+            // Note: This creates a Date object in local timezone if not specified,
+            // then converts to UTC ISO string. Ensure Airtable's date field handles UTC correctly.
+            const dateObj = new Date(`${eventDateString}T${eventTimeString}:00`);
+            if (!isNaN(dateObj.getTime())) { // Check if date parsing was successful
+                combinedDateTime = dateObj.toISOString();
+                console.log(`Combined Date & Time for Airtable: ${combinedDateTime}`);
+            } else {
+                console.warn(`Could not parse combined date/time: ${eventDateString}T${eventTimeString}:00`);
+            }
+        } else if (eventDateString) {
+            // If only date is provided, format as YYYY-MM-DD
+            combinedDateTime = eventDateString; // Airtable often accepts YYYY-MM-DD for date-only fields
+            console.log(`Only Date for Airtable: ${combinedDateTime}`);
+        }
+        // If neither date nor time, combinedDateTime remains empty, which is fine if field is optional
+
+
         const updateFields = {
             "Event Name": fields['Event Name'] || '',
-            "Date": fields.date || '',
-            "Time": fields.time || '',
+            "Date": combinedDateTime || '', // Use the combined datetime string
+            // "Time" field removed as per your Airtable schema
             "Description": fields.Description || '',
             "Link": fields.Link || '',
             "Recurring Info": fields['Recurring Info'] || '',
             "Category": Array.isArray(fields.Category) ? fields.Category : (fields.Category ? [fields.Category] : []),
-            "Venue": fields.venueId ? [fields.venueId] : [],
+            "Venue": fields.venueId ? [fields.venueId] : [], // Airtable linked records are arrays of IDs
         };
         console.log('Airtable updateFields prepared:', updateFields);
 

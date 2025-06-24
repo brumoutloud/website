@@ -33,9 +33,7 @@ exports.handler = async (event) => {
     }
 
     try {
-        let allPendingItems = [];
-
-        // --- Fetch Pending Events (incorporating your existing fields and email remapping) ---
+        // --- Only Fetch Pending Events ---
         const eventRecords = await fetchAllPendingRecords('Events', [
             'Event Name', 'Description', 'VenueText', 'Venue', 'Submitter Email', 'Date',
             'Link', 'Recurring Info', 'Category', 'Promo Image', 'Parent Event Name'
@@ -50,41 +48,19 @@ exports.handler = async (event) => {
                 delete newFields['Submitter Email'];
             }
             
-            // Add 'Type' field
-            newFields.Type = 'Event'; // Crucial for frontend logic
+            // Add 'Type' field (crucial for frontend logic)
+            newFields.Type = 'Event'; 
 
             return {
                 id: record.id,
                 fields: newFields
             };
         });
-        allPendingItems = allPendingItems.concat(formattedEvents);
 
-        // --- Fetch Pending Venues ---
-        // Corrected 'Photo' field as per your Airtable schema
-        const venueRecords = await fetchAllPendingRecords('Venues', [
-            'Name', 'Address', 'Website', 'Description', 'Photo', 'Listing Status', 'Contact Email' // Changed 'Logo' to 'Photo'
-            // Add any other relevant Venue fields you want to display/edit
-        ]);
-
-        const formattedVenues = venueRecords.map(record => {
-            const newFields = { ...record.fields };
-            
-            // Add 'Type' field
-            newFields.Type = 'Venue'; // Crucial for frontend logic
-
-            return {
-                id: record.id,
-                fields: newFields
-            };
-        });
-        allPendingItems = allPendingItems.concat(formattedVenues);
-
-        // Sort items by 'Date' for events and by 'Created Time' for venues if available,
-        // or just by 'id' if no specific date/time field across both types for pending items.
-        allPendingItems.sort((a, b) => {
-            const dateA = a.fields['Created Time'] ? new Date(a.fields['Created Time']) : (a.fields['Date'] ? new Date(a.fields['Date']) : new Date(0));
-            const dateB = b.fields['Created Time'] ? new Date(b.fields['Created Time']) : (b.fields['Date'] ? new Date(b.fields['Date']) : new Date(0));
+        // Sort items by 'Date' for events
+        formattedEvents.sort((a, b) => {
+            const dateA = a.fields['Date'] ? new Date(a.fields['Date']) : new Date(0);
+            const dateB = b.fields['Date'] ? new Date(b.fields['Date']) : new Date(0);
             return dateA - dateB; // Sort oldest first
         });
 
@@ -95,9 +71,9 @@ exports.handler = async (event) => {
                 'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
                 'Pragma': 'no-cache',
                 'Expires': '0',
-                'Content-Type': 'application/json' // Explicitly set content type
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(allPendingItems),
+            body: JSON.stringify(formattedEvents), // Only return events
         };
     } catch (error) {
         console.error("Critical error in get-pending-items handler:", error);

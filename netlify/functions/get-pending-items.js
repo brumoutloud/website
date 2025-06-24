@@ -61,9 +61,9 @@ exports.handler = async (event) => {
         allPendingItems = allPendingItems.concat(formattedEvents);
 
         // --- Fetch Pending Venues ---
-        // Assuming your Venues table also has a 'Status' field and 'Pending Review' status
+        // Corrected 'Photo' field as per your Airtable schema
         const venueRecords = await fetchAllPendingRecords('Venues', [
-            'Name', 'Address', 'Website', 'Description', 'Logo', 'Listing Status', 'Contact Email'
+            'Name', 'Address', 'Website', 'Description', 'Photo', 'Listing Status', 'Contact Email' // Changed 'Logo' to 'Photo'
             // Add any other relevant Venue fields you want to display/edit
         ]);
 
@@ -82,7 +82,6 @@ exports.handler = async (event) => {
 
         // Sort items by 'Date' for events and by 'Created Time' for venues if available,
         // or just by 'id' if no specific date/time field across both types for pending items.
-        // For simplicity, let's sort by 'Created Time' if available for both, otherwise leave as is.
         allPendingItems.sort((a, b) => {
             const dateA = a.fields['Created Time'] ? new Date(a.fields['Created Time']) : (a.fields['Date'] ? new Date(a.fields['Date']) : new Date(0));
             const dateB = b.fields['Created Time'] ? new Date(b.fields['Created Time']) : (b.fields['Date'] ? new Date(b.fields['Date']) : new Date(0));

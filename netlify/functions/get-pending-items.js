@@ -1,79 +1,110 @@
+// netlify/functions/get-pending-items.js
 const Airtable = require('airtable');
-const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
-// This function fetches all records from a table using pagination to avoid timeouts.
-async function fetchAllRecords(tableName) {
+const AIRTABLE_PERSONAL_ACCESS_TOKEN = process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN;
+const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+const base = new Airtable({ apiKey: AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(AIRTABLE_BASE_ID);
+
+async function fetchAllPendingRecords(tableName, fields) {
+    console.log(`[${tableName}] Starting paginated fetch for records with status 'Pending Review'.`);
     const allRecords = [];
     let pageCount = 0;
-    console.log(`[${tableName}] Starting paginated fetch...`);
     try {
         await base(tableName).select({
-            filterByFormula: "{Status} = 'Pending Review'"
+            filterByFormula: "{Status} = 'Pending Review'", // Using 'Pending Review' as per your existing code
+            fields: fields
         }).eachPage((records, fetchNextPage) => {
             pageCount++;
             console.log(`[${tableName}] Fetched page ${pageCount} with ${records.length} records.`);
             records.forEach(record => allRecords.push(record));
             fetchNextPage();
         });
-        console.log(`[${tableName}] Finished paginated fetch. Total pages: ${pageCount}, Total records: ${allRecords.length}`);
+        console.log(`[${tableName}] Finished paginated fetch. Total pages: ${pageCount}. Total records found: ${allRecords.length}`);
         return allRecords;
     } catch (error) {
-        console.error(`[${tableName}] Error during pagination:`, error);
-        throw error; // Re-throw to be caught by the main handler
+        console.error(`[${tableName}] Error during Airtable 'eachPage' call:`, error);
+        throw error;
     }
 }
 
-exports.handler = async function (event, context) {
+exports.handler = async (event) => {
     if (event.httpMethod !== 'GET') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        console.log("Starting function execution using paginated fetch.");
+        let allPendingItems = [];
 
-        const [eventRecords, venueRecords] = await Promise.all([
-            fetchAllRecords('Events'),
-            fetchAllRecords('Venues')
+        // --- Fetch Pending Events (incorporating your existing fields and email remapping) ---
+        const eventRecords = await fetchAllPendingRecords('Events', [
+            'Event Name', 'Description', 'VenueText', 'Venue', 'Submitter Email', 'Date',
+            'Link', 'Recurring Info', 'Category', 'Promo Image', 'Parent Event Name'
         ]);
-        
-        console.log(`Data fetching complete. Events: ${eventRecords.length}, Venues: ${venueRecords.length}.`);
 
-        const pendingItems = [];
+        const formattedEvents = eventRecords.map(record => {
+            const newFields = { ...record.fields };
 
-        eventRecords.forEach(record => {
-            pendingItems.push({
+            // Remap 'Submitter Email' to 'Contact Email' as expected by frontend
+            if (newFields['Submitter Email']) {
+                newFields['Contact Email'] = newFields['Submitter Email'];
+                delete newFields['Submitter Email'];
+            }
+            
+            // Add 'Type' field
+            newFields.Type = 'Event'; // Crucial for frontend logic
+
+            return {
                 id: record.id,
-                type: 'Event',
-                name: record.get('Event Name') || 'No Name',
-                description: record.get('Description'),
-                location: record.get('VenueText'),
-                contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
-            });
+                fields: newFields
+            };
+        });
+        allPendingItems = allPendingItems.concat(formattedEvents);
+
+        // --- Fetch Pending Venues ---
+        // Assuming your Venues table also has a 'Status' field and 'Pending Review' status
+        const venueRecords = await fetchAllPendingRecords('Venues', [
+            'Name', 'Address', 'Website', 'Description', 'Logo', 'Listing Status', 'Contact Email'
+            // Add any other relevant Venue fields you want to display/edit
+        ]);
+
+        const formattedVenues = venueRecords.map(record => {
+            const newFields = { ...record.fields };
+            
+            // Add 'Type' field
+            newFields.Type = 'Venue'; // Crucial for frontend logic
+
+            return {
+                id: record.id,
+                fields: newFields
+            };
+        });
+        allPendingItems = allPendingItems.concat(formattedVenues);
+
+        // Sort items by 'Date' for events and by 'Created Time' for venues if available,
+        // or just by 'id' if no specific date/time field across both types for pending items.
+        // For simplicity, let's sort by 'Created Time' if available for both, otherwise leave as is.
+        allPendingItems.sort((a, b) => {
+            const dateA = a.fields['Created Time'] ? new Date(a.fields['Created Time']) : (a.fields['Date'] ? new Date(a.fields['Date']) : new Date(0));
+            const dateB = b.fields['Created Time'] ? new Date(b.fields['Created Time']) : (b.fields['Date'] ? new Date(b.fields['Date']) : new Date(0));
+            return dateA - dateB; // Sort oldest first
         });
 
-        venueRecords.forEach(record => {
-            pendingItems.push({
-                id: record.id,
-                type: 'Venue',
-                name: record.get('Name') || 'No Name',
-                description: record.get('Description'),
-                location: record.get('Address'),
-                contactEmail: record.get('Contact Email') || record.get('email') || record.get('Submitter Email')
-            });
-        });
-        
-        console.log("Processed all records. Returning data.");
 
         return {
             statusCode: 200,
-            body: JSON.stringify(pendingItems),
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Content-Type': 'application/json' // Explicitly set content type
+            },
+            body: JSON.stringify(allPendingItems),
         };
-
     } catch (error) {
-        console.error("!!! CRITICAL ERROR fetching pending items:", error);
+        console.error("Critical error in get-pending-items handler:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Failed to fetch pending items', details: error.message }),
+            body: JSON.stringify({ error: 'Failed to fetch pending items', details: error.toString() }),
         };
     }
 };

@@ -27,7 +27,7 @@
             </div>
 
             <div class="card-bg p-8 md:p-12 mb-8">
-                <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools</h2>
+                <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools <i class="fas fa-tools text-gray-500 text-xl ml-2"></i></h2>
                 <p class="text-gray-400 mb-6">Run tools to process and clean up existing event data.</p>
                 <button id="start-cleanup-btn" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity w-full flex items-center justify-center">
                      <span id="cleanup-btn-text">AI Category Cleanup</span>
@@ -95,12 +95,12 @@
         const cleanupLoader = document.getElementById('cleanup-loader');
         const statusMessage = document.getElementById('status-message');
         const filterBar = document.getElementById('filter-bar');
-        const deleteEventBtn = document.getElementById('delete-event-btn'); // New: Delete button reference
+        const deleteEventBtn = document.getElementById('delete-event-btn');
 
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
         let allAdminEvents = [];
         let allVenues = [];
-        let currentItemForAction = null; // Stores the event object being edited/added
+        let currentItemForAction = null;
         let currentOffset = null;
         let isFetching = false;
         let currentFilter = 'all';
@@ -157,84 +157,111 @@
                 deleteEventBtn.classList.remove('hidden');
             }
 
-            const currentCategories = fields.Category || [];
-            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
+            // Clear previous fields
+            editFormFields.innerHTML = '';
 
+            // 1. Event Name
+            const eventNameDiv = document.createElement('div');
+            eventNameDiv.innerHTML = `<label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required>`;
+            editFormFields.appendChild(eventNameDiv);
+
+            // 2. Venue Select and New Venue Fields
+            const venueSelectDiv = document.createElement('div');
+            const venueSelectLabel = document.createElement('label');
+            venueSelectLabel.textContent = 'Venue';
+            venueSelectDiv.appendChild(venueSelectLabel);
+
+            const venueSelect = document.createElement('select');
+            venueSelect.name = 'venueId';
+            venueSelect.classList.add('venue-select');
+            venueSelect.innerHTML = `<option value="">-- No Venue --</option>` +
+                                      allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('') +
+                                      `<option value="__CREATE_NEW__">-- Add a new unlisted venue --</option>`;
+            venueSelectDiv.appendChild(venueSelect);
+            editFormFields.appendChild(venueSelectDiv);
+
+            const newVenueFields = document.createElement('div');
+            newVenueFields.id = 'new-venue-fields';
+            newVenueFields.classList.add('space-y-2', 'p-4', 'mt-2', 'bg-gray-800', 'rounded-lg');
+            newVenueFields.innerHTML = `
+                <label class="font-semibold text-white">New Venue Details</label>
+                <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+                <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+            `;
+            editFormFields.appendChild(newVenueFields);
+
+            // Initial state for new venue fields
+            const showNewInitially = (!isAdding && fields.Venue && fields.Venue.length > 0 && venueSelect.value === '__CREATE_NEW__') ||
+                                     (isAdding && venueSelect.value === '__CREATE_NEW__');
+            newVenueFields.classList.toggle('hidden', !showNewInitially);
+            newVenueFields.querySelectorAll('input').forEach(input => input.required = showNewInitially);
+
+            // Set current venue if editing
+            if (!isAdding && fields.Venue && fields.Venue.length > 0) {
+                venueSelect.value = fields.Venue[0];
+            } else if (isAdding) {
+                venueSelect.value = ''; // Default to no venue when adding
+            }
+
+            // Add change listener to venueSelect
+            venueSelect.addEventListener('change', () => {
+                console.log('Venue select changed to:', venueSelect.value);
+                const showNew = venueSelect.value === '__CREATE_NEW__';
+                newVenueFields.classList.toggle('hidden', !showNew);
+                newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
+                console.log('Should show new venue fields:', showNew);
+            });
+
+
+            // 3. Date & Time
+            const dateTimeDiv = document.createElement('div');
+            dateTimeDiv.classList.add('grid', 'md:grid-cols-2', 'gap-4');
             const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
             const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
-
-            const venueOptionsHtml = allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('');
-
-            const formHtml = `
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required></div>
-                </div>
-                <div>
-                    <label>Venue</label>
-                    <select name="venueId" class="venue-select">
-                        <option value="">-- No Venue --</option>
-                        ${venueOptionsHtml}
-                        <option value="__CREATE_NEW__">-- Add a new unlisted venue --</option>
-                    </select>
-                </div>
-                <div class="hidden space-y-2 p-4 mt-2 bg-gray-800 rounded-lg" id="new-venue-fields">
-                    <label class="font-semibold text-white">New Venue Details</label>
-                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
-                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
-                </div>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
-                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
-                </div>
-                <div><label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea></div>
-                <div><label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}"></div>
-                <div><label>Recurring Info (Optional)</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g., Every Thursday"></div>
-                <div>
-                    <label for="promo-image-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
-                    <input type="file" id="promo-image-file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
-                    ${!isAdding && fields['Promo Image'] ? `<p class="text-xs text-gray-500 mt-1">Current image: <a href="${fields['Promo Image'][0].url}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
-                </div>
-                <div class="border-t border-gray-700 pt-4"><label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div></div>
+            dateTimeDiv.innerHTML = `
+                <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
+                <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
             `;
+            editFormFields.appendChild(dateTimeDiv);
 
-            editFormFields.innerHTML = formHtml;
-            // Apply common styling to dynamically added inputs/textareas/selects
+            // 4. Description
+            const descriptionDiv = document.createElement('div');
+            descriptionDiv.innerHTML = `<label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea>`;
+            editFormFields.appendChild(descriptionDiv);
+
+            // 5. Ticket Link
+            const linkDiv = document.createElement('div');
+            linkDiv.innerHTML = `<label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}">`;
+            editFormFields.appendChild(linkDiv);
+
+            // 6. Recurring Info
+            const recurringDiv = document.createElement('div');
+            recurringDiv.innerHTML = `<label>Recurring Info (Optional)</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g., Every Thursday">`;
+            editFormFields.appendChild(recurringDiv);
+
+            // 7. Promo Image (File Upload)
+            const promoImageDiv = document.createElement('div');
+            promoImageDiv.innerHTML = `
+                <label for="promo-image-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
+                <input type="file" id="promo-image-file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
+                ${!isAdding && fields['Promo Image'] && fields['Promo Image'].length > 0 ? `<p class="text-xs text-gray-500 mt-1">Current image: <a href="${fields['Promo Image'][0].url}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
+            `;
+            editFormFields.appendChild(promoImageDiv);
+
+            // 8. Categories
+            const categoriesDiv = document.createElement('div');
+            categoriesDiv.classList.add('border-t', 'border-gray-700', 'pt-4');
+            categoriesDiv.innerHTML = `<label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div>`;
+            editFormFields.appendChild(categoriesDiv);
+
+
+            // Apply common styling to newly created inputs/textareas/selects
             editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
             editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
 
-            // FIX: Query venueSelect and newVenueFields from editFormFields (the container that received the new HTML)
-            const venueSelect = editFormFields.querySelector('.venue-select');
-            const newVenueFields = editFormFields.querySelector('#new-venue-fields');
-
-            console.log('Form HTML injected. Checking venueSelect and newVenueFields...');
-            console.log('venueSelect exists:', !!venueSelect); // Should now be true
-            console.log('newVenueFields exists:', !!newVenueFields);
-
-            if (venueSelect) {
-                // Set current venue if editing
-                if (!isAdding && fields.Venue && fields.Venue.length > 0) {
-                    venueSelect.value = fields.Venue[0];
-                } else if (isAdding) {
-                    venueSelect.value = '';
-                }
-
-                // Initial visibility state for new venue fields
-                const showNewInitially = venueSelect.value === '__CREATE_NEW__';
-                newVenueFields.classList.toggle('hidden', !showNewInitially);
-                newVenueFields.querySelectorAll('input').forEach(input => input.required = showNewInitially);
-
-                // Add change listener
-                venueSelect.addEventListener('change', () => {
-                    console.log('Venue select changed to:', venueSelect.value);
-                    const showNew = venueSelect.value === '__CREATE_NEW__';
-                    newVenueFields.classList.toggle('hidden', !showNew);
-                    newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
-                    console.log('Should show new venue fields:', showNew);
-                });
-            }
-
             editModal.classList.remove('hidden');
         }
+
 
         async function fetchAndRenderEvents(offset) {
             if (isFetching) return;
@@ -439,7 +466,6 @@
 
                 const formData = new FormData(editForm);
                 console.log('FormData prepared. Check browser Network tab for payload.');
-                // Ensure venueId is correctly set on FormData, even if it was newly created
                 if (venueId) {
                      formData.set('venueId', venueId);
                 } else {
@@ -455,9 +481,8 @@
 
                 try {
                     console.log('Attempting fetch to:', endpoint);
-                    // For file uploads, ensure the server-side function expects multipart/form-data
                     const response = await fetch(endpoint, { method: 'POST', body: formData });
-                    const result = await response.json(); // Always try to parse JSON response
+                    const result = await response.json();
                     if (!response.ok) {
                         throw new Error(result.message || 'Server returned an error');
                     }
@@ -466,8 +491,8 @@
                     statusMessage.classList.remove('hidden', 'text-red-400');
                     statusMessage.classList.add('text-green-400');
                     setTimeout(() => statusMessage.classList.add('hidden'), 5000);
-                    editModal.classList.add('hidden'); // Close modal on success
-                    fetchAndRenderEvents(null); // Re-fetch and render events
+                    editModal.classList.add('hidden');
+                    fetchAndRenderEvents(null);
                 } catch (error) {
                     console.error('Submission error:', error);
                     statusMessage.textContent = `Error saving changes: ${error.toString()}`;

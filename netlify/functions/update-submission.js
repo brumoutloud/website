@@ -1,169 +1,545 @@
-// netlify/functions/update-submission.js
-const Airtable = require('airtable');
-const { formidable } = require('formidable');
-const cloudinary = require('cloudinary').v2;
-const stream = require('stream'); // Node.js stream module
-// Removed: const { formatInTimeZone } = require('date-fns-tz'); // No longer needed as per user request
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Events | Admin Panel</title>
 
-// Initialize Airtable with the correct environment variable name
-const AIRTABLE_PERSONAL_ACCESS_TOKEN = process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN;
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
-const base = new Airtable({ apiKey: AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(AIRTABLE_BASE_ID);
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/auth-guard.js"></script>
+    <style>
+        /* Existing styles from original code - PRESERVED */
+        .tag-missing{display:inline-block;background-color:rgba(239,68,68,.1);color:#F87171;font-size:.75rem;font-weight:600;padding:.25rem .75rem;border-radius:9999px;margin-right:.5rem;margin-bottom:.5rem}.filter-button{padding:.5rem 1rem;border-radius:.5rem;font-weight:600;transition:background-color .2s,color .2s;background-color:rgba(255,255,255,.05);color:#d1d5db}.filter-button.active{background-color:#E83A99;color:#fff}.filter-button:hover:not(.active){background-color:rgba(255,255,255,.1)}
+    </style>
+</head>
+<body class="antialiased">
 
-// Initialize Cloudinary
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
+    <div id="header-placeholder"></div>
 
-// Helper to parse multipart/form-data with a stream from event.body
-function parseMultipartForm(event) {
-    return new Promise((resolve, reject) => {
-        const req = new stream.PassThrough();
-        
-        if (event.isBase64Encoded) {
-            req.end(Buffer.from(event.body, 'base64'));
-        } else {
-            req.end(event.body);
+    <main class="container mx-auto px-8 py-16">
+        <section class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">MANAGE <span class="accent-color">EVENTS</span></h1>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Add, edit, and bulk-process events on the site.</p>
+            </div>
+
+            <div class="card-bg p-8 md:p-12 mb-8">
+                <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools <i class="fas fa-tools text-gray-500 text-xl ml-2"></i></h2>
+                <p class="text-gray-400 mb-6">Run tools to process and clean up existing event data.</p>
+                <button id="start-cleanup-btn" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity w-full flex items-center justify-center">
+                     <span id="cleanup-btn-text">AI Category Cleanup</span>
+                     <span id="cleanup-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
+                </button>
+                <div id="status-message" class="text-green-400 mt-6 text-center hidden font-semibold"></div>
+            </div>
+
+            <div class="card-bg p-6 mb-8">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                    <div id="filter-bar" class="flex flex-wrap items-center gap-2">
+                        <span class="font-semibold text-gray-400 mr-2">Filter:</span>
+                        <button class="filter-button active" data-filter="all">All</button>
+                        <button class="filter-button" data-filter="missing-image">Missing Image</button>
+                        <button class="filter-button" data-filter="missing-desc">No Description</button>
+                        <button class="filter-button" data-filter="missing-cat">No Category</button>
+                    </div>
+                     <button id="add-event-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap hover:bg-green-500 transition-colors flex-shrink-0">
+                        <i class="fas fa-plus mr-2"></i> Add New Event
+                    </button>
+                </div>
+            </div>
+
+            <div id="loading-state" class="text-center py-10">
+                <div class="loader inline-block"></div>
+                <p class="mt-4 text-gray-400">Loading approved events...</p>
+            </div>
+
+            <div id="event-list" class="space-y-4"></div>
+            <div id="load-more-container" class="text-center mt-8 hidden">
+                <button id="load-more-btn" class="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-600">Load More</button>
+            </div>
+        </section>
+    </main>
+
+    <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
+             <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
+             <div id="edit-form-fields" class="space-y-4"></div>
+             <div class="flex justify-between items-center pt-4">
+                <button type="button" id="delete-event-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">Delete Event</button>
+                <div class="flex gap-4">
+                    <button type="button" id="cancel-edit-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">Cancel</button>
+                    <button type="submit" class="bg-accent-color text-white font-bold px-6 py-2 rounded-lg hover:opacity-90">Save Changes</button>
+                </div>
+             </div>
+        </form>
+    </div>
+
+    <div id="footer-placeholder"></div>
+    <script src="/js/main.js" defer></script>
+    <script>
+        const eventList = document.getElementById('event-list');
+        const loadingState = document.getElementById('loading-state');
+        const loadMoreContainer = document.getElementById('load-more-container');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        const addEventBtn = document.getElementById('add-event-btn');
+        const editModal = document.getElementById('edit-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const editForm = document.getElementById('edit-form');
+        const editFormFields = document.getElementById('edit-form-fields');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const cleanupBtn = document.getElementById('start-cleanup-btn');
+        const cleanupBtnText = document.getElementById('cleanup-btn-text');
+        const cleanupLoader = document.getElementById('cleanup-loader');
+        const statusMessage = document.getElementById('status-message');
+        const filterBar = document.getElementById('filter-bar');
+        const deleteEventBtn = document.getElementById('delete-event-btn');
+
+        const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
+        let allAdminEvents = [];
+        let allVenues = [];
+        let currentItemForAction = null;
+        let currentOffset = null;
+        let isFetching = false;
+        let currentFilter = 'all';
+
+        function renderEvent(item) {
+            const fields = item.fields;
+            const eventDate = new Date(fields.Date);
+            let tagsHtml = '';
+            if (!fields['Promo Image']) tagsHtml += '<span class="tag-missing">No Image</span>';
+            if (!fields.Description) tagsHtml += '<span class="tag-missing">No Description</span>';
+            if (!fields.Category || fields.Category.length === 0) tagsHtml += '<span class="tag-missing">No Category</span>';
+
+            const card = document.createElement('div');
+            card.className = 'card-bg p-4 flex justify-between items-start';
+            card.innerHTML = `
+                <div class="flex-grow">
+                    <div class="flex items-center gap-4">
+                        <div class="text-center w-16 flex-shrink-0">
+                            <p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p>
+                            <p class="text-lg text-gray-400">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-xl text-white">${fields['Event Name']}</h3>
+                            <p class="text-sm text-gray-400">${fields['Venue Name'] && fields['Venue Name'].length > 0 ? fields['Venue Name'][0] : (fields['VenueText'] || 'Venue TBC')}</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 pl-[80px] flex gap-2 flex-wrap">${tagsHtml}</div>
+                </div>
+                <button class="edit-btn bg-blue-600/20 text-blue-300 font-bold py-2 px-4 rounded-lg hover:bg-blue-600/40 flex-shrink-0 ml-4" data-id="${item.id}">Edit</button>
+            `;
+            return card;
         }
 
-        req.headers = event.headers;
-        req.method = event.httpMethod;
-
-        const form = formidable({
-            multiples: false,
-            keepExtensions: true,
-            allowEmptyFiles: true,
-            minFileSize: 0,
-            maxFileSize: 5 * 1024 * 1024 // 5 MB limit
-        });
-
-        form.on('error', (err) => {
-            console.error('Formidable parsing error:', err);
-            reject(err);
-        });
-
-        form.parse(req, (err, fields, files) => {
-            if (err) {
-                console.error('Error during form.parse:', err);
-                return reject(err);
-            }
-            const processedFields = {};
-            for (const key in fields) {
-                processedFields[key] = fields[key][0];
-            }
-            const processedFiles = {};
-            for (const key in files) {
-                processedFiles[key] = files[key][0];
-            }
-
-            console.log('Formidable parsed fields (processed):', processedFields);
-            console.log('Formidable parsed files (processed):', processedFiles);
-            resolve({ fields: processedFields, files: processedFiles });
-        });
-    });
-}
-
-exports.handler = async (event) => {
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: JSON.stringify({ success: false, message: 'Method Not Allowed' }) };
-    }
-
-    try {
-        console.log('Starting update-submission function...');
-        const { fields, files } = await parseMultipartForm(event);
-        console.log('Multipart form parsed successfully.');
-
-        const recordId = fields.id;
-        const itemType = fields.type;
-
-        if (!recordId || !itemType) {
-            console.error('Missing recordId or itemType:', { recordId, itemType });
-            return { statusCode: 400, body: JSON.stringify({ success: false, message: 'Record ID and type are required.' }) };
-        }
-
-        console.log(`Processing update for ${itemType} ID: ${recordId}`);
-
-        // --- FIX: Combine date and time into a single datetime string for Airtable 'Date' field ---
-        const eventDateString = fields.date;
-        const eventTimeString = fields.time; // This is the 'HH:MM' string from the form
-        let combinedDateTime = '';
-
-        if (eventDateString && eventTimeString) {
-            // Concatenate date and time and create an ISO string for Airtable.
-            // Airtable's Date field (with time) generally accepts ISO 8601 format.
-            // Example: '2025-11-21T19:30:00.000Z' (UTC) if time is also provided.
-            // Note: This creates a Date object in local timezone if not specified,
-            // then converts to UTC ISO string. Ensure Airtable's date field handles UTC correctly.
-            const dateObj = new Date(`${eventDateString}T${eventTimeString}:00`);
-            if (!isNaN(dateObj.getTime())) { // Check if date parsing was successful
-                combinedDateTime = dateObj.toISOString();
-                console.log(`Combined Date & Time for Airtable: ${combinedDateTime}`);
-            } else {
-                console.warn(`Could not parse combined date/time: ${eventDateString}T${eventTimeString}:00`);
-            }
-        } else if (eventDateString) {
-            // If only date is provided, format as YYYY-MM-DD
-            combinedDateTime = eventDateString; // Airtable often accepts YYYY-MM-DD for date-only fields
-            console.log(`Only Date for Airtable: ${combinedDateTime}`);
-        }
-        // If neither date nor time, combinedDateTime remains empty, which is fine if field is optional
-
-
-        const updateFields = {
-            "Event Name": fields['Event Name'] || '',
-            "Date": combinedDateTime || '', // Use the combined datetime string
-            // "Time" field removed as per your Airtable schema
-            "Description": fields.Description || '',
-            "Link": fields.Link || '',
-            "Recurring Info": fields['Recurring Info'] || '',
-            "Category": Array.isArray(fields.Category) ? fields.Category : (fields.Category ? [fields.Category] : []),
-            "Venue": fields.venueId ? [fields.venueId] : [], // Airtable linked records are arrays of IDs
-        };
-        console.log('Airtable updateFields prepared:', updateFields);
-
-        const promoImageFile = files['promo-image'];
-        if (promoImageFile && promoImageFile.size > 0) { // Only upload if file exists and has content
-            console.log(`Image file detected: ${promoImageFile.originalFilename}, path: ${promoImageFile.filepath}, size: ${promoImageFile.size}`);
+        async function fetchVenues() {
             try {
-                console.log('Attempting Cloudinary upload...');
-                const uploadResult = await cloudinary.uploader.upload(promoImageFile.filepath, {
-                    folder: "brumoutloud_events",
-                    resource_type: "image"
-                });
-                updateFields['Promo Image'] = [{ url: uploadResult.secure_url }];
-                console.log('Cloudinary upload successful:', uploadResult.secure_url);
-            } catch (uploadError) {
-                console.error('Cloudinary upload failed:', uploadError);
-                throw new Error(`Image upload failed: ${uploadError.message}`);
+                const response = await fetch('/.netlify/functions/get-venue-list');
+                if (!response.ok) throw new Error('Failed to fetch venues for dropdown.');
+                allVenues = await response.json();
+            } catch (error) {
+                console.error("Error fetching venues:", error);
             }
-        } else {
-             console.log('No new promo-image file provided or file is empty.');
-             // If you want to remove an existing image when no new one is provided,
-             // you would explicitly set updateFields['Promo Image'] = []; here
-             // based on a checkbox or other signal from the frontend.
         }
 
-        console.log('Attempting Airtable update...');
-        await base('Events').update([
-            {
-                id: recordId,
-                fields: updateFields,
-            },
-        ]);
-        console.log('Airtable update successful.');
+        function populateEditForm(item) {
+            console.log('Populating edit form for item:', item);
+            currentItemForAction = item;
+            const isAdding = !item;
+            const fields = isAdding ? {} : item.fields;
+            modalTitle.textContent = isAdding ? 'Add New Event' : 'Edit Event';
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true, message: `${itemType} updated successfully!` }),
-        };
+            // --- FIX: Reset submit button and status message state ---
+            const submitBtn = editForm.querySelector('button[type=submit]');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Changes';
+            statusMessage.classList.add('hidden'); // Hide status message
+            statusMessage.textContent = ''; // Clear status message content
+            // --- END FIX ---
 
-    } catch (error) {
-        console.error('Full update-submission function error:', error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ success: false, message: `Failed to update ${itemType}: ${error.message}` }),
-        };
-    }
-};
+            if (isAdding) {
+                deleteEventBtn.classList.add('hidden');
+            } else {
+                deleteEventBtn.classList.remove('hidden');
+            }
+
+            // Define currentCategories BEFORE categoryCheckboxes
+            const currentCategories = fields.Category || [];
+            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
+
+            // Clear previous fields
+            editFormFields.innerHTML = '';
+
+            // 1. Event Name
+            const eventNameDiv = document.createElement('div');
+            eventNameDiv.innerHTML = `<label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required>`;
+            editFormFields.appendChild(eventNameDiv);
+
+            // 2. Venue Select and New Venue Fields
+            const venueSelectDiv = document.createElement('div');
+            const venueSelectLabel = document.createElement('label');
+            venueSelectLabel.textContent = 'Venue';
+            venueSelectDiv.appendChild(venueSelectLabel);
+
+            const venueSelect = document.createElement('select');
+            venueSelect.name = 'venueId';
+            venueSelect.classList.add('venue-select');
+            venueSelect.innerHTML = `<option value="">-- No Venue --</option>` +
+                                      allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('') +
+                                      `<option value="__CREATE_NEW__">-- Add a new unlisted venue --</option>`;
+            venueSelectDiv.appendChild(venueSelect);
+            editFormFields.appendChild(venueSelectDiv);
+
+            const newVenueFields = document.createElement('div');
+            newVenueFields.id = 'new-venue-fields';
+            newVenueFields.classList.add('hidden', 'space-y-2', 'p-4', 'mt-2', 'bg-gray-800', 'rounded-lg'); // Ensure hidden by default
+            newVenueFields.innerHTML = `
+                <label class="font-semibold text-white">New Venue Details</label>
+                <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+                <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+            `;
+            editFormFields.appendChild(newVenueFields);
+
+            // Set current venue if editing
+            if (!isAdding && fields.Venue && fields.Venue.length > 0) {
+                venueSelect.value = fields.Venue[0];
+            } else if (isAdding) {
+                venueSelect.value = ''; // Default to no venue when adding
+            }
+
+            // Initial visibility state for new venue fields AFTER setting venueSelect.value
+            const showNewInitially = venueSelect.value === '__CREATE_NEW__';
+            newVenueFields.classList.toggle('hidden', !showNewInitially);
+            newVenueFields.querySelectorAll('input').forEach(input => input.required = showNewInitially);
+
+            // Add change listener to venueSelect
+            venueSelect.addEventListener('change', () => {
+                console.log('Venue select changed to:', venueSelect.value);
+                const showNew = venueSelect.value === '__CREATE_NEW__';
+                newVenueFields.classList.toggle('hidden', !showNew);
+                newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
+                console.log('Should show new venue fields:', showNew);
+            });
+
+
+            // 3. Date & Time
+            const dateTimeDiv = document.createElement('div');
+            dateTimeDiv.classList.add('grid', 'md:grid-cols-2', 'gap-4');
+            const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
+            const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
+            dateTimeDiv.innerHTML = `
+                <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
+                <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
+            `;
+            editFormFields.appendChild(dateTimeDiv);
+
+            // 4. Description
+            const descriptionDiv = document.createElement('div');
+            descriptionDiv.innerHTML = `<label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea>`;
+            editFormFields.appendChild(descriptionDiv);
+
+            // 5. Ticket Link
+            const linkDiv = document.createElement('div');
+            linkDiv.innerHTML = `<label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}">`;
+            editFormFields.appendChild(linkDiv);
+
+            // 6. Recurring Info
+            const recurringDiv = document.createElement('div');
+            recurringDiv.innerHTML = `<label>Recurring Info (Optional)</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g., Every Thursday">`;
+            editFormFields.appendChild(recurringDiv);
+
+            // 7. Promo Image (File Upload)
+            const promoImageDiv = document.createElement('div');
+            promoImageDiv.innerHTML = `
+                <label for="promo-image-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
+                <input type="file" id="promo-image-file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
+                ${!isAdding && fields['Promo Image'] && fields['Promo Image'].length > 0 ? `<p class="text-xs text-gray-500 mt-1">Current image: <a href="${fields['Promo Image'][0].url}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
+            `;
+            editFormFields.appendChild(promoImageDiv);
+
+            // 8. Categories
+            const categoriesDiv = document.createElement('div');
+            categoriesDiv.classList.add('border-t', 'border-gray-700', 'pt-4');
+            categoriesDiv.innerHTML = `<label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div>`;
+            editFormFields.appendChild(categoriesDiv);
+
+
+            // Apply common styling to newly created inputs/textareas/selects
+            editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
+            editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
+
+            editModal.classList.remove('hidden');
+        }
+
+
+        async function fetchAndRenderEvents(offset) {
+            if (isFetching) return;
+            isFetching = true;
+            const button = loadMoreBtn;
+            if (offset) {
+                button.textContent = 'Loading...';
+                button.disabled = true;
+            } else {
+                loadingState.style.display = 'block';
+                eventList.innerHTML = '';
+                allAdminEvents = [];
+            }
+            try {
+                let url = '/.netlify/functions/get-events?view=admin';
+                if (offset) url += `&offset=${offset}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch events.');
+
+                const data = await response.json();
+                loadingState.style.display = 'none';
+                const events = data.events || [];
+
+                if (events.length > 0) {
+                    allAdminEvents = allAdminEvents.concat(events);
+                    applyFilters();
+                }
+
+                if (allAdminEvents.length === 0) {
+                    eventList.innerHTML = `<p class="text-center text-gray-400">No approved events found.</p>`;
+                }
+                currentOffset = data.offset;
+                if (currentOffset && currentFilter === 'all') {
+                    loadMoreContainer.style.display = 'block';
+                } else {
+                    loadMoreContainer.style.display = 'none';
+                }
+            } catch (error) {
+                loadingState.innerHTML = `<p class="text-red-400 text-center">${error.message}</p>`;
+            } finally {
+                isFetching = false;
+                if (offset) {
+                    button.textContent = "Load More";
+                    button.disabled = false;
+                }
+            }
+        }
+
+        function applyFilters() {
+            eventList.innerHTML = '';
+            const filtered = allAdminEvents.filter(item => {
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'missing-image') return !item.fields['Promo Image'];
+                if (currentFilter === 'missing-desc') return !item.fields.Description;
+                if (currentFilter === 'missing-cat') return !item.fields.Category || item.fields.Category.length === 0;
+                return true;
+            });
+            if(filtered.length > 0) {
+                filtered.forEach(item => eventList.appendChild(renderEvent(item)));
+            } else {
+                eventList.innerHTML = `<p class="text-center text-gray-400">No events match the current filter.</p>`;
+            }
+            if (currentFilter !== 'all' || !currentOffset) {
+                loadMoreContainer.style.display = 'none';
+            } else if (currentOffset) {
+                loadMoreContainer.style.display = 'block';
+            }
+        }
+
+        async function confirmAndDeleteEvent() {
+            if (!currentItemForAction || !currentItemForAction.id) {
+                console.error("No event selected for deletion.");
+                statusMessage.textContent = "Error: No event selected for deletion.";
+                statusMessage.classList.remove('hidden', 'text-green-400');
+                statusMessage.classList.add('text-red-400');
+                setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                return;
+            }
+
+            const userConfirmed = window.confirm(`Are you sure you want to archive "${currentItemForAction.fields['Event Name']}"? This will hide it from the public site.`);
+
+            if (userConfirmed) {
+                try {
+                    const deleteBtn = document.getElementById('delete-event-btn');
+                    deleteBtn.disabled = true;
+                    deleteBtn.textContent = 'Archiving...';
+
+                    const response = await fetch('/.netlify/functions/archive-event', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: currentItemForAction.id, type: 'Event' })
+                    });
+
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.message || 'Server returned an error');
+                    }
+
+                    statusMessage.textContent = 'Event archived successfully!';
+                    statusMessage.classList.remove('hidden', 'text-red-400');
+                    statusMessage.classList.add('text-green-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                    editModal.classList.add('hidden'); // Close modal
+                    fetchAndRenderEvents(null); // Re-fetch and render events
+                } catch (error) {
+                    console.error('Error archiving event:', error);
+                    statusMessage.textContent = `Error archiving event: ${error.toString()}`;
+                    statusMessage.classList.remove('hidden', 'text-green-400');
+                    statusMessage.classList.add('text-red-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = 'Delete Event';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchVenues();
+            await fetchAndRenderEvents(null);
+
+            loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
+
+            addEventBtn.addEventListener('click', () => {
+                populateEditForm(null);
+            });
+
+            cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+
+            deleteEventBtn.addEventListener('click', confirmAndDeleteEvent);
+
+            eventList.addEventListener('click', (e) => {
+                const editButton = e.target.closest('.edit-btn');
+                if (editButton) {
+                    const itemId = editButton.dataset.id;
+                    const item = allAdminEvents.find(event => event.id === itemId);
+                    if (item) {
+                        populateEditForm(item);
+                    } else {
+                        console.error("Could not find event data for ID:", itemId);
+                        statusMessage.textContent = "Could not find event data. Please refresh the page.";
+                        statusMessage.classList.remove('hidden', 'text-green-400');
+                        statusMessage.classList.add('text-red-400');
+                        setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                    }
+                }
+            });
+
+            filterBar.addEventListener('click', (e) => {
+                const button = e.target.closest('.filter-button');
+                if (button && !button.classList.contains('active')) {
+                    filterBar.querySelector('.active').classList.remove('active');
+                    button.classList.add('active');
+                    currentFilter = button.dataset.filter;
+                    applyFilters();
+                }
+            });
+
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                console.log('Edit form submitted!');
+                const isAdding = !currentItemForAction;
+                const submitBtn = editForm.querySelector('button[type=submit]');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+
+                let venueId = editForm.elements.venueId.value;
+
+                if (venueId === '__CREATE_NEW__') {
+                    const newVenueName = document.getElementById('new-venue-name').value;
+                    const newVenueAddress = document.getElementById('new-venue-address').value;
+                    if (!newVenueName || !newVenueAddress) {
+                        statusMessage.textContent = 'Please provide a name and address for the new venue.';
+                        statusMessage.classList.remove('hidden', 'text-green-400');
+                        statusMessage.classList.add('text-red-400');
+                        setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Save Changes';
+                        return;
+                    }
+                    try {
+                        console.log('Attempting to create new unlisted venue...');
+                        const response = await fetch('/.netlify/functions/create-unlisted-venue', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ venueName: newVenueName, address: newVenueAddress })
+                        });
+                        const result = await response.json();
+                        if (!result.success) throw new Error(result.message);
+                        venueId = result.id;
+                        console.log('New venue created with ID:', venueId);
+                    } catch (error) {
+                        console.error('Error creating new venue:', error);
+                        statusMessage.textContent = `Error creating new venue: ${error.message}`;
+                        statusMessage.classList.remove('hidden', 'text-green-400');
+                        statusMessage.classList.add('text-red-400');
+                        setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Save Changes';
+                        return;
+                    }
+                }
+
+                const formData = new FormData(editForm);
+                console.log('FormData prepared. Check browser Network tab for payload.');
+                if (venueId) {
+                     formData.set('venueId', venueId);
+                } else {
+                     formData.delete('venueId');
+                }
+
+                let endpoint = isAdding ? '/.netlify/functions/create-approved-event' : '/.netlify/functions/update-submission';
+                if (!isAdding) {
+                    formData.append('id', currentItemForAction.id);
+                    formData.append('type', 'Event');
+                }
+                console.log('Submission Endpoint:', endpoint);
+
+                try {
+                    console.log('Attempting fetch to:', endpoint);
+                    const response = await fetch(endpoint, { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.message || 'Server returned an error');
+                    }
+
+                    statusMessage.textContent = 'Success!';
+                    statusMessage.classList.remove('hidden', 'text-red-400');
+                    statusMessage.classList.add('text-green-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                    editModal.classList.add('hidden');
+                    fetchAndRenderEvents(null);
+                } catch (error) {
+                    console.error('Submission error:', error);
+                    statusMessage.textContent = `Error saving changes: ${error.toString()}`;
+                    statusMessage.classList.remove('hidden', 'text-green-400');
+                    statusMessage.classList.add('text-red-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Changes';
+                }
+            });
+
+            cleanupBtn.addEventListener('click', async () => {
+                cleanupBtn.disabled = true;
+                cleanupBtnText.textContent = 'Processing...';
+                cleanupLoader.classList.remove('hidden');
+                statusMessage.classList.add('hidden');
+                try {
+                    const response = await fetch('/.netlify/functions/categorize-events', { method: 'POST' });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.message);
+                    statusMessage.textContent = `Cleanup Complete: ${result.message}`;
+                    statusMessage.classList.remove('hidden');
+                    statusMessage.classList.add('text-green-400');
+                    await fetchAndRenderEvents(null);
+                } catch (error) {
+                    statusMessage.textContent = `Error during cleanup: ${error.toString()}`;
+                    statusMessage.classList.remove('hidden');
+                    statusMessage.classList.add('text-red-400');
+                } finally {
+                    cleanupBtn.disabled = false;
+                    cleanupBtnText.textContent = 'AI Category Cleanup';
+                    cleanupLoader.classList.add('hidden');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 // netlify/functions/update-submission.js
 const Airtable = require('airtable');
-const { formidable } = require('formidable'); // FIX: Correct way to import formidable v3
+const { formidable } = require('formidable');
 const cloudinary = require('cloudinary').v2;
 const stream = require('stream'); // Node.js stream module
 
@@ -34,6 +34,7 @@ function parseMultipartForm(event) {
             multiples: false,
             keepExtensions: true,
             allowEmptyFiles: true,
+            minFileSize: 0, // FIX: Allow files with 0 bytes
             maxFileSize: 5 * 1024 * 1024 // 5 MB limit
         });
 
@@ -96,7 +97,7 @@ exports.handler = async (event) => {
         console.log('Airtable updateFields prepared:', updateFields);
 
         const promoImageFile = files['promo-image'];
-        if (promoImageFile && promoImageFile.size > 0) {
+        if (promoImageFile && promoImageFile.size > 0) { // Only upload if file exists and has content
             console.log(`Image file detected: ${promoImageFile.originalFilename}, path: ${promoImageFile.filepath}, size: ${promoImageFile.size}`);
             try {
                 console.log('Attempting Cloudinary upload...');
@@ -112,6 +113,9 @@ exports.handler = async (event) => {
             }
         } else {
              console.log('No new promo-image file provided or file is empty.');
+             // If you want to remove an existing image when no new one is provided,
+             // you would explicitly set updateFields['Promo Image'] = []; here
+             // based on a checkbox or other signal from the frontend.
         }
 
         console.log('Attempting Airtable update...');

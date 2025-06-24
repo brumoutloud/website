@@ -151,6 +151,14 @@
             const fields = isAdding ? {} : item.fields;
             modalTitle.textContent = isAdding ? 'Add New Event' : 'Edit Event';
 
+            // --- FIX: Reset submit button and status message state ---
+            const submitBtn = editForm.querySelector('button[type=submit]');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Changes';
+            statusMessage.classList.add('hidden'); // Hide status message
+            statusMessage.textContent = ''; // Clear status message content
+            // --- END FIX ---
+
             if (isAdding) {
                 deleteEventBtn.classList.add('hidden');
             } else {
@@ -294,7 +302,7 @@
                 }
 
                 if (allAdminEvents.length === 0) {
-                    eventList.innerHTML = '<p class="text-center text-gray-400">No approved events found.</p>';
+                    eventList.innerHTML = `<p class="text-center text-gray-400">No approved events found.</p>`;
                 }
                 currentOffset = data.offset;
                 if (currentOffset && currentFilter === 'all') {

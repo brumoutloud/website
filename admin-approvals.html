@@ -87,7 +87,7 @@
     <!-- Edit Modal (for editing pending submissions before approval/rejection) -->
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
-             <h3 class="font-anton text-3xl text-white">Edit Submission</h3>
+             <h3 class="font-anton text-3xl text-white">Edit Event Submission</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
              <div class="flex justify-end gap-4 pt-4">
                  <button type="button" id="cancel-edit-btn" class="bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
@@ -127,7 +127,7 @@
         const confirmRejectionBtn = document.getElementById('confirm-rejection-btn');
         
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
-        let currentItemForAction = null; // Stores the item (event/venue) currently being reviewed/edited
+        let currentItemForAction = null; // Stores the item (event) currently being reviewed/edited
         let allVenues = []; // Variable to hold venues for the dropdown in edit form
 
         // Helper to display status messages (similar to admin-edit-events.html)
@@ -143,58 +143,33 @@
             setTimeout(() => statusDiv.classList.add('hidden'), 5000);
         }
 
-        // Renders a single pending item (event or venue)
+        // Renders a single pending item (now strictly an event)
         function renderItem(item) {
             const fields = item.fields;
-            let title = '';
-            let detailsHtml = '';
-            // FIX: Default image URL for both types, will be overwritten if image exists
-            let imageUrl = 'https://placehold.co/100x100/1e1e1e/EAEAEA?text=No+Image';
+            let title = fields['Event Name'];
+            const eventDate = new Date(fields['Date']);
+            const formattedDate = eventDate.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const venueName = fields['Venue Name'] && fields['Venue Name'].length > 0 ? fields['Venue Name'][0] : (fields['VenueText'] || 'Venue TBC');
+            const categories = fields['Category'] ? fields['Category'].join(', ') : 'None';
+            const imageUrl = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : 'https://placehold.co/100x100/1e1e1e/EAEAEA?text=No+Image';
 
-            if (item.type === 'Event') {
-                title = fields['Event Name'];
-                const eventDate = new Date(fields['Date']);
-                const formattedDate = eventDate.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const venueName = fields['Venue Name'] && fields['Venue Name'].length > 0 ? fields['Venue Name'][0] : (fields['VenueText'] || 'Venue TBC');
-                const categories = fields['Category'] ? fields['Category'].join(', ') : 'None';
-                imageUrl = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : imageUrl;
-
-                detailsHtml = `
+            const card = document.createElement('div');
+            card.className = 'approval-card';
+            card.dataset.id = item.id;
+            card.dataset.type = item.type; // Will always be 'Event' now
+            card.innerHTML = `
+                <div class="approval-card-header">
+                    <h3 class="text-xl font-bold text-white">${title} <span class="text-sm text-gray-400 ml-2">(Event)</span></h3>
+                    <img src="${imageUrl}" alt="${title}" class="w-16 h-16 object-cover rounded-md">
+                </div>
+                <div class="approval-card-details">
                     <div class="approval-card-detail-item"><p class="font-bold">Date:</p><p>${formattedDate}</p></div>
                     <div class="approval-card-detail-item"><p class="font-bold">Venue:</p><p>${venueName}</p></div>
                     <div class="approval-card-detail-item"><p class="font-bold">Categories:</p><p>${categories}</p></div>
                     <div class="approval-card-detail-item"><p class="font-bold">Description:</p><p>${fields['Description'] || 'N/A'}</p></div>
                     ${fields['Link'] ? `<div class="approval-card-detail-item"><p class="font-bold">Link:</p><p><a href="${fields['Link']}" target="_blank" class="text-blue-400 hover:underline">View</a></p></div>` : ''}
                     ${fields['Recurring Info'] ? `<div class="approval-card-detail-item"><p class="font-bold">Recurring:</p><p>${fields['Recurring Info']}</p></div>` : ''}
-                `;
-            } else if (item.type === 'Venue') {
-                title = fields['Name'];
-                const address = fields['Address'] || 'N/A';
-                const website = fields['Website'] || 'N/A';
-                const listingStatus = fields['Listing Status'] || 'N/A';
-                // FIX: Use 'Photo' field for Venue image
-                imageUrl = fields['Photo'] && fields['Photo'].length > 0 ? fields['Photo'][0].url : imageUrl;
-
-                detailsHtml = `
-                    <div class="approval-card-detail-item"><p class="font-bold">Address:</p><p>${address}</p></div>
-                    <div class="approval-card-detail-item"><p class="font-bold">Website:</p><p>${website}</p></div>
-                    <div class="approval-card-detail-item"><p class="font-bold">Listing Status:</p><p>${listingStatus}</p></div>
-                    <div class="approval-card-detail-item"><p class="font-bold">Description:</p><p>${fields['Description'] || 'N/A'}</p></div>
-                    ${fields['Contact Email'] ? `<div class="approval-card-detail-item"><p class="font-bold">Contact Email:</p><p>${fields['Contact Email']}</p></div>` : ''}
-                `;
-            }
-
-            const card = document.createElement('div');
-            card.className = 'approval-card';
-            card.dataset.id = item.id;
-            card.dataset.type = item.type;
-            card.innerHTML = `
-                <div class="approval-card-header">
-                    <h3 class="text-xl font-bold text-white">${title} <span class="text-sm text-gray-400 ml-2">(${item.type})</span></h3>
-                    <img src="${imageUrl}" alt="${title}" class="w-16 h-16 object-cover rounded-md">
-                </div>
-                <div class="approval-card-details">
-                    ${detailsHtml}
+                    ${fields['Contact Email'] ? `<div class="approval-card-detail-item"><p class="font-bold">Submitter Email:</p><p>${fields['Contact Email']}</p></div>` : ''}
                 </div>
                 <div class="approval-card-actions">
                     <button class="button-edit" data-action="edit">Edit</button>
@@ -205,23 +180,23 @@
             return card;
         }
 
-        // Fetches and renders all pending items
+        // Fetches and renders all pending items (now strictly events)
         async function loadPendingItems() {
             loadingState.classList.remove('hidden');
             approvalList.innerHTML = ''; // Clear previous list
             noItemsMessage.classList.add('hidden'); // Hide no items message initially
 
             try {
-                const response = await fetch('/.netlify/functions/get-pending-items');
+                const response = await fetch('/.netlify/functions/get-pending-items'); // This now only returns events
                 if (!response.ok) throw new Error('Failed to fetch pending items.');
                 
-                const items = await response.json();
+                const items = await response.json(); // These should all be 'Event' type now
                 
                 loadingState.classList.add('hidden');
 
                 if (items && items.length > 0) {
                     items.forEach(item => {
-                        // Assuming 'Type' field is added by get-pending-items.js
+                        // Assuming 'Type' field is added as 'Event' by get-pending-items.js
                         approvalList.appendChild(renderItem(item));
                     });
                 } else {
@@ -234,7 +209,7 @@
             }
         }
 
-        // Populates the edit modal form (similar to admin-edit-events)
+        // Populates the edit modal form (now strictly for events)
         function populateEditForm(item) {
             currentItemForAction = item;
             editModal.classList.remove('hidden'); // Show the modal
@@ -242,153 +217,111 @@
             // Clear previous fields
             editFormFields.innerHTML = '';
 
-            let currentCategories = [];
-            let eventDate = '';
-            let eventTime = '';
-            let venueId = '';
-            let currentPromoImageUrl = '';
-            let venueText = ''; // For unlinked venues
+            const fields = item.fields;
+            const currentCategories = fields.Category || [];
+            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
 
-            // Populate fields based on item type
-            if (item.type === 'Event') {
-                const fields = item.fields;
-                currentCategories = fields.Category || [];
-                eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
-                eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
-                venueId = fields.Venue && fields.Venue.length > 0 ? fields.Venue[0] : ''; // Linked venue ID
-                venueText = fields.VenueText || ''; // Fallback for unlinked venue text
-                currentPromoImageUrl = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : '';
+            const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
+            const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
+            const venueId = fields.Venue && fields.Venue.length > 0 ? fields.Venue[0] : ''; // Linked venue ID
+            const venueText = fields.VenueText || ''; // Fallback for unlinked venue text
+            const currentPromoImageUrl = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : '';
 
-                // Event specific fields
-                const eventNameDiv = document.createElement('div');
-                eventNameDiv.innerHTML = `<label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required>`;
-                editFormFields.appendChild(eventNameDiv);
+            // Event specific fields
+            const eventNameDiv = document.createElement('div');
+            eventNameDiv.innerHTML = `<label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required>`;
+            editFormFields.appendChild(eventNameDiv);
 
-                const contactEmailDiv = document.createElement('div');
-                contactEmailDiv.innerHTML = `<label>Submitter Email</label><input type="email" name="Submitter Email" value="${fields['Submitter Email'] || fields['Contact Email'] || ''}" placeholder="Contact email if available">`;
-                editFormFields.appendChild(contactEmailDiv);
+            const contactEmailDiv = document.createElement('div');
+            contactEmailDiv.innerHTML = `<label>Submitter Email</label><input type="email" name="Submitter Email" value="${fields['Submitter Email'] || fields['Contact Email'] || ''}" placeholder="Contact email if available">`;
+            editFormFields.appendChild(contactEmailDiv);
 
 
-                // Venue select and New Venue Fields (replicated logic from admin-edit-events)
-                const venueSelectDiv = document.createElement('div');
-                const venueSelectLabel = document.createElement('label');
-                venueSelectLabel.textContent = 'Venue';
-                venueSelectDiv.appendChild(venueSelectLabel);
+            // Venue select and New Venue Fields (replicated logic from admin-edit-events)
+            const venueSelectDiv = document.createElement('div');
+            const venueSelectLabel = document.createElement('label');
+            venueSelectLabel.textContent = 'Venue';
+            venueSelectDiv.appendChild(venueSelectLabel);
 
-                const venueSelect = document.createElement('select');
-                venueSelect.name = 'venueId';
-                venueSelect.classList.add('venue-select');
-                venueSelect.innerHTML = `<option value="">-- Select or Add Venue --</option>` +
-                                          allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('') +
-                                          `<option value="__CREATE_NEW__">-- Add a new unlisted venue --</option>`;
-                venueSelectDiv.appendChild(venueSelect);
-                editFormFields.appendChild(venueSelectDiv);
+            const venueSelect = document.createElement('select');
+            venueSelect.name = 'venueId';
+            venueSelect.classList.add('venue-select');
+            venueSelect.innerHTML = `<option value="">-- Select or Add Venue --</option>` +
+                                      allVenues.map(venue => `<option value="${venue.id}">${venue.name}</option>`).join('') +
+                                      `<option value="__CREATE_NEW__">-- Add a new unlisted venue --</option>`;
+            venueSelectDiv.appendChild(venueSelect);
+            editFormFields.appendChild(venueSelectDiv);
 
-                const newVenueFields = document.createElement('div');
-                newVenueFields.id = 'new-venue-fields';
-                newVenueFields.classList.add('hidden', 'space-y-2', 'p-4', 'mt-2', 'bg-gray-800', 'rounded-lg');
-                newVenueFields.innerHTML = `
-                    <label class="font-semibold text-white">New Venue Name</label>
-                    <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
-                    <label class="font-semibold text-white">New Venue Address</label>
-                    <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
-                `;
-                editFormFields.appendChild(newVenueFields);
+            const newVenueFields = document.createElement('div');
+            newVenueFields.id = 'new-venue-fields';
+            newVenueFields.classList.add('hidden', 'space-y-2', 'p-4', 'mt-2', 'bg-gray-800', 'rounded-lg');
+            newVenueFields.innerHTML = `
+                <label class="font-semibold text-white">New Venue Name</label>
+                <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+                <label class="font-semibold text-white">New Venue Address</label>
+                <input type="text" id="new-venue-address" name="new-venue-address" placeholder="New Venue Address" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
+            `;
+            editFormFields.appendChild(newVenueFields);
 
-                // Set initial venue selection
-                if (venueId) { // If linked venue
-                    venueSelect.value = venueId;
-                } else if (venueText) { // If unlinked venue text is present, pre-fill new venue fields
-                    // Attempt to select '__CREATE_NEW__' and pre-fill fields if we have venueText but no venueId
-                    venueSelect.value = '__CREATE_NEW__';
-                    newVenueFields.querySelector('#new-venue-name').value = venueText;
-                }
-
-                // Handle change listener for venueSelect (shows/hides new venue fields)
-                venueSelect.addEventListener('change', () => {
-                    const showNew = venueSelect.value === '__CREATE_NEW__';
-                    newVenueFields.classList.toggle('hidden', !showNew);
-                    newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
-                });
-                // Set initial visibility based on default/pre-filled value
-                newVenueFields.classList.toggle('hidden', venueSelect.value !== '__CREATE_NEW__');
-                newVenueFields.querySelectorAll('input').forEach(input => input.required = (venueSelect.value === '__CREATE_NEW__'));
-
-
-                const dateTimeDiv = document.createElement('div');
-                dateTimeDiv.classList.add('grid', 'md:grid-cols-2', 'gap-4');
-                dateTimeDiv.innerHTML = `
-                    <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
-                    <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
-                `;
-                editFormFields.appendChild(dateTimeDiv);
-
-                const descriptionDiv = document.createElement('div');
-                descriptionDiv.innerHTML = `<label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea>`;
-                editFormFields.appendChild(descriptionDiv);
-
-                const linkDiv = document.createElement('div');
-                linkDiv.innerHTML = `<label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}" placeholder="https://">`;
-                editFormFields.appendChild(linkDiv);
-
-                const recurringDiv = document.createElement('div');
-                recurringDiv.innerHTML = `<label>Recurring Info (Optional)</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g., Every Thursday">`;
-                editFormFields.appendChild(recurringDiv);
-
-                const promoImageDiv = document.createElement('div');
-                promoImageDiv.innerHTML = `
-                    <label for="promo-image-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
-                    <input type="file" id="promo-image-file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
-                    ${currentPromoImageUrl ? `<p class="text-xs text-gray-500 mt-1">Current image: <a href="${currentPromoImageUrl}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
-                `;
-                editFormFields.appendChild(promoImageDiv);
-
-                const categoriesDiv = document.createElement('div');
-                categoriesDiv.classList.add('border-t', 'border-gray-700', 'pt-4');
-                categoriesDiv.innerHTML = `<label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div>`;
-                editFormFields.appendChild(categoriesDiv);
-
-            } else if (item.type === 'Venue') {
-                const fields = item.fields;
-                // FIX: Use 'Photo' field for venue image
-                currentPromoImageUrl = fields['Photo'] && fields['Photo'].length > 0 ? fields['Photo'][0].url : '';
-
-                const nameDiv = document.createElement('div');
-                nameDiv.innerHTML = `<label>Venue Name</label><input type="text" name="Name" value="${fields['Name'] || ''}" required>`;
-                editFormFields.appendChild(nameDiv);
-
-                const addressDiv = document.createElement('div');
-                addressDiv.innerHTML = `<label>Address</label><input type="text" name="Address" value="${fields['Address'] || ''}" required>`;
-                editFormFields.appendChild(addressDiv);
-
-                const websiteDiv = document.createElement('div');
-                websiteDiv.innerHTML = `<label>Website</label><input type="url" name="Website" value="${fields['Website'] || ''}" placeholder="https://">`;
-                editFormFields.appendChild(websiteDiv);
-
-                const descriptionDiv = document.createElement('div');
-                descriptionDiv.innerHTML = `<label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea>`;
-                editFormFields.appendChild(descriptionDiv);
-
-                const contactEmailDiv = document.createElement('div');
-                contactEmailDiv.innerHTML = `<label>Contact Email</label><input type="email" name="Contact Email" value="${fields['Contact Email'] || ''}" placeholder="Contact email for venue">`;
-                editFormFields.appendChild(contactEmailDiv);
-
-                const photoDiv = document.createElement('div');
-                photoDiv.innerHTML = `
-                    <label for="venue-photo-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Photo</label>
-                    <input type="file" id="venue-photo-file" name="photo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
-                    ${currentPromoImageUrl ? `<p class="text-xs text-gray-500 mt-1">Current photo: <a href="${currentPromoImageUrl}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
-                `;
-                editFormFields.appendChild(photoDiv);
-
+            // Set initial venue selection
+            if (venueId) { // If linked venue
+                venueSelect.value = venueId;
+            } else if (venueText) { // If unlinked venue text is present, pre-fill new venue fields
+                // Attempt to select '__CREATE_NEW__' and pre-fill fields if it's the "__CREATE_NEW__" option
+                venueSelect.value = '__CREATE_NEW__';
+                newVenueFields.querySelector('#new-venue-name').value = venueText;
             }
+
+            // Handle change listener for venueSelect (shows/hides new venue fields)
+            venueSelect.addEventListener('change', () => {
+                const showNew = venueSelect.value === '__CREATE_NEW__';
+                newVenueFields.classList.toggle('hidden', !showNew);
+                newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
+            });
+            // Set initial visibility based on default/pre-filled value
+            newVenueFields.classList.toggle('hidden', venueSelect.value !== '__CREATE_NEW__');
+            newVenueFields.querySelectorAll('input').forEach(input => input.required = (venueSelect.value === '__CREATE_NEW__'));
+
+
+            const dateTimeDiv = document.createElement('div');
+            dateTimeDiv.classList.add('grid', 'md:grid-cols-2', 'gap-4');
+            dateTimeDiv.innerHTML = `
+                <div><label>Date</label><input type="date" name="date" value="${eventDate}" required></div>
+                <div><label>Time (24hr)</label><input type="time" name="time" value="${eventTime}" required></div>
+            `;
+            editFormFields.appendChild(dateTimeDiv);
+
+            const descriptionDiv = document.createElement('div');
+            descriptionDiv.innerHTML = `<label>Description</label><textarea name="Description" rows="4">${fields['Description'] || ''}</textarea>`;
+            editFormFields.appendChild(descriptionDiv);
+
+            const linkDiv = document.createElement('div');
+            linkDiv.innerHTML = `<label>Ticket Link</label><input type="url" name="Link" value="${fields['Link'] || ''}" placeholder="https://">`;
+            editFormFields.appendChild(linkDiv);
+
+            const recurringDiv = document.createElement('div');
+            recurringDiv.innerHTML = `<label>Recurring Info (Optional)</label><input type="text" name="Recurring Info" value="${fields['Recurring Info'] || ''}" placeholder="e.g., Every Thursday">`;
+            editFormFields.appendChild(recurringDiv);
+
+            const promoImageDiv = document.createElement('div');
+            promoImageDiv.innerHTML = `
+                <label for="promo-image-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Promo Image</label>
+                <input type="file" id="promo-image-file" name="promo-image" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
+                ${currentPromoImageUrl ? `<p class="text-xs text-gray-500 mt-1">Current image: <a href="${currentPromoImageUrl}" target="_blank" class="text-blue-400 hover:underline">View</a></p>` : ''}
+            `;
+            editFormFields.appendChild(promoImageDiv);
+
+            const categoriesDiv = document.createElement('div');
+            categoriesDiv.classList.add('border-t', 'border-gray-700', 'pt-4');
+            categoriesDiv.innerHTML = `<label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div>`;
+            editFormFields.appendChild(categoriesDiv);
 
             // Apply common styling to all input elements generated
             editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
             editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
         }
 
-        // Handle form submission from the edit modal
+        // Handle form submission from the edit modal (now strictly for events)
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = editForm.querySelector('button[type=submit]');
@@ -428,16 +361,14 @@
 
             const formData = new FormData(editForm);
             formData.append('id', currentItemForAction.id);
-            formData.append('type', currentItemForAction.type); // Event or Venue
+            formData.append('type', 'Event'); // Type is always Event now
 
-            if (currentItemForAction.type === 'Event' && venueId) { // For events, set the venueId
+            if (venueId) { // For events, set the venueId
                 formData.set('venueId', venueId);
-            } else if (currentItemForAction.type === 'Event' && !venueId) {
-                formData.delete('venueId'); // Explicitly remove if no venue selected for Event
+            } else { // If no venue selected or new venue creation failed, remove venueId
+                formData.delete('venueId');
             }
-            // For Venue type, the 'photo' file will be directly in formData under the name 'photo'
-
-
+            
             try {
                 const response = await fetch('/.netlify/functions/update-submission', {
                     method: 'POST',
@@ -466,9 +397,9 @@
             if (!card) return;
 
             // Fetch the entire item's data to ensure we have all fields for populateEditForm
-            // This is safer than relying on card.dataset for all fields.
             try {
-                const endpoint = card.dataset.type === 'Event' ? '/.netlify/functions/get-event-details' : '/.netlify/functions/get-venue-details';
+                // Since we only fetch Events now, simplify endpoint
+                const endpoint = '/.netlify/functions/get-event-details';
                 const response = await fetch(`${endpoint}?id=${card.dataset.id}`); // Assuming details functions take ID
                 const fetchedItem = await response.json();
 
@@ -478,7 +409,7 @@
                 // Assign the fetched item with full fields to currentItemForAction
                 currentItemForAction = {
                     id: card.dataset.id,
-                    type: card.dataset.type,
+                    type: 'Event', // Type is always 'Event' now
                     fields: fetchedItem.fields // Use the full fields from the details endpoint
                 };
 
@@ -486,7 +417,6 @@
                 showStatusMessage(`Error loading item details for edit: ${error.message}`, true);
                 return; // Stop execution if details cannot be fetched
             }
-
 
             const action = button.dataset.action;
 
@@ -502,19 +432,18 @@
             if (action === 'reject') {
                 rejectionModal.classList.remove('hidden');
                 // Set up handlers for rejection modal buttons
-                // Use a one-time listener or clear previous listeners to prevent duplicates
                 const handleCancelRejection = () => {
                     rejectionModal.classList.add('hidden');
                     rejectionReasonInput.value = '';
-                    cancelRejectionBtn.removeEventListener('click', handleCancelRejection); // Clean up
-                    confirmRejectionBtn.removeEventListener('click', handleConfirmRejection); // Clean up
+                    cancelRejectionBtn.removeEventListener('click', handleCancelRejection);
+                    confirmRejectionBtn.removeEventListener('click', handleConfirmRejection);
                 };
                 const handleConfirmRejection = async () => {
                     rejectionReason = rejectionReasonInput.value;
                     rejectionModal.classList.add('hidden');
                     rejectionReasonInput.value = '';
-                    cancelRejectionBtn.removeEventListener('click', handleCancelRejection); // Clean up
-                    confirmRejectionBtn.removeEventListener('click', handleConfirmRejection); // Clean up
+                    cancelRejectionBtn.removeEventListener('click', handleCancelRejection);
+                    confirmRejectionBtn.removeEventListener('click', handleConfirmRejection);
                     await updateItemStatus(currentItemForAction.id, currentItemForAction.type, actionStatus, rejectionReason);
                 };
 
@@ -529,7 +458,7 @@
         // Function to send status update to Netlify Function
         async function updateItemStatus(id, type, status, rejectionReason = '') {
             try {
-                const response = await fetch('/.netlify/functions/update-item-status', { // You will need to create this Netlify Function
+                const response = await fetch('/.netlify/functions/update-item-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, type, status, rejectionReason })
@@ -549,13 +478,13 @@
         async function loadInitialData() {
             loadingState.classList.remove('hidden');
             try {
-                // Fetch venues first for the edit form dropdown
+                // Fetch venues first for the edit form dropdown (still needed for Event venue selection)
                 const venuesResponse = await fetch('/.netlify/functions/get-venue-list');
                 if (!venuesResponse.ok) throw new Error('Failed to fetch venues for dropdown.');
                 allVenues = await venuesResponse.json();
                 console.log('Venues loaded for dropdown:', allVenues.length);
 
-                // Now load the pending items
+                // Now load the pending items (which will only be events)
                 await loadPendingItems();
             } catch (error) {
                 console.error("Error during initial data load:", error);

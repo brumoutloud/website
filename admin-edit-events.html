@@ -27,7 +27,7 @@
             </div>
 
             <div class="card-bg p-8 md:p-12 mb-8">
-                <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools <i class="fas fa-tools text-gray-500 text-xl ml-2"></i></h2>
+                <h2 class="font-anton text-3xl text-white mb-4 border-b border-gray-700 pb-2">Data Tools <i class="fas fa-tools text-gray-500 text-xl ml-2"></i></h2>
                 <p class="text-gray-400 mb-6">Run tools to process and clean up existing event data.</p>
                 <button id="start-cleanup-btn" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity w-full flex items-center justify-center">
                      <span id="cleanup-btn-text">AI Category Cleanup</span>
@@ -67,7 +67,7 @@
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
-             <div class="flex justify-between items-center pt-4"> <!-- Adjusted for delete button -->
+             <div class="flex justify-between items-center pt-4">
                 <button type="button" id="delete-event-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">Delete Event</button>
                 <div class="flex gap-4">
                     <button type="button" id="cancel-edit-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">Cancel</button>
@@ -157,6 +157,10 @@
                 deleteEventBtn.classList.remove('hidden');
             }
 
+            // Define categoryCheckboxes here to resolve ReferenceError
+            const categoryCheckboxes = VALID_CATEGORIES.map(cat => `<label class="inline-flex items-center gap-2"><input type="checkbox" name="Category" value="${cat}" ${currentCategories.includes(cat) ? 'checked' : ''} class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">${cat}</span></label>`).join('');
+            const currentCategories = fields.Category || []; // Ensure currentCategories is defined before categoryCheckboxes
+
             // Clear previous fields
             editFormFields.innerHTML = '';
 
@@ -182,7 +186,7 @@
 
             const newVenueFields = document.createElement('div');
             newVenueFields.id = 'new-venue-fields';
-            newVenueFields.classList.add('space-y-2', 'p-4', 'mt-2', 'bg-gray-800', 'rounded-lg');
+            newVenueFields.classList.add('hidden', 'space-y-2', 'p-4', 'mt-2', 'bg-gray-800', 'rounded-lg'); // Ensure hidden by default
             newVenueFields.innerHTML = `
                 <label class="font-semibold text-white">New Venue Details</label>
                 <input type="text" id="new-venue-name" name="new-venue-name" placeholder="New Venue Name" class="w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white">
@@ -190,18 +194,17 @@
             `;
             editFormFields.appendChild(newVenueFields);
 
-            // Initial state for new venue fields
-            const showNewInitially = (!isAdding && fields.Venue && fields.Venue.length > 0 && venueSelect.value === '__CREATE_NEW__') ||
-                                     (isAdding && venueSelect.value === '__CREATE_NEW__');
-            newVenueFields.classList.toggle('hidden', !showNewInitially);
-            newVenueFields.querySelectorAll('input').forEach(input => input.required = showNewInitially);
-
             // Set current venue if editing
             if (!isAdding && fields.Venue && fields.Venue.length > 0) {
                 venueSelect.value = fields.Venue[0];
             } else if (isAdding) {
                 venueSelect.value = ''; // Default to no venue when adding
             }
+
+            // Initial visibility state for new venue fields AFTER setting venueSelect.value
+            const showNewInitially = venueSelect.value === '__CREATE_NEW__';
+            newVenueFields.classList.toggle('hidden', !showNewInitially);
+            newVenueFields.querySelectorAll('input').forEach(input => input.required = showNewInitially);
 
             // Add change listener to venueSelect
             venueSelect.addEventListener('change', () => {

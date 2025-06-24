@@ -1,116 +1,103 @@
+// netlify/functions/update-submission.js
 const Airtable = require('airtable');
-const parser = require('lambda-multipart-parser');
-const cloudinary = require('cloudinary').v2;
+const formidable = require('formidable'); // For parsing multipart/form-data
+const cloudinary = require('cloudinary').v2; // For image uploads
 
-const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
+// Initialize Airtable
+const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
 
+// Initialize Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-async function createUnlistedVenue(name, address) {
-    const newRecords = await base('Venues').create([{ 
-        fields: {
-            "Name": name,
-            "Address": address,
-            "Status": "Approved",
-            "Listing Status": "Unlisted",
-            "Vibe Tags": [],
-            "Venue Features": [],
-            "Accessibility Features": []
-        }
-    }]);
-    if (!newRecords || newRecords.length === 0) {
-        throw new Error("Airtable did not return the created record for the new venue.");
-    }
-    return newRecords[0].id;
+// Helper to parse multipart/form-data
+function parseMultipartForm(event) {
+    return new Promise((resolve, reject) => {
+        const form = formidable({ multiples: true }); // 'multiples' for array fields if needed
+        form.parse(event.body, (err, fields, files) => {
+            if (err) return reject(err);
+            resolve({ fields, files });
+        });
+    });
 }
 
-exports.handler = async function (event, context) {
+exports.handler = async (event) => {
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: JSON.stringify({ success: false, message: 'Method Not Allowed' }) };
+    }
+
     try {
-        // Note: Using lambda-multipart-parser for consistency with other functions
-        const submission = await parser.parse(event);
-        const { id, type } = submission;
+        // Parse the multipart form data
+        const { fields, files } = await parseMultipartForm(event);
 
-        if (!id || !type) {
-            return { statusCode: 400, body: 'Missing ID or submission type.' };
+        const recordId = fields.id;
+        const itemType = fields.type; // 'Event' or 'Venue'
+
+        if (!recordId || !itemType) {
+            return { statusCode: 400, body: JSON.stringify({ success: false, message: 'Record ID and type are required.' }) };
         }
 
-        const table = base(type === 'Event' ? 'Events' : 'Venues');
-        let fieldsToUpdate = {};
+        // Prepare fields for Airtable update
+        const updateFields = {
+            "Event Name": fields['Event Name'] || '',
+            "Date": fields.date || '',
+            "Time": fields.time || '', // Assuming you have a 'Time' field in Airtable
+            "Description": fields.Description || '',
+            "Link": fields.Link || '',
+            "Recurring Info": fields['Recurring Info'] || '',
+            "Category": Array.isArray(fields.Category) ? fields.Category : (fields.Category ? [fields.Category] : []), // Handle single or multiple categories
+            // Link to venue record (assuming venueId is the ID of the linked record)
+            "Venue": fields.venueId ? [fields.venueId] : [], // Airtable linked records are arrays of IDs
+        };
 
-        if (type === 'Event') {
-            let venueId = submission.venueId;
-            if (venueId === '__CREATE_NEW__') {
-                venueId = await createUnlistedVenue(submission['new-venue-name'], submission['new-venue-address']);
-            }
+        // Handle image upload if a file is provided
+        if (files['promo-image'] && files['promo-image'].length > 0) {
+            const imageFile = files['promo-image'][0]; // formidable stores single files in an array if 'multiples' is true
 
-            if (venueId && venueId.startsWith('rec')) {
-                fieldsToUpdate['Venue'] = [venueId];
-                fieldsToUpdate['VenueText'] = null; // Clear old text field
+            if (imageFile.size > 0) {
+                console.log(`Uploading image: ${imageFile.filepath} to Cloudinary...`);
+                const uploadResult = await cloudinary.uploader.upload(imageFile.filepath, {
+                    folder: "brumoutloud_events", // Optional: specify a folder in Cloudinary
+                    resource_type: "image" // Ensure it's treated as an image
+                });
+                updateFields['Promo Image'] = [{ url: uploadResult.secure_url }]; // Airtable attachment format
+                console.log('Cloudinary upload successful:', uploadResult.secure_url);
             } else {
-                fieldsToUpdate['Venue'] = []; // Unlink venue
+                console.log('No new image file provided or file is empty.');
+                // If an existing image needs to be removed without new upload,
+                // you'd need a separate mechanism (e.g., a "clear image" checkbox).
+                // For now, if no new file is uploaded, keep existing image if any, or leave blank.
             }
-
-            const combinedDateTime = new Date(`${submission.date}T${submission.time || '00:00'}`).toISOString();
-
-            fieldsToUpdate['Event Name'] = submission['Event Name'];
-            fieldsToUpdate['Date'] = combinedDateTime;
-            fieldsToUpdate['Description'] = submission['Description'];
-            fieldsToUpdate['Link'] = submission['Link'];
-            fieldsToUpdate['Parent Event Name'] = submission['Parent Event Name'];
-            
-            if (submission.Category) {
-                fieldsToUpdate['Category'] = Array.isArray(submission.Category) ? submission.Category : [submission.Category];
-            } else {
-                fieldsToUpdate['Category'] = [];
-            }
-
-        } else if (type === 'Venue') {
-            // --- THIS SECTION IS NOW COMPLETE ---
-            fieldsToUpdate = {
-                'Name': submission.Name,
-                'Address': submission.Address,
-                'Description': submission.Description,
-                'Opening Hours': submission['Opening Hours'],
-                'Accessibility': submission.Accessibility,
-                'Website': submission.Website,
-                'Instagram': submission.Instagram,
-                'Facebook': submission.Facebook,
-                'TikTok': submission.TikTok,
-                'X (Twitter)': submission['X (Twitter)'],
-                'Contact Email': submission['Contact Email'],
-                'Contact Phone': submission['Contact Phone'],
-                'Parking Exception': submission['Parking Exception'],
-                'Accessibility Rating': submission['Accessibility Rating'],
-                 // Handle multi-selects, ensuring they are arrays
-                'Vibe Tags': Array.isArray(submission['Vibe Tags']) ? submission['Vibe Tags'] : (submission['Vibe Tags'] ? [submission['Vibe Tags']] : []),
-                'Venue Features': Array.isArray(submission['Venue Features']) ? submission['Venue Features'] : (submission['Venue Features'] ? [submission['Venue Features']] : []),
-                'Accessibility Features': Array.isArray(submission['Accessibility Features']) ? submission['Accessibility Features'] : (submission['Accessibility Features'] ? [submission['Accessibility Features']] : []),
-            };
+        } else {
+             console.log('No promo-image file found in the submission.');
+             // If you want to allow clearing an image without uploading a new one,
+             // you'd need another form field (e.g., a checkbox) to signal this.
+             // For simplicity, if no new file, we don't touch existing image field unless explicitly told.
         }
 
-        // Remove undefined fields before updating to avoid clearing existing data
-        Object.keys(fieldsToUpdate).forEach(key => {
-            if (fieldsToUpdate[key] === undefined) {
-                delete fieldsToUpdate[key];
-            }
-        });
-        
-        await table.update([{ "id": id, "fields": fieldsToUpdate }]);
+        // Perform the Airtable update
+        await base('Events').update([ // Assuming your events table is named 'Events'
+            {
+                id: recordId,
+                fields: updateFields,
+            },
+        ]);
 
         return {
             statusCode: 200,
-            body: JSON.stringify({ success: true, message: `${type} with ID ${id} updated successfully.` }),
+            body: JSON.stringify({ success: true, message: `${itemType} updated successfully!` }),
         };
 
     } catch (error) {
-        console.error("Error in update-submission:", error);
+        console.error('Error updating submission:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ success: false, message: error.toString() }),
+            body: JSON.stringify({ success: false, message: `Failed to update ${itemType}: ${error.message}` }),
         };
     }
 };

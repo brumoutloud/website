@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
     <style>
+        /* Existing styles from original code - PRESERVED */
         .tag-missing{display:inline-block;background-color:rgba(239,68,68,.1);color:#F87171;font-size:.75rem;font-weight:600;padding:.25rem .75rem;border-radius:9999px;margin-right:.5rem;margin-bottom:.5rem}.filter-button{padding:.5rem 1rem;border-radius:.5rem;font-weight:600;transition:background-color .2s,color .2s;background-color:rgba(255,255,255,.05);color:#d1d5db}.filter-button.active{background-color:#E83A99;color:#fff}.filter-button:hover:not(.active){background-color:rgba(255,255,255,.1)}
     </style>
 </head>
@@ -66,7 +67,8 @@
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 id="modal-title" class="font-anton text-3xl text-white">Edit Event</h3>
              <div id="edit-form-fields" class="space-y-4"></div>
-             <div class="flex justify-between items-center pt-4"> <button type="button" id="delete-event-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">Delete Event</button>
+             <div class="flex justify-between items-center pt-4"> <!-- Adjusted for delete button -->
+                <button type="button" id="delete-event-btn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">Delete Event</button>
                 <div class="flex gap-4">
                     <button type="button" id="cancel-edit-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">Cancel</button>
                     <button type="submit" class="bg-accent-color text-white font-bold px-6 py-2 rounded-lg hover:opacity-90">Save Changes</button>
@@ -143,13 +145,12 @@
         }
 
         function populateEditForm(item) {
-            console.log('Populating edit form for item:', item); // Diagnostic log
+            console.log('Populating edit form for item:', item);
             currentItemForAction = item;
             const isAdding = !item;
             const fields = isAdding ? {} : item.fields;
             modalTitle.textContent = isAdding ? 'Add New Event' : 'Edit Event';
 
-            // Show/hide delete button based on whether we are adding or editing
             if (isAdding) {
                 deleteEventBtn.classList.add('hidden');
             } else {
@@ -201,21 +202,20 @@
             editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
             editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
 
-            // FIX: Query venueSelect from editForm directly for stability
-            const venueSelect = editForm.querySelector('.venue-select');
-            const newVenueFields = editForm.querySelector('#new-venue-fields');
+            // FIX: Query venueSelect and newVenueFields from editFormFields (the container that received the new HTML)
+            const venueSelect = editFormFields.querySelector('.venue-select');
+            const newVenueFields = editFormFields.querySelector('#new-venue-fields');
 
-            console.log('Form HTML injected. Checking venueSelect and newVenueFields...'); // Diagnostic log
-            console.log('venueSelect exists:', !!venueSelect); // Diagnostic log (should now be true)
-            console.log('newVenueFields exists:', !!newVenueFields); // Diagnostic log
+            console.log('Form HTML injected. Checking venueSelect and newVenueFields...');
+            console.log('venueSelect exists:', !!venueSelect); // Should now be true
+            console.log('newVenueFields exists:', !!newVenueFields);
 
             if (venueSelect) {
                 // Set current venue if editing
                 if (!isAdding && fields.Venue && fields.Venue.length > 0) {
                     venueSelect.value = fields.Venue[0];
                 } else if (isAdding) {
-                    // Default to no venue when adding, unless you want to default to CREATE_NEW
-                    venueSelect.value = ''; // Or '__CREATE_NEW__' if that's preferred for new events
+                    venueSelect.value = '';
                 }
 
                 // Initial visibility state for new venue fields
@@ -225,11 +225,11 @@
 
                 // Add change listener
                 venueSelect.addEventListener('change', () => {
-                    console.log('Venue select changed to:', venueSelect.value); // Diagnostic log
+                    console.log('Venue select changed to:', venueSelect.value);
                     const showNew = venueSelect.value === '__CREATE_NEW__';
                     newVenueFields.classList.toggle('hidden', !showNew);
                     newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
-                    console.log('Should show new venue fields:', showNew); // Diagnostic log
+                    console.log('Should show new venue fields:', showNew);
                 });
             }
 
@@ -304,16 +304,16 @@
             }
         }
 
-        // New function to handle event deletion
         async function confirmAndDeleteEvent() {
             if (!currentItemForAction || !currentItemForAction.id) {
                 console.error("No event selected for deletion.");
+                statusMessage.textContent = "Error: No event selected for deletion.";
+                statusMessage.classList.remove('hidden', 'text-green-400');
+                statusMessage.classList.add('text-red-400');
+                setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                 return;
             }
 
-            // Using a custom modal for confirmation instead of alert/confirm
-            // You'll need to implement a simple modal UI (e.g., a div with Yes/No buttons)
-            // For now, let's use a basic alert for demonstration, but note it should be replaced.
             const userConfirmed = window.confirm(`Are you sure you want to archive "${currentItemForAction.fields['Event Name']}"? This will hide it from the public site.`);
 
             if (userConfirmed) {
@@ -322,8 +322,7 @@
                     deleteBtn.disabled = true;
                     deleteBtn.textContent = 'Archiving...';
 
-                    // This will call your Netlify Function to update the event's status to archived
-                    const response = await fetch('/.netlify/functions/archive-event', { // You need to create this Netlify Function
+                    const response = await fetch('/.netlify/functions/archive-event', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ id: currentItemForAction.id, type: 'Event' })
@@ -334,12 +333,18 @@
                         throw new Error(err.message || 'Server returned an error');
                     }
 
-                    alert('Event archived successfully!'); // Replace with custom message box
-                    location.reload(); // Reload the page to reflect changes
-
+                    statusMessage.textContent = 'Event archived successfully!';
+                    statusMessage.classList.remove('hidden', 'text-red-400');
+                    statusMessage.classList.add('text-green-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+                    editModal.classList.add('hidden'); // Close modal
+                    fetchAndRenderEvents(null); // Re-fetch and render events
                 } catch (error) {
-                    alert(`Error archiving event: ${error.toString()}`); // Replace with custom message box
-                    const deleteBtn = document.getElementById('delete-event-btn'); // Re-enable button on error
+                    console.error('Error archiving event:', error);
+                    statusMessage.textContent = `Error archiving event: ${error.toString()}`;
+                    statusMessage.classList.remove('hidden', 'text-green-400');
+                    statusMessage.classList.add('text-red-400');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 5000);
                     deleteBtn.disabled = false;
                     deleteBtn.textContent = 'Delete Event';
                 }
@@ -353,12 +358,11 @@
             loadMoreBtn.addEventListener('click', () => { fetchAndRenderEvents(currentOffset); });
 
             addEventBtn.addEventListener('click', () => {
-                populateEditForm(null); // Passing null indicates adding a new event
+                populateEditForm(null);
             });
 
             cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
 
-            // New: Event listener for the delete button
             deleteEventBtn.addEventListener('click', confirmAndDeleteEvent);
 
             eventList.addEventListener('click', (e) => {
@@ -369,9 +373,7 @@
                     if (item) {
                         populateEditForm(item);
                     } else {
-                        // Using a custom modal/message box instead of alert
                         console.error("Could not find event data for ID:", itemId);
-                        // Example of how you might display a custom message
                         statusMessage.textContent = "Could not find event data. Please refresh the page.";
                         statusMessage.classList.remove('hidden', 'text-green-400');
                         statusMessage.classList.add('text-red-400');
@@ -392,7 +394,7 @@
 
             editForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                console.log('Edit form submitted!'); // Diagnostic log
+                console.log('Edit form submitted!');
                 const isAdding = !currentItemForAction;
                 const submitBtn = editForm.querySelector('button[type=submit]');
                 submitBtn.disabled = true;
@@ -404,7 +406,6 @@
                     const newVenueName = document.getElementById('new-venue-name').value;
                     const newVenueAddress = document.getElementById('new-venue-address').value;
                     if (!newVenueName || !newVenueAddress) {
-                        // Using a custom modal/message box instead of alert
                         statusMessage.textContent = 'Please provide a name and address for the new venue.';
                         statusMessage.classList.remove('hidden', 'text-green-400');
                         statusMessage.classList.add('text-red-400');
@@ -414,6 +415,7 @@
                         return;
                     }
                     try {
+                        console.log('Attempting to create new unlisted venue...');
                         const response = await fetch('/.netlify/functions/create-unlisted-venue', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -422,8 +424,9 @@
                         const result = await response.json();
                         if (!result.success) throw new Error(result.message);
                         venueId = result.id;
+                        console.log('New venue created with ID:', venueId);
                     } catch (error) {
-                        // Using a custom modal/message box instead of alert
+                        console.error('Error creating new venue:', error);
                         statusMessage.textContent = `Error creating new venue: ${error.message}`;
                         statusMessage.classList.remove('hidden', 'text-green-400');
                         statusMessage.classList.add('text-red-400');
@@ -435,8 +438,8 @@
                 }
 
                 const formData = new FormData(editForm);
-                // Diagnostic log for FormData (will not show content directly, check Network tab)
                 console.log('FormData prepared. Check browser Network tab for payload.');
+                // Ensure venueId is correctly set on FormData, even if it was newly created
                 if (venueId) {
                      formData.set('venueId', venueId);
                 } else {
@@ -448,24 +451,25 @@
                     formData.append('id', currentItemForAction.id);
                     formData.append('type', 'Event');
                 }
-                console.log('Endpoint:', endpoint); // Diagnostic log
+                console.log('Submission Endpoint:', endpoint);
 
                 try {
-                    console.log('Attempting fetch to:', endpoint); // Diagnostic log
+                    console.log('Attempting fetch to:', endpoint);
+                    // For file uploads, ensure the server-side function expects multipart/form-data
                     const response = await fetch(endpoint, { method: 'POST', body: formData });
+                    const result = await response.json(); // Always try to parse JSON response
                     if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.message || 'Server returned an error');
+                        throw new Error(result.message || 'Server returned an error');
                     }
-                    // Using a custom modal/message box instead of alert
+
                     statusMessage.textContent = 'Success!';
                     statusMessage.classList.remove('hidden', 'text-red-400');
                     statusMessage.classList.add('text-green-400');
                     setTimeout(() => statusMessage.classList.add('hidden'), 5000);
-                    location.reload();
+                    editModal.classList.add('hidden'); // Close modal on success
+                    fetchAndRenderEvents(null); // Re-fetch and render events
                 } catch (error) {
-                    console.error('Submission error:', error); // Diagnostic log
-                    // Using a custom modal/message box instead of alert
+                    console.error('Submission error:', error);
                     statusMessage.textContent = `Error saving changes: ${error.toString()}`;
                     statusMessage.classList.remove('hidden', 'text-green-400');
                     statusMessage.classList.add('text-red-400');

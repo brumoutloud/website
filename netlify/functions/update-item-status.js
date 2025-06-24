@@ -17,23 +17,25 @@ exports.handler = async (event) => {
             return { statusCode: 400, body: JSON.stringify({ success: false, message: 'ID, type, and status are required.' }) };
         }
 
-        let tableName;
-        if (type === 'Event') {
-            tableName = 'Events';
-        } else if (type === 'Venue') {
-            tableName = 'Venues';
-        } else {
-            return { statusCode: 400, body: JSON.stringify({ success: false, message: 'Invalid item type provided.' }) };
+        // We are now only expecting 'Event' type based on your latest feedback for approvals page
+        if (type !== 'Event') {
+            return { statusCode: 400, body: JSON.stringify({ success: false, message: 'Invalid item type. Only Events are handled by this approval flow.' }) };
         }
+
+        const tableName = 'Events'; // Assuming Events table for approval items
 
         const fieldsToUpdate = {
             "Status": status // Update the Status field (e.g., 'Approved', 'Rejected')
         };
 
         if (status === 'Rejected' && rejectionReason) {
-            // Assuming you have a 'Rejection Reason' field in your Airtable tables
+            // Assuming you have a 'Rejection Reason' field in your Events table
             fieldsToUpdate["Rejection Reason"] = rejectionReason;
-            // You might also want to clear other fields or set a 'Visibility' field to false
+            // You might also want to set a 'Visible on Site' or similar boolean to false
+            // Example: fieldsToUpdate["Visible on Site"] = false;
+        } else if (status === 'Approved') {
+            // If approved, ensure it's visible if you have such a field
+            // Example: fieldsToUpdate["Visible on Site"] = true;
         }
 
         await base(tableName).update([

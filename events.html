@@ -341,26 +341,29 @@
         .toggle-dot {
             transition: transform 0.2s ease-in-out;
         }
+        /* When checked, make the dot move and change background */
         input:checked ~ .toggle-dot {
-            transform: translateX(1.5rem); /* w-6 from toggle button parent width */
-            background-color: #B564F7; /* Accent color for active toggle dot */
+            transform: translateX(1.5rem); /* Move 1.5rem */
+            background-color: #B564F7; /* Primary accent color for dot when active */
         }
         /* When checked, also change the background of the track */
         input:checked ~ .block {
-             background-color: #B564F7; /* Accent color for active toggle track */
+             background-color: #B564F7; /* Primary accent color for track when active */
         }
         /* sr-only is defined globally by Tailwind, no need to redefine */
 
         /* Custom styles for filter bar layout */
         /* Ensure filter buttons stretch to full width on mobile for better touch target */
         @media (max-width: 767px) {
-            #filter-bar-container .filter-button {
-                width: 100%; /* Full width for individual filter buttons on mobile */
-                justify-content: center; /* Center text within buttons */
+            #filter-bar-container {
+                flex-direction: column; /* Stack filters vertically on mobile */
+                align-items: stretch; /* Stretch items to full width */
             }
-            /* For popover containers, ensure they also take full width */
-            #filter-bar-container .relative {
-                width: 100%;
+            #filter-bar-container > * { /* Apply to direct children (buttons and popover containers) */
+                width: 100%; /* Full width for individual filter buttons on mobile */
+            }
+            #filter-bar-container .filter-button {
+                justify-content: center; /* Center text within buttons */
             }
             /* Adjust popover width to match full container width on mobile */
             .popover {
@@ -368,17 +371,17 @@
                 left: 1rem; /* Adjust position to account for padding */
                 right: 1rem;
             }
-            /* Adjust the NSFW toggle container specifically */
-            #filter-bar-container .filter-button:has(#nsfw-toggle) {
-                width: 100%;
-                justify-content: space-between; /* Keep toggle and text separated */
+            /* NSFW toggle specific mobile layout */
+            #nsfw-toggle-container { /* Target the div wrapping the toggle */
+                 order: 99; /* Push to the end of the flex container so it wraps cleanly */
+                 margin-top: 0.75rem; /* Add some space above it if it wraps */
+                 margin-left: 0 !important; /* Override ml-auto from desktop */
+                 width: 100%;
             }
-            /* Hide the duplicate "SFW Mode" text */
-            #filter-bar-container .filter-button:has(#nsfw-toggle) span:nth-child(2) {
-                display: none;
+            #nsfw-toggle-label { /* The label itself inside the filter button */
+                 justify-content: space-between; /* Space out toggle and text */
             }
-            /* Apply custom class to the visible text part of the toggle */
-            #nsfw-mode-text {
+            #nsfw-mode-text-mobile { /* The specific span for mobile text */
                 display: block; /* Make sure it's visible */
                 flex-grow: 1; /* Allow it to take available space */
                 text-align: right; /* Align text to the right for toggle */
@@ -387,28 +390,37 @@
                 overflow: hidden; /* Hide overflow if text is too long */
                 text-overflow: ellipsis; /* Add ellipsis if text overflows */
             }
+            #nsfw-mode-text-desktop { /* Hide desktop text on mobile */
+                display: none;
+            }
         }
         /* Desktop specific layout adjustments */
         @media (min-width: 768px) {
             #filter-bar-container {
-                flex-wrap: nowrap; /* Prevent wrapping on desktop if possible */
+                flex-direction: row; /* Back to row on desktop */
+                align-items: center; /* Align items vertically */
+                flex-wrap: wrap; /* Allow wrapping if there are many filters */
             }
-            /* Ensure popover buttons don't stretch */
-            #filter-bar-container .relative {
-                width: auto;
+            #filter-bar-container > * { /* Direct children buttons and popover containers */
+                width: auto; /* Revert to auto width on desktop */
             }
             #filter-bar-container .filter-button {
-                width: auto; /* Revert to auto width on desktop */
                 justify-content: flex-start;
             }
-            #filter-bar-container .filter-button:has(#nsfw-toggle) {
-                width: auto; /* Allow shrink-wrap */
+            #nsfw-toggle-container {
+                order: auto; /* Revert order */
+                margin-top: 0; /* Remove top margin */
+                margin-left: auto; /* Apply ml-auto for alignment */
+                width: auto;
             }
-            #filter-bar-container .filter-button:has(#nsfw-toggle) span:nth-child(2) {
-                display: inline-block; /* Show original span on desktop */
+            #nsfw-toggle-label {
+                 justify-content: flex-start; /* Revert spacing */
             }
-            #nsfw-mode-text {
-                display: none; /* Hide custom text on desktop */
+            #nsfw-mode-text-mobile { /* Hide mobile text on desktop */
+                display: none;
+            }
+            #nsfw-mode-text-desktop { /* Show desktop text on desktop */
+                display: inline;
             }
         }
     </style>
@@ -464,14 +476,14 @@
                     </div>
                 </div>
 
-                <div class="filter-button flex items-center justify-between !p-3 w-full md:w-auto ml-auto md:ml-0">
-                    <label for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow justify-between">
+                <div id="nsfw-toggle-container" class="filter-button flex items-center justify-between !p-3 w-full md:w-auto min-w-fit ml-auto md:ml-0">
+                    <label id="nsfw-toggle-label" for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
                         <div class="relative flex-shrink-0">
                             <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
                             <div class="toggle-dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full"></div>
                         </div>
-                        <span id="nsfw-mode-text" class="ml-3 text-white font-medium flex-grow text-right pr-2">SFW Mode</span>
-                        <span class="ml-3 text-white font-medium hidden md:inline">SFW Mode</span>
+                        <span id="nsfw-mode-text-mobile" class="ml-3 text-white font-medium">SFW Mode</span>
+                        <span id="nsfw-mode-text-desktop" class="ml-3 text-white font-medium">SFW Mode</span>
                     </label>
                 </div>
             </div>
@@ -548,7 +560,8 @@
         const venueBtn = document.getElementById('venue-btn');
         const venuePopover = document.getElementById('venue-popover');
         const nsfwToggle = document.getElementById('nsfw-toggle');
-        const nsfwModeText = document.getElementById('nsfw-mode-text'); // Get the specific span for mobile text
+        const nsfwModeTextMobile = document.getElementById('nsfw-mode-text-mobile'); // Get the specific span for mobile text
+        const nsfwModeTextDesktop = document.getElementById('nsfw-mode-text-desktop'); // Get the specific span for desktop text
 
 
         // --- Slideshow State ---
@@ -699,8 +712,8 @@
             
             // Reset NSFW toggle state and text
             nsfwToggle.checked = true;
-            nsfwModeText.textContent = 'SFW Mode'; // Update mobile text
-            nsfwToggle.nextElementSibling.textContent = 'SFW Mode'; // Update desktop text
+            nsfwModeTextMobile.textContent = 'SFW Mode'; // Update mobile text
+            nsfwModeTextDesktop.textContent = 'SFW Mode'; // Update desktop text
 
             dateFromInput.value = '';
             dateToInput.value = '';
@@ -712,9 +725,8 @@
             filterBarContainer.addEventListener('click', e => {
                 const button = e.target.closest('.filter-button');
                 // Ensure the clicked element is a filter button and not part of a popover or the toggle itself
+                // Also ensure it's not the actual NSFW toggle itself (nsfwToggle element)
                 if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn' || button.id === 'venue-btn' || button.contains(nsfwToggle)) {
-                    // If it's the NSFW toggle's container, let its specific change listener handle it.
-                    // If it's a popover button, let its specific click listener handle it.
                     return;
                 }
 
@@ -769,8 +781,8 @@
             // NEW: NSFW Toggle Event Listener
             nsfwToggle.addEventListener('change', () => {
                 isSfwMode = nsfwToggle.checked;
-                nsfwModeText.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update mobile text
-                nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update desktop text
+                nsfwModeTextMobile.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update mobile text
+                nsfwModeTextDesktop.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update desktop text
                 applyFilters();
             });
 
@@ -876,8 +888,8 @@
                 // Initialize NSFW toggle state and text
                 nsfwToggle.checked = isSfwMode;
                 // Update both mobile and desktop text labels
-                nsfwModeText.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
-                nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
+                nsfwModeTextMobile.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
+                nsfwModeTextDesktop.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
 
 
                 // Featured events logic (unchanged, will be hidden if featuredEvents is empty)

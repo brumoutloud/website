@@ -219,16 +219,15 @@ exports.handler = async function (event, context) {
             }
         }
         
-        // --- **Revised**: Fetch one-off events (no Recurring Info, no Parent Event Name, and not a dated child slug) ---
-        // This ensures truly standalone, one-off events by explicitly checking for empty string, blank, and "undefined" string values.
+        // --- Fetch one-off events ---
         const oneOffEventsFilter = `AND(` +
                                  `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
                                  `IS_AFTER({Date}, TODAY()), ` +
-                                 `OR(BLANK({Recurring Info}), {Recurring Info} = "", {Recurring Info} = "undefined"), ` + // Explicitly check for empty string and "undefined" string
-                                 `OR(BLANK({Parent Event Name}), {Parent Event Name} = "", {Parent Event Name} = "undefined"), ` + // Explicitly check for empty string and "undefined" string
+                                 `OR(BLANK({Recurring Info}), {Recurring Info} = "", {Recurring Info} = "undefined"), ` +
+                                 `OR(BLANK({Parent Event Name}), {Parent Event Name} = "", {Parent Event Name} = "undefined"), ` +
                                  `NOT(REGEX_MATCH({Slug}, '-\\d{4}-\\d{2}-\\d{2}$'))` +
                                  `)`;
-        console.log(`One-off Events Filter: ${oneOffEventsFilter}`); // Log the filter
+        console.log(`One-off Events Filter: ${oneOffEventsFilter}`);
         const oneOffEventsRecords = await base('Events').select({
             filterByFormula: oneOffEventsFilter,
             sort: [{ field: 'Date', direction: 'asc' }],
@@ -268,72 +267,85 @@ exports.handler = async function (event, context) {
         ` : '';
 
 
-        // --- **Updated**: Fetch and process recurring events ---
-        // This query finds all *distinct series* based on 'Recurring Info'
-        // This filter now explicitly looks for a non-empty, non-"undefined" string for Recurring Info.
+        // --- Fetch and process recurring events, including date and promo image for next instance ---
         const rawRecurringSeriesFilter = `AND(` +
                                         `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
-                                        `{Recurring Info} != "", ` + // Must not be empty string
-                                        `{Recurring Info} != "undefined"` + // Must not be the string "undefined"
+                                        `NOT(BLANK({Recurring Info})), ` +
+                                        `{Recurring Info} != "", ` +
+                                        `{Recurring Info} != "undefined"` +
                                         `)`;
-        console.log(`Raw Recurring Series Filter: ${rawRecurringSeriesFilter}`); // Log the filter
+        console.log(`Raw Recurring Series Filter: ${rawRecurringSeriesFilter}`);
         const rawRecurringSeriesRecords = await base('Events').select({
             filterByFormula: rawRecurringSeriesFilter,
-            fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name']
+            fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name', 'Date', 'Promo Image'] // Added Date and Promo Image
         }).all();
 
         // Group events by a unique series identifier (Recurring Info + Parent Event Name or Event Name)
-        const uniqueRecurringSeries = {}; // Map: 'SeriesKey' -> { eventName, recurringInfo, parentSlug }
+        const uniqueRecurringSeries = {}; // Map: 'SeriesKey' -> { eventName, recurringInfo, parentSlug, promoImage, nextInstanceDate }
+
+        const now = new Date(); // Current time for comparison
 
         rawRecurringSeriesRecords.forEach(record => {
             const fields = record.fields;
-            // No need to normalize recurringInfo here, as the filter already ensures it's valid
             const recurringInfo = fields['Recurring Info'];
             const eventName = fields['Event Name'];
-            // Normalize parentEventName in case it's "undefined" string, as it's not filtered out by query
             const parentEventName = (fields['Parent Event Name'] === "undefined" || !fields['Parent Event Name']) ? undefined : fields['Parent Event Name'];
             const slug = fields['Slug'];
+            const eventDate = fields['Date'] ? new Date(fields['Date']) : null;
+            const promoImage = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
 
-            console.log(`[Venue: ${slug}] Processing raw recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}"`);
+            console.log(`[Venue: ${slug}] Processing raw recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}", Date: "${eventDate}"`);
 
-            // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
             const seriesIdentifier = parentEventName || eventName;
-
-            // Determine the "link slug" for the series.
-            // If there's a Parent Event Name (which implies a child event), generate a slug from it.
-            let linkSlug = slug; // Default to its own slug (e.g., standalone recurring event)
+            let linkSlug = slug;
             if (parentEventName) {
                 linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
             }
 
             const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
 
+            // Logic to find the *next* upcoming instance's image and date
             if (!uniqueRecurringSeries[seriesKey]) {
                 uniqueRecurringSeries[seriesKey] = {
                     eventName: seriesIdentifier,
                     recurringInfo: recurringInfo,
-                    slug: linkSlug
+                    slug: linkSlug,
+                    promoImage: promoImage, // Default to first encountered
+                    nextInstanceDate: eventDate // Default to first encountered
                 };
+            } else {
+                // If this record is for the same series and has a future date that's earlier than the current 'nextInstanceDate'
+                if (eventDate && eventDate > now && (!uniqueRecurringSeries[seriesKey].nextInstanceDate || eventDate < uniqueRecurringSeries[seriesKey].nextInstanceDate)) {
+                    uniqueRecurringSeries[seriesKey].promoImage = promoImage;
+                    uniqueRecurringSeries[seriesKey].nextInstanceDate = eventDate;
+                }
             }
         });
         
         const recurringEventsHtmlContent = Object.values(uniqueRecurringSeries).length > 0 ? Object.values(uniqueRecurringSeries).map(event => {
+            // New visual card for recurring events
             return `
-                <a href="/event/${event.slug}" class="card-bg p-4 flex items-center justify-between hover:bg-gray-800 transition-colors duration-200">
-                    <div>
-                        <h4 class="font-bold text-white text-xl">${event.eventName}</h4>
-                        <p class="text-sm text-gray-400">${event.recurringInfo}</p>
+                <a href="/event/${event.slug}" class="item-card card-bg block group">
+                    <div class="relative aspect-video bg-gray-900/50">
+                        <img src="${event.promoImage}" alt="${event.eventName}" class="absolute h-full w-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div>
+                        <div class="absolute bottom-2 left-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
+                            <p class="font-bold text-lg leading-none">${event.recurringInfo}</p>
+                        </div>
                     </div>
-                    <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
+                    <div class="p-6">
+                        <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:text-accent-color transition-colors">${event.eventName}</h3>
+                        <div class="text-accent-color text-right"><i class="fas fa-arrow-right"></i></div>
+                    </div>
                 </a>
-            `
+            `;
         }).join('') : '<p class="text-gray-400 text-lg">No regular events scheduled.</p>';
 
         // Conditionally render the "Regular Schedule" section
         const regularScheduleSectionHtml = Object.values(uniqueRecurringSeries).length > 0 ? `
             <div>
                 <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Regular</span> Schedule</h2>
-                <div class="space-y-4">
+                <div class="grid md:grid-cols-2 gap-8">
                     ${recurringEventsHtmlContent}
                 </div>
             </div>

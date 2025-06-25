@@ -219,13 +219,13 @@ exports.handler = async function (event, context) {
             }
         }
         
-        // --- **Updated**: Fetch one-off events (no Recurring Info, no Parent Event Name, and not a dated child slug) ---
-        // This ensures truly standalone, one-off events by excluding explicit "undefined" strings and dated slugs.
+        // --- **Revised**: Fetch one-off events (no Recurring Info, no Parent Event Name, and not a dated child slug) ---
+        // This ensures truly standalone, one-off events by explicitly checking for empty string, blank, and "undefined" string values.
         const oneOffEventsFilter = `AND(` +
                                  `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
                                  `IS_AFTER({Date}, TODAY()), ` +
-                                 `OR(BLANK({Recurring Info}), {Recurring Info} = "undefined"), ` + // Treat "undefined" string as blank
-                                 `OR(BLANK({Parent Event Name}), {Parent Event Name} = "undefined"), ` + // Treat "undefined" string as blank
+                                 `OR(BLANK({Recurring Info}), {Recurring Info} = "", {Recurring Info} = "undefined"), ` + // Explicitly check for empty string and "undefined" string
+                                 `OR(BLANK({Parent Event Name}), {Parent Event Name} = "", {Parent Event Name} = "undefined"), ` + // Explicitly check for empty string and "undefined" string
                                  `NOT(REGEX_MATCH({Slug}, '-\\d{4}-\\d{2}-\\d{2}$'))` +
                                  `)`;
         console.log(`One-off Events Filter: ${oneOffEventsFilter}`); // Log the filter
@@ -270,11 +270,11 @@ exports.handler = async function (event, context) {
 
         // --- **Updated**: Fetch and process recurring events ---
         // This query finds all *distinct series* based on 'Recurring Info'
-        // And also explicitly excludes the "undefined" string value.
+        // This filter now explicitly looks for a non-empty, non-"undefined" string for Recurring Info.
         const rawRecurringSeriesFilter = `AND(` +
                                         `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
-                                        `NOT(BLANK({Recurring Info})), ` + // Must not be truly blank
-                                        `NOT({Recurring Info} = "undefined")` + // Must not be the string "undefined"
+                                        `{Recurring Info} != "", ` + // Must not be empty string
+                                        `{Recurring Info} != "undefined"` + // Must not be the string "undefined"
                                         `)`;
         console.log(`Raw Recurring Series Filter: ${rawRecurringSeriesFilter}`); // Log the filter
         const rawRecurringSeriesRecords = await base('Events').select({
@@ -287,23 +287,22 @@ exports.handler = async function (event, context) {
 
         rawRecurringSeriesRecords.forEach(record => {
             const fields = record.fields;
-            // No need to normalize recurringInfo and parentEventName here, as the filter already handles it
-            const recurringInfo = fields['Recurring Info']; // This should now be a real value
+            // No need to normalize recurringInfo here, as the filter already ensures it's valid
+            const recurringInfo = fields['Recurring Info'];
             const eventName = fields['Event Name'];
-            const parentEventName = fields['Parent Event Name']; // This might still be undefined if the field is truly empty for root recurring events
+            // Normalize parentEventName in case it's "undefined" string, as it's not filtered out by query
+            const parentEventName = (fields['Parent Event Name'] === "undefined" || !fields['Parent Event Name']) ? undefined : fields['Parent Event Name'];
             const slug = fields['Slug'];
 
             console.log(`[Venue: ${slug}] Processing raw recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}"`);
 
             // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
-            const seriesIdentifier = parentEventName || eventName; // Use eventName if parentEventName is truly blank/undefined
+            const seriesIdentifier = parentEventName || eventName;
 
             // Determine the "link slug" for the series.
             // If there's a Parent Event Name (which implies a child event), generate a slug from it.
-            // This assumes a consistent slugging convention where the parent slug is
-            // just the hyphenated parent event name.
             let linkSlug = slug; // Default to its own slug (e.g., standalone recurring event)
-            if (parentEventName) { // Check if parentEventName is not blank/undefined
+            if (parentEventName) {
                 linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
             }
 

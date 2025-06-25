@@ -340,11 +340,12 @@
         /* Styles for the toggle switch (from design system) */
         .toggle-dot {
             transition: transform 0.2s ease-in-out;
+            background-color: white; /* Ensure dot is always white by default */
         }
-        /* When checked, make the dot move and change background */
+        /* When checked, make the dot move */
         input:checked ~ .toggle-dot {
             transform: translateX(1.5rem); /* Move 1.5rem */
-            background-color: #B564F7; /* Primary accent color for dot when active */
+            /* Removed: background-color: #B564F7; - This was the bug! */
         }
         /* When checked, also change the background of the track */
         input:checked ~ .block {
@@ -480,8 +481,7 @@
                     <label id="nsfw-toggle-label" for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
                         <div class="relative flex-shrink-0">
                             <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
-                            <div class="toggle-dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full"></div>
-                        </div>
+                            <div class="toggle-dot absolute left-1 top-1 w-6 h-6 rounded-full"></div> </div>
                         <span id="nsfw-mode-text-mobile" class="ml-3 text-white font-medium">SFW Mode</span>
                         <span id="nsfw-mode-text-desktop" class="ml-3 text-white font-medium">SFW Mode</span>
                     </label>
@@ -729,190 +729,3 @@
                 if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn' || button.id === 'venue-btn' || button.contains(nsfwToggle)) {
                     return;
                 }
-
-                // If it's a date filter button (All Upcoming, Today, This Weekend)
-                if (button.dataset.filterType === 'date') {
-                    document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
-                    button.classList.add('active');
-
-                    activeDateFilter.type = button.dataset.filterValue;
-                    activeDateFilter.from = null;
-                    activeDateFilter.to = null;
-                    applyFilters();
-                }
-            });
-
-            customDateBtn.addEventListener('click', (e) => { e.stopPropagation(); categoryPopover.classList.remove('show'); venuePopover.classList.remove('show'); customDatePopover.classList.toggle('show'); });
-            categoryBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); venuePopover.classList.remove('show'); categoryPopover.classList.toggle('show'); });
-            venueBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); venuePopover.classList.toggle('show'); });
-            
-            clearFiltersBtn.addEventListener('click', resetFilters);
-
-            [dateFromInput, dateToInput].forEach(input => {
-                input.addEventListener('change', () => {
-                    activeDateFilter.type = 'custom';
-                    activeDateFilter.from = dateFromInput.value;
-                    activeDateFilter.to = dateToInput.value;
-                    document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
-                    customDateBtn.classList.add('active');
-                    applyFilters();
-                });
-            });
-
-            categoryPopover.addEventListener('click', e => {
-                const button = e.target.closest('.popover-option');
-                if(!button) return;
-                activeCategoryFilter = button.dataset.filterValue;
-                categoryBtn.querySelector('span').textContent = button.textContent;
-                categoryPopover.classList.remove('show');
-                applyFilters();
-            });
-
-            // NEW: Venue Popover Event Listener
-            venuePopover.addEventListener('click', e => {
-                const button = e.target.closest('.popover-option');
-                if(!button) return;
-                activeVenueFilter = button.dataset.filterValue;
-                venueBtn.querySelector('span').textContent = button.textContent;
-                venuePopover.classList.remove('show');
-                applyFilters();
-            });
-
-            // NEW: NSFW Toggle Event Listener
-            nsfwToggle.addEventListener('change', () => {
-                isSfwMode = nsfwToggle.checked;
-                nsfwModeTextMobile.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update mobile text
-                nsfwModeTextDesktop.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update desktop text
-                applyFilters();
-            });
-
-
-            window.addEventListener('click', () => { 
-                customDatePopover.classList.remove('show'); 
-                categoryPopover.classList.remove('show'); 
-                venuePopover.classList.remove('show');
-            });
-        }
-
-        // --- Slideshow Functions (Unchanged) ---
-        function showSlide(index) {
-            const slides = slideshowContainer.querySelectorAll('.slide');
-            const dots = slideshowDotsContainer.querySelectorAll('.dot');
-
-            if (slides.length === 0) return;
-
-            // Loop slides if index is out of bounds
-            if (index >= slides.length) currentSlide = 0;
-            else if (index < 0) currentSlide = slides.length - 1;
-            else currentSlide = index;
-
-            // Hide all slides and deactivate all dots
-            slides.forEach(slide => slide.classList.remove('active'));
-            dots.forEach(dot => dot.classList.remove('active'));
-
-            // Show the current slide and activate the current dot
-            slides[currentSlide].classList.add('active');
-            dots[currentSlide].classList.add('active');
-
-            // Reset the interval
-            clearInterval(slideshowInterval);
-            slideshowInterval = setInterval(() => showSlide(currentSlide + 1), SLIDESHOW_INTERVAL_TIME);
-        }
-
-        function createSlideshowElements() {
-            slideshowContainer.innerHTML = ''; // Clear existing slides
-            slideshowDotsContainer.innerHTML = ''; // Clear existing dots
-
-            if (featuredEvents.length === 0) {
-                featuredEventsSection.classList.add('hidden'); // Hide the entire section if no featured events
-                return;
-            } else {
-                featuredEventsSection.classList.remove('hidden'); // Show the section if featured events exist
-            }
-
-            featuredEvents.forEach((event, index) => {
-                const slideDiv = document.createElement('div');
-                slideDiv.classList.add('slide');
-                if (index === 0) slideDiv.classList.add('active'); // First slide active by default
-
-                const imageUrl = event.image || 'https://placehold.co/1200x350/1e1e1e/EAEAEA?text=Featured+Event';
-                // Format date similar to existing events.html logic
-                const formattedDate = new Date(event.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-
-                slideDiv.innerHTML = `
-                    <div class="featured-tag"><i class="fas fa-star"></i> FEATURED BANNER</div>
-                    <div class="slide-overlay"></div>
-                    <div class="slide-inner-content">
-                        <div class="slide-text-content">
-                            <p class="featured-banner-label">Featured Event</p>
-                            <h3 class="slide-title">${event.name}</h3>
-                            <p class="slide-venue">${event.venue}</p>
-                            <p class="slide-description">${event.description || ''}</p>
-                            <a href="/event/${event.slug}" class="cta-button">View Event</a>
-                        </div>
-                        <div class="slide-poster-container">
-                            <img class="slide-poster-image" src="${imageUrl}" alt="${event.name} Poster">
-                        </div>
-                    </div>
-                `;
-                slideshowContainer.appendChild(slideDiv);
-
-                const dotSpan = document.createElement('span');
-                dotSpan.classList.add('dot');
-                if (index === 0) dotSpan.classList.add('active');
-                dotSpan.dataset.slide = index;
-                dotSpan.addEventListener('click', () => showSlide(index));
-                slideshowDotsContainer.appendChild(dotSpan);
-            });
-
-            // Start slideshow if there's more than one slide
-            if (featuredEvents.length > 1) {
-                showSlide(0); // Initialize first slide and start interval
-            } else {
-                clearInterval(slideshowInterval); // Clear any existing interval if only one or no slides
-            }
-        }
-
-
-        // --- Initial Data Fetch & Processing ---
-        async function initializePage() {
-            try {
-                // Fetch events and venues from your Netlify function
-                const response = await fetch('/.netlify/functions/get-events');
-                const data = await response.json(); // Now expects { events: [], venues: [] }
-
-                // Assign fetched data to global state
-                allEvents = data.events.sort((a, b) => new Date(a.date) - new Date(b.date));
-                allVenuesForFilter = data.venues; // Assign the unique venues list
-                
-                // Initialize NSFW toggle state and text
-                nsfwToggle.checked = isSfwMode;
-                // Update both mobile and desktop text labels
-                nsfwModeTextMobile.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
-                nsfwModeTextDesktop.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
-
-
-                // Featured events logic (unchanged, will be hidden if featuredEvents is empty)
-                // featuredEvents = allEvents.filter(event => event.isFeatured);
-                featuredEvents = []; // Explicitly clear featuredEvents to hide the banner
-
-                createSlideshowElements(); // Render featured banner
-
-                renderCategoryOptions();
-                renderVenueOptions(); // Render venue filter options from fetched data
-                setupEventListeners();
-                applyFilters(); // Apply initial filters after all data is loaded and setup
-            } catch (error) {
-                console.error("Error fetching events:", error);
-                eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
-            }
-        }
-
-        // Call initializePage when the DOM is fully loaded
-        document.addEventListener('DOMContentLoaded', initializePage);
-
-        // --- Removed: Duplicate Global Header and Footer Loading (as handled by main.js) ---
-    </script>
-    <script src="/js/main.js"></script>
-</body>
-</html>

@@ -181,6 +181,7 @@ exports.handler = async function (event, context) {
         // Corrected googleMapsUrl: remove the broken interpolation
         let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
 
+
         if (GOOGLE_PLACES_API_KEY) {
             // Logic to fetch Google Place ID and details (unchanged)
             if (!placeId) {
@@ -276,24 +277,21 @@ exports.handler = async function (event, context) {
             const parentEventName = fields['Parent Event Name'];
             const slug = fields['Slug'];
 
+            console.log(`[Venue: ${slug}] Processing recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}"`);
+
             // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
-            // This is the name that identifies the *series*.
             const seriesIdentifier = parentEventName || eventName;
 
             // Determine the "link slug" for the series. This should be the parent slug if it exists.
-            // If the event itself *is* the parent (no Parent Event Name), its own slug is the parent slug.
-            let linkSlug = slug; // Default to its own slug
+            let linkSlug = slug; // Default to its own slug (might be a standalone recurring event)
             if (parentEventName) {
-                 // Try to derive parent slug from parent event name
-                 // This requires a separate lookup or a consistent slugging convention for parent events
-                 // For now, we'll use a simplified slug from the parent event name
-                 // A dedicated 'Parent Slug' field in Airtable would be ideal.
-                 // Assuming parent slug is just a hyphenated version of Parent Event Name
+                 // If there's a Parent Event Name, generate a slug from it.
+                 // This assumes a consistent slugging convention where the parent slug is
+                 // just the hyphenated parent event name.
                  linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
             }
 
-            // A composite key to ensure uniqueness for display
-            const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
+            const seriesKey = `${seriesIdentifier}-${recurringInfo}`; // Unique key including recurring info
 
             if (!uniqueRecurringSeries[seriesKey]) {
                 uniqueRecurringSeries[seriesKey] = {
@@ -303,13 +301,13 @@ exports.handler = async function (event, context) {
                 };
             }
         });
-
+        
         const recurringEventsHtmlContent = Object.values(uniqueRecurringSeries).length > 0 ? Object.values(uniqueRecurringSeries).map(event => {
             return `
                 <a href="/event/${event.slug}" class="card-bg p-4 flex items-center justify-between hover:bg-gray-800 transition-colors duration-200">
                     <div>
                         <h4 class="font-bold text-white text-xl">${event.eventName}</h4>
-                        <p class="text-sm text-gray-400">${event.recurringInfo}</p>
+                        <p class="text-sm text-gray-400">${event.recurringInfo || ''}</p>
                     </div>
                     <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
                 </a>
@@ -329,7 +327,7 @@ exports.handler = async function (event, context) {
 
         const photos = venue['Photo'] || [];
         const mainPhoto = photos.length > 0 ? photos[0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';
-        const photoGalleryHtml = photos.length > 1 ? `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Photo Gallery</h2><div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">${photos.slice(1).map(p => `<a href="${p.url}" target="_blank"><img src="${p.thumbnails.large.url}" alt="${venue.Name} Photo" class="w-full h-full aspect-square object-cover rounded-lg shadow-md hover:opacity-80 transition-opacity"></a>`).join('')}</div></div>` : '';
+        const photoGalleryHtml = photos.length > 1 ? `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Photo Gallery</h2><div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">${photos.slice(1).map(p => `<a href="${p.url}" target="_blank"><img src="${p.thumbnails.large.url}" alt="${venue.Name} Photo" class="w-full h-full object-cover rounded-lg shadow-md hover:opacity-80 transition-opacity"></a>`).join('')}</div></div>` : '';
 
         // Prepare data for sidebar
         const openingHoursText = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';

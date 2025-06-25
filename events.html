@@ -336,6 +336,25 @@
                 font-size: 0.8rem; /* Smaller text for date/venue */
             }
         }
+
+        /* Styles for the toggle switch */
+        .toggle-dot {
+            transition: transform 0.2s ease-in-out;
+        }
+        input:checked ~ .toggle-dot {
+            transform: translateX(1.5rem); /* w-6 */
+        }
+        .sr-only { /* Standard screen reader only class from Tailwind */
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border-width: 0;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -349,12 +368,9 @@
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Your guide to the best LGBTQ+ events across Birmingham.</p>
             </div>
 
-            <!-- NEW: Section for Featured Banner -->
-            <div class="mb-12 hidden" id="featured-events-section"> <!-- Added 'hidden' class here -->
+            <div class="mb-12 hidden" id="featured-events-section">
                    <div id="featured-banner" class="slideshow-wrapper">
                        <div class="slideshow-container">
-                           <!-- Slides will be dynamically inserted here by JavaScript -->
-                           <!-- Dots will be dynamically inserted here by JavaScript -->
                            <div class="slideshow-dots"></div>
                        </div>
                  </div>
@@ -362,7 +378,7 @@
 
             <div id="filter-bar-container" class="mb-12 flex flex-wrap gap-3">
                 <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
-                <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</s-button>
+                <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
                 <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
 
                 <div class="relative" id="custom-date-popover-container">
@@ -383,6 +399,26 @@
                     <div id="category-popover" class="popover max-h-80 overflow-y-auto">
                            <p class="text-gray-400">Loading categories...</p>
                     </div>
+                </div>
+
+                <div class="relative" id="venue-popover-container">
+                    <button id="venue-btn" class="filter-button">
+                        <span>All Venues</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="venue-popover" class="popover max-h-80 overflow-y-auto">
+                        <p class="text-gray-400">Loading venues...</p>
+                    </div>
+                </div>
+
+                <div class="filter-button flex items-center justify-between !p-3">
+                    <label for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
+                        <div class="relative">
+                            <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                            <div class="toggle-dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full"></div>
+                        </div>
+                        <div class="ml-3 text-white font-medium">SFW Mode</div>
+                    </label>
                 </div>
             </div>
 
@@ -437,6 +473,9 @@
         let featuredEvents = []; // New array for featured events
         let activeDateFilter = { type: 'all', from: null, to: null };
         let activeCategoryFilter = 'all';
+        let activeVenueFilter = 'all'; // NEW: State for venue filter
+        let isSfwMode = true; // NEW: State for NSFW toggle (true = SFW, no fetish events)
+        let allVenuesForFilter = []; // NEW: Store all venues for the filter
 
         // --- DOM Elements ---
         const eventGrid = document.getElementById('event-grid');
@@ -453,6 +492,11 @@
         const featuredEventsSection = document.getElementById('featured-events-section');
         const slideshowContainer = document.querySelector('#featured-banner .slideshow-container');
         const slideshowDotsContainer = document.querySelector('#featured-banner .slideshow-dots');
+        // NEW: Venue filter DOM elements
+        const venueBtn = document.getElementById('venue-btn');
+        const venuePopover = document.getElementById('venue-popover');
+        // NEW: NSFW Toggle DOM element
+        const nsfwToggle = document.getElementById('nsfw-toggle');
 
 
         // --- NEW: Slideshow State ---
@@ -502,6 +546,17 @@
             if (activeCategoryFilter !== 'all') {
                 filteredEvents = filteredEvents.filter(e => e.category && e.category.includes(activeCategoryFilter));
             }
+            
+            // NEW: Apply Venue Filter
+            if (activeVenueFilter !== 'all') {
+                filteredEvents = filteredEvents.filter(e => e.venue === activeVenueFilter);
+            }
+
+            // NEW: Apply NSFW Filter
+            if (isSfwMode) { // If SFW mode is active, filter out 'Fetish'
+                filteredEvents = filteredEvents.filter(e => !(e.category && e.category.includes('Fetish')));
+            }
+
             renderEvents(filteredEvents);
         }
 
@@ -555,12 +610,39 @@
             });
         }
 
+        // NEW: Render Venue Options
+        function renderVenueOptions() {
+            venuePopover.innerHTML = ''; // Clear existing options
+
+            const allButton = document.createElement('button');
+            allButton.className = 'popover-option';
+            allButton.textContent = 'All Venues';
+            allButton.dataset.filterValue = 'all';
+            venuePopover.appendChild(allButton);
+
+            allVenuesForFilter.forEach(venue => {
+                const button = document.createElement('button');
+                button.className = 'popover-option';
+                button.textContent = venue.name;
+                button.dataset.filterValue = venue.name; // Filter by venue name string
+                venuePopover.appendChild(button);
+            });
+        }
+
+
         function resetFilters() {
             activeDateFilter = { type: 'all', from: null, to: null };
             activeCategoryFilter = 'all';
+            activeVenueFilter = 'all'; // NEW: Reset venue filter
+            isSfwMode = true; // NEW: Reset NSFW toggle to SFW
+
             document.querySelectorAll('#filter-bar-container .filter-button').forEach(b => b.classList.remove('active'));
-            document.querySelector('#filter-bar-container .filter-button[data-filter-value="all"]').classList.add('active');
+            document.querySelector('#filter-bar-container .filter-button[data-filter-value="all"][data-filter-type="date"]').classList.add('active'); // Reset date filter active state
+            
             categoryBtn.querySelector('span').textContent = 'All Categories';
+            venueBtn.querySelector('span').textContent = 'All Venues'; // NEW: Reset venue button text
+            nsfwToggle.checked = true; // NEW: Reset NSFW toggle state
+
             dateFromInput.value = '';
             dateToInput.value = '';
             applyFilters();
@@ -570,7 +652,7 @@
         function setupEventListeners() {
             filterBarContainer.addEventListener('click', e => {
                 const button = e.target.closest('.filter-button');
-                if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn') return;
+                if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn' || button.id === 'venue-btn' || button.querySelector('#nsfw-toggle')) return; // Exclude popover/toggle buttons
 
                 document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
                 button.classList.add('active');
@@ -581,8 +663,10 @@
                 applyFilters();
             });
 
-            customDateBtn.addEventListener('click', (e) => { e.stopPropagation(); categoryPopover.classList.remove('show'); customDatePopover.classList.toggle('show'); });
-            categoryBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.toggle('show'); });
+            customDateBtn.addEventListener('click', (e) => { e.stopPropagation(); categoryPopover.classList.remove('show'); venuePopover.classList.remove('show'); customDatePopover.classList.toggle('show'); }); // NEW: Close venue popover
+            categoryBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); venuePopover.classList.remove('show'); categoryPopover.classList.toggle('show'); }); // NEW: Close venue popover
+            venueBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); venuePopover.classList.toggle('show'); }); // NEW: Open venue popover
+            
             clearFiltersBtn.addEventListener('click', resetFilters);
 
             [dateFromInput, dateToInput].forEach(input => {
@@ -605,10 +689,33 @@
                 applyFilters();
             });
 
-            window.addEventListener('click', () => { customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); });
+            // NEW: Venue Popover Event Listener
+            venuePopover.addEventListener('click', e => {
+                const button = e.target.closest('.popover-option');
+                if(!button) return;
+                activeVenueFilter = button.dataset.filterValue;
+                venueBtn.querySelector('span').textContent = button.textContent;
+                venuePopover.classList.remove('show');
+                applyFilters();
+            });
+
+            // NEW: NSFW Toggle Event Listener
+            nsfwToggle.addEventListener('change', () => {
+                isSfwMode = nsfwToggle.checked;
+                // Optional: Update text beside toggle immediately
+                nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
+                applyFilters();
+            });
+
+
+            window.addEventListener('click', () => { 
+                customDatePopover.classList.remove('show'); 
+                categoryPopover.classList.remove('show'); 
+                venuePopover.classList.remove('show'); // NEW: Close venue popover
+            });
         }
 
-        // --- NEW: Slideshow Functions ---
+        // --- NEW: Slideshow Functions (Unchanged) ---
         function showSlide(index) {
             const slides = slideshowContainer.querySelectorAll('.slide');
             const dots = slideshowDotsContainer.querySelectorAll('.dot');
@@ -688,6 +795,20 @@
         }
 
 
+        // NEW: Load Venue Options Function
+        async function loadVenueOptions() {
+            try {
+                const response = await fetch('/.netlify/functions/get-venue-list');
+                if (!response.ok) throw new Error('Failed to fetch venues for dropdown.');
+                allVenuesForFilter = await response.json();
+                renderVenueOptions(); // Render the options after fetching
+            } catch (error) {
+                console.error("Error fetching venue list for filter:", error);
+                venuePopover.innerHTML = '<p class="text-red-400">Could not load venues.</p>';
+            }
+        }
+
+
         // --- Initial Data Fetch ---
         async function initializePage() {
             try {
@@ -703,10 +824,13 @@
                 allEvents = fetchedEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 createSlideshowElements(); // Render featured banner (will be hidden due to empty featuredEvents)
-                renderEvents(allEvents); // Render all events (including boosted in the main grid)
+                
+                // NEW: Load venue options before applying filters
+                await loadVenueOptions(); // Ensure venues are loaded before filtering
+
                 renderCategoryOptions();
                 setupEventListeners();
-
+                applyFilters(); // Apply initial filters after all data is loaded and setup
             } catch (error) {
                 console.error("Error fetching events:", error);
                 eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
@@ -736,7 +860,6 @@
         document.addEventListener('DOMContentLoaded', loadGlobalComponents);
         */
     </script>
-    <!-- Link to main.js is here, which handles header/footer and hamburger menu -->
     <script src="/js/main.js"></script>
 </body>
 </html>

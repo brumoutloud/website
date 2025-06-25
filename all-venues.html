@@ -149,11 +149,6 @@
             </div>
 
             <div id="venue-filter-bar-container" class="mb-12 flex flex-wrap items-center gap-3 md:gap-4">
-                <button id="sort-rating-btn" class="filter-button active">
-                    <span>Rating: High to Low</span>
-                    <i class="fas fa-sort-amount-down-alt text-xs"></i>
-                </button>
-                
                 <div class="relative w-full md:w-auto">
                     <button id="vibe-tags-btn" class="filter-button">
                         <span>All Vibe Tags</span>
@@ -209,7 +204,6 @@
     <script>
         // --- Global State ---
         let allVenues = [];
-        let currentSortOrder = 'rating-desc'; // 'rating-desc' or 'rating-asc'
         let activeVibeTagFilter = 'all';
         let activeVenueFeatureFilter = 'all';
         let activeAccessibilityFilter = 'all'; 
@@ -217,9 +211,9 @@
         // --- DOM Elements ---
         const venueGrid = document.getElementById('venue-grid');
         const noVenuesMessage = document.getElementById('no-venues-message');
-        const venueFilterBarContainer = document.getElementById('venue-filter-bar-container'); // Renamed for clarity
+        const venueFilterBarContainer = document.getElementById('venue-filter-bar-container');
 
-        const sortRatingBtn = document.getElementById('sort-rating-btn');
+        // Removed sortRatingBtn as sorting is now implicit
         const vibeTagsBtn = document.getElementById('vibe-tags-btn');
         const vibeTagsPopover = document.getElementById('vibe-tags-popover');
         const venueFeaturesBtn = document.getElementById('venue-features-btn');
@@ -229,7 +223,7 @@
         const clearVenueFiltersBtn = document.getElementById('clear-venue-filters-btn');
         const resetVenueFiltersBtn = document.getElementById('reset-venue-filters-btn');
 
-        // Helper for star ratings (copied from get-venue-details.js context)
+        // Helper for star ratings (not used for display but kept if needed elsewhere or for future features)
         function generateStars(rating) {
             let stars = '';
             const fullStars = Math.floor(rating);
@@ -260,15 +254,11 @@
                 filteredVenues = filteredVenues.filter(venue => venue.accessibilityFeatures && venue.accessibilityFeatures.includes(activeAccessibilityFilter));
             }
 
-            // Apply Sorting by Google Rating
+            // Apply Sorting by Number of Reviews (Descending) - Implicit sorting
             filteredVenues.sort((a, b) => {
-                const ratingA = a.googleRating || 0; // Use 0 if rating is missing or null
-                const ratingB = b.googleRating || 0;
-                if (currentSortOrder === 'rating-desc') {
-                    return ratingB - ratingA;
-                } else { // rating-asc
-                    return ratingA - ratingB;
-                }
+                const reviewsA = a.numberOfReviews || 0; // Use 0 if reviews is missing or null
+                const reviewsB = b.numberOfReviews || 0;
+                return reviewsB - reviewsA; // Descending order
             });
 
             renderVenueCards(filteredVenues);
@@ -284,17 +274,14 @@
                 venuesToDisplay.forEach(venue => {
                     const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
                     const mediumSrc = venue.photo?.medium || placeholder;
-                    const ratingStarsHtml = generateStars(venue.googleRating); 
+                    // Removed ratingStarsHtml from here as it's not displayed
                     const vibeTagsHtml = venue.vibeTags.map(tag => `<span class="category-tag">${tag}</span>`).join('');
 
                     const venueCard = `
                         <a href="/venue/${venue.slug}" class="item-card card-bg block group animate-fade-in">
                             <div class="item-card-image-container">
                                 <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
-                                <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
-                                    ${ratingStarsHtml}
                                 </div>
-                            </div>
                             <div class="p-6">
                                 <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${venue.name}</h3>
                                 <p class="text-gray-400 h-12 overflow-hidden">${venue.description || ''}</p>
@@ -328,17 +315,15 @@
 
         // --- Reset Filters ---
         function resetFilters() {
-            currentSortOrder = 'rating-desc';
+            // Removed currentSortOrder reset as sorting is implicit
             activeVibeTagFilter = 'all';
             activeVenueFeatureFilter = 'all';
             activeAccessibilityFilter = 'all';
 
             // Reset UI active states/texts
             document.querySelectorAll('#venue-filter-bar-container .filter-button').forEach(btn => btn.classList.remove('active'));
-            sortRatingBtn.classList.add('active'); // Set default sort to active
-            sortRatingBtn.querySelector('span').textContent = 'Rating: High to Low'; // Ensure text is correct
-            sortRatingBtn.querySelector('i').className = 'fas fa-sort-amount-down-alt text-xs';
-
+            // No specific sort button to set active
+            
             vibeTagsBtn.querySelector('span').textContent = 'All Vibe Tags';
             venueFeaturesBtn.querySelector('span').textContent = 'All Features';
             accessibilityBtn.querySelector('span').textContent = 'All Accessibility';
@@ -348,19 +333,7 @@
 
         // --- Event Listeners ---
         function setupEventListeners() {
-            // Sorting by Rating
-            sortRatingBtn.addEventListener('click', () => {
-                if (currentSortOrder === 'rating-desc') {
-                    currentSortOrder = 'rating-asc';
-                    sortRatingBtn.querySelector('span').textContent = 'Rating: Low to High';
-                    sortRatingBtn.querySelector('i').className = 'fas fa-sort-amount-up-alt text-xs';
-                } else {
-                    currentSortOrder = 'rating-desc';
-                    sortRatingBtn.querySelector('span').textContent = 'Rating: High to Low';
-                    sortRatingBtn.querySelector('i').className = 'fas fa-sort-amount-down-alt text-xs';
-                }
-                applyFiltersAndSort();
-            });
+            // Removed sorting event listener as sorting is implicit
 
             // Popover Toggles
             vibeTagsBtn.addEventListener('click', (e) => { e.stopPropagation(); venueFeaturesPopover.classList.remove('show'); accessibilityPopover.classList.remove('show'); vibeTagsPopover.classList.toggle('show'); });
@@ -395,8 +368,8 @@
 
         // --- Initialization ---
         async function initializePage() {
-            const loader = venueGrid.querySelector('.loader')?.parentElement; // Get the loader container
-            if (loader) loader.style.display = 'flex'; // Show loader
+            const loader = venueGrid.querySelector('.loader')?.parentElement; 
+            if (loader) loader.style.display = 'flex';
 
             try {
                 const response = await fetch('/.netlify/functions/get-venues');
@@ -417,9 +390,9 @@
                 venueGrid.innerHTML = ''; // Clear loader
                 venueGrid.style.display = 'none';
                 noVenuesMessage.style.display = 'block';
-                noVenuesMessage.querySelector('p').textContent = 'Failed to load venues. Please try again later.'; // More specific error
+                noVenuesMessage.querySelector('p').textContent = 'Failed to load venues. Please try again later.';
             } finally {
-                if (loader) loader.style.display = 'none'; // Hide loader regardless of success/failure
+                if (loader) loader.style.display = 'none';
             }
         }
 

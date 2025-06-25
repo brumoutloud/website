@@ -9,6 +9,7 @@ exports.handler = async function (event, context) {
     const eventRecords = await base('Events').select({
         maxRecords: 1,
         filterByFormula: `{Slug} = "${slug}"`,
+        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText', 'Category']
     }).firstPage();
 
     if (!eventRecords || eventRecords.length === 0) {
@@ -18,39 +19,46 @@ exports.handler = async function (event, context) {
     const eventRecord = eventRecords[0];
     const fields = eventRecord.fields;
 
-    // --- NEW REDIRECT LOGIC ---
-    // If the visited event is a parent (has recurring info but no parent itself), find the next instance and redirect.
-    const isParentEvent = fields['Recurring Info'] && !fields['Parent Event Name'];
+    // --- CORRECTED REDIRECT LOGIC ---
+    // If the visited event is part of a recurring series...
+    if (fields['Recurring Info']) {
+        let seriesFilter;
+        const eventNameForQuery = fields['Event Name'].replace(/"/g, '\\"');
 
-    if (isParentEvent) {
+        // Identify the series by Parent Event Name, or by its own name if no parent is set
+        if (fields['Parent Event Name']) {
+            const parentNameForQuery = fields['Parent Event Name'].replace(/"/g, '\\"');
+            seriesFilter = `{Parent Event Name} = "${parentNameForQuery}"`;
+        } else {
+            seriesFilter = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info})`;
+        }
+
+        // Find the next actual instance in that series from today onwards
         const nextInstanceRecords = await base('Events').select({
             maxRecords: 1,
-            filterByFormula: `AND(OR({Parent Event Name} = "${fields['Event Name'].replace(/"/g, '\\"')}", AND({Event Name} = "${fields['Event Name'].replace(/"/g, '\\"')}", {Recurring Info})), IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`,
+            filterByFormula: `AND(${seriesFilter}, IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`,
             sort: [{ field: 'Date', direction: 'asc' }]
         }).firstPage();
 
         if (nextInstanceRecords && nextInstanceRecords.length > 0) {
             const nextInstanceSlug = nextInstanceRecords[0].fields.Slug;
-            // If the next slug is different, redirect to it.
+            // Only redirect if the current page's slug is NOT the next upcoming one.
+            // This forwards users from generic/old links but allows direct access to specific future dates.
             if (nextInstanceSlug && nextInstanceSlug !== slug) {
                 return {
                     statusCode: 302,
-                    headers: {
-                        'Location': `/event/${nextInstanceSlug}`
-                    }
+                    headers: { 'Location': `/event/${nextInstanceSlug}` }
                 };
             }
         }
     }
     // --- END REDIRECT LOGIC ---
 
-
     const eventName = fields['Event Name'];
     const parentEventName = fields['Parent Event Name'];
     const recurringInfo = fields['Recurring Info'];
     let allFutureInstances = [];
 
-    // This logic now correctly finds all other dates for the series you're currently on.
     let filterFormula;
     if (parentEventName) {
         const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
@@ -94,7 +102,9 @@ exports.handler = async function (event, context) {
 
     if (primaryEventCategories.length > 0) {
         const categoryFilterString = primaryEventCategories.map(cat => `FIND("${cat.replace(/"/g, '\\"')}", ARRAYJOIN({Category}, ","))`).join(', ');
+        
         const suggestedEventsFilter = `AND({Status} = 'Approved', IS_AFTER({Date}, TODAY()), NOT(RECORD_ID() = '${currentEventId}'), OR(${categoryFilterString}))`;
+
         const suggestedRecords = await base('Events').select({
             filterByFormula: suggestedEventsFilter,
             sort: [{ field: 'Date', direction: 'asc' }],
@@ -108,6 +118,7 @@ exports.handler = async function (event, context) {
                 const suggEventDate = new Date(suggEvent.get('Date'));
                 const suggImageUrl = suggEvent.get('Promo Image') ? suggEvent.get('Promo Image')[0].url : 'https://placehold.co/400x600/1e1e1e/EAEAEA?text=Event';
                 const suggEventSlug = suggEvent.get('Slug');
+
                 return `
                     <a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-[32%] flex-shrink-0 relative overflow-hidden flex flex-col justify-end snap-start">
                         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${suggImageUrl}')"></div>
@@ -116,11 +127,21 @@ exports.handler = async function (event, context) {
                             <p class="font-bold text-xl leading-none">${suggEventDate.getDate()}</p>
                             <p class="text-sm uppercase">${suggEventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
                         </div>
-                        <div class="relative z-10 p-4"><h4 class="font-extrabold text-white text-2xl">${suggEventName}</h4></div>
+                        <div class="relative z-10 p-4">
+                            <h4 class="font-extrabold text-white text-2xl">${suggEventName}</h4>
+                        </div>
                     </a>
                 `;
             }).join('');
-            suggestedEventsHtml = `<div class="mt-16 suggested-events-section"><h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2><div class="suggested-carousel flex overflow-x-auto gap-6 snap-x snap-mandatory pr-6">${suggestedCardsHtml}</div></div>`;
+
+            suggestedEventsHtml = `
+                <div class="mt-16 suggested-events-section">
+                    <h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2>
+                    <div class="suggested-carousel flex overflow-x-auto gap-6 snap-x snap-mandatory pr-6">
+                        ${suggestedCardsHtml}
+                    </div>
+                </div>
+            `;
         }
     }
     
@@ -145,30 +166,78 @@ exports.handler = async function (event, context) {
         const d = new Date(instance.Date);
         const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
         const month = d.toLocaleDateString('en-GB', { month: 'short' });
-        return `<a href="/event/${instance.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block"><div class="text-center w-20 flex-shrink-0"><p class="text-2xl font-bold text-white">${day}</p><p class="text-lg text-gray-400">${month}</p></div><div class="flex-grow"><h4 class="font-bold text-white text-xl">${instance['Event Name']}</h4><p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p></div><div class="text-accent-color"><i class="fas fa-arrow-right"></i></div></a>`;
+        return `<a href="/event/${instance.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
+                    <div class="text-center w-20 flex-shrink-0">
+                        <p class="text-2xl font-bold text-white">${day}</p>
+                        <p class="text-lg text-gray-400">${month}</p>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-white text-xl">${instance['Event Name']}</h4>
+                        <p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
+                    </div>
+                    <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
+                </a>`;
     }).join('');
 
     const html = `
-      <!DOCTYPE html><html lang="en">
+      <!DOCTYPE html>
+      <html lang="en">
       <head>
-        <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${eventName} | Brum Out Loud</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-        <link rel="stylesheet" href="/css/main.css"><script src="/js/main.js" defer></script>
-        <style>.hero-image-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background-color: #1e1e1e; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); } .hero-image-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: blur(24px) brightness(0.5); transform: scale(1.1); transition: opacity 0.4s ease; } .hero-image-container:hover .hero-image-bg { opacity: 1; } .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; } .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); } .suggested-card { border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); background-color: #1e1e1e; transition: transform 0.3s ease, box-shadow 0.3s ease; } .suggested-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.5); } .suggested-carousel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1); } .suggested-carousel::-webkit-scrollbar { height: 4px; } .suggested-carousel::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 2px; } .suggested-carousel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }</style>
+        <link rel="stylesheet" href="/css/main.css">
+        <script src="/js/main.js" defer></script>
+        <style>
+            .hero-image-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background-color: #1e1e1e; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+            .hero-image-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: blur(24px) brightness(0.5); transform: scale(1.1); transition: opacity 0.4s ease; }
+            .hero-image-container:hover .hero-image-bg { opacity: 1; }
+            .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; }
+            .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); }
+            .suggested-card { border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); background-color: #1e1e1e; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+            .suggested-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
+            .suggested-carousel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1); }
+            .suggested-carousel::-webkit-scrollbar { height: 4px; }
+            .suggested-carousel::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 2px; }
+            .suggested-carousel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
+        </style>
       </head>
       <body class="antialiased">
         <div id="header-placeholder"></div>
         <main class="container mx-auto px-8 py-16">
+            <!-- Breadcrumb Start -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a href="/events" class="text-sm font-medium text-gray-400 hover:text-white">Events</a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right fa-xs text-gray-500 flex-shrink-0" aria-hidden="true"></i>
+                            <span aria-current="page" class="ml-4 text-sm font-medium text-white">
+                                ${eventName}
+                            </span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            <!-- Breadcrumb End -->
+
             <div class="grid lg:grid-cols-3 gap-16">
                 <div class="lg:col-span-2">
-                     <div class="hero-image-container mb-8"><img src="${imageUrl}" alt="" class="hero-image-bg" aria-hidden="true"><img src="${imageUrl}" alt="${eventName}" class="hero-image-fg"></div>
+                     <div class="hero-image-container mb-8">
+                        <img src="${imageUrl}" alt="" class="hero-image-bg" aria-hidden="true">
+                        <img src="${imageUrl}" alt="${eventName}" class="hero-image-fg">
+                     </div>
                     <p class="font-semibold accent-color mb-2">EVENT DETAILS</p>
                     <h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${eventName}</h1>
-                    <div class="prose prose-invert prose-lg max-w-none text-gray-300">${description.replace(/\n/g, '<br>')}</div>
-                    ${(parentEventName || recurringInfo) && otherInstancesHTML ? `<div class="mt-16"><h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Dates</span> for this Event</h2><div class="space-y-4">${otherInstancesHTML}</div></div>` : ''}
+                    <div class="prose prose-invert prose-lg max-w-none text-gray-300">
+                        ${description.replace(/\n/g, '<br>')}
+                    </div>
+                    ${(parentEventName || recurringInfo) && otherInstancesHTML ? `<div class="mt-16"><h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Events</span> in this Series</h2><div class="space-y-4">${otherInstancesHTML}</div></div>` : ''}
                 </div>
                 <div class="lg:col-span-1">
                     <div class="card-bg p-8 sticky top-8 space-y-6">
@@ -178,9 +247,15 @@ exports.handler = async function (event, context) {
                             <p class="text-xl text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
                             ${recurringInfo ? `<p class="mt-2 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${recurringInfo}</p>` : ''}
                         </div>
-                         <div><h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>${venueHtml}</div>
+                         <div>
+                            <h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>
+                            ${venueHtml}
+                         </div>
                         ${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}
-                        <div id="add-to-calendar-section" class="border-t border-gray-700 pt-6"><h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Add to Calendar</h3><div class="grid grid-cols-1 gap-2"></div></div>
+                        <div id="add-to-calendar-section" class="border-t border-gray-700 pt-6">
+                            <h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Add to Calendar</h3>
+                            <div class="grid grid-cols-1 gap-2"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -189,13 +264,64 @@ exports.handler = async function (event, context) {
         <div id="footer-placeholder"></div>
         <script>
             const calendarData = ${JSON.stringify(calendarData)};
+            
             function toICSDate(dateStr) { return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
-            function generateGoogleLink(isSeries) { const params = new URLSearchParams({ action: 'TEMPLATE', text: calendarData.title, dates: toICSDate(calendarData.startTime) + '/' + toICSDate(calendarData.endTime), details: calendarData.description, location: calendarData.location }); if (isSeries && calendarData.isRecurring) { const rrule = 'RRULE:RDATE;VALUE=DATE-TIME:' + calendarData.recurringDates.map(d => toICSDate(d)).join(','); params.set('recur', rrule); } return 'https://www.google.com/calendar/render?' + params.toString(); }
-            function generateICSFile(isSeries) { let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location]; if (isSeries && calendarData.isRecurring) { const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(','); icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString); } icsContent.push('END:VEVENT', 'END:VCALENDAR'); const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = calendarData.title.replace(/ /g, '_') + '.ics'; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
-            document.addEventListener('DOMContentLoaded', () => { const container = document.querySelector('#add-to-calendar-section .grid'); let buttonsHTML = ''; if (calendarData.isRecurring) { buttonsHTML = '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>' + '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>' + '<a href="' + generateGoogleLink(true) + '" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>' + '<button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>'; } else { buttonsHTML = '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' + '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>'; } container.innerHTML = buttonsHTML; });
+
+            function generateGoogleLink(isSeries) {
+                const params = new URLSearchParams({
+                    action: 'TEMPLATE',
+                    text: calendarData.title,
+                    dates: toICSDate(calendarData.startTime) + '/' + toICSDate(calendarData.endTime),
+                    details: calendarData.description,
+                    location: calendarData.location
+                });
+                if (isSeries && calendarData.isRecurring) {
+                    const rrule = 'RRULE:RDATE;VALUE=DATE-TIME:' + calendarData.recurringDates.map(d => toICSDate(d)).join(',');
+                    params.set('recur', rrule);
+                }
+                return 'https://www.google.com/calendar/render?' + params.toString();
+            }
+
+            function generateICSFile(isSeries) {
+                let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location];
+                if (isSeries && calendarData.isRecurring) {
+                    const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(',');
+                    icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString);
+                }
+                icsContent.push('END:VEVENT', 'END:VCALENDAR');
+                const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = calendarData.title.replace(/ /g, '_') + '.ics';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+            
+            document.addEventListener('DOMContentLoaded', () => {
+                const container = document.querySelector('#add-to-calendar-section .grid');
+                let buttonsHTML = '';
+                if (calendarData.isRecurring) {
+                    buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>' +
+                        '<a href="' + generateGoogleLink(true) + '" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>' +
+                        '<button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>';
+                } else {
+                     buttonsHTML = 
+                        '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' +
+                        '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>';
+                }
+                container.innerHTML = buttonsHTML;
+            });
         </script>
-      </body></html>`;
+      </body>
+      </html>
+    `;
+
     return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
+
   } catch (error) {
     console.error(error);
     return { statusCode: 500, body: 'Server error fetching event details.' };

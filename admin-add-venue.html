@@ -6,157 +6,115 @@
     <title>Add Venue | Admin Panel</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script type="module" src="/js/auth-guard.js"></script>
+    <style>
+        /* Existing styles from original file */
+        .tag-missing{display:inline-block;background-color:rgba(239,68,68,.1);color:#F87171;font-size:.75rem;font-weight:600;padding:.25rem .75rem;border-radius:9999px;margin-right:.5rem;margin-bottom:.5rem}.filter-button{padding:.5rem 1rem;border-radius:.5rem;font-weight:600;transition:background-color .2s,color .2s;background-color:rgba(255,255,255,.05);color:#d1d5db}.filter-button.active{background-color:#E83A99;color:#fff}.filter-button:hover:not(.active){background-color:rgba(255,255,255,.1)}
+    </style>
 </head>
 <body class="antialiased">
 
-    <header class="p-8">
-        <nav class="container mx-auto flex justify-between items-center">
-            <a href="/" class="font-anton text-2xl tracking-widest text-white">BRUM OUT LOUD</a>
-            <a href="/admin/settings" class="text-gray-300 hover:text-white">Back to Admin Settings</a>
-        </nav>
-    </header>
+    <div id="header-placeholder"></div>
 
     <main class="container mx-auto px-8 py-16">
+        <!-- Breadcrumbs for Admin Add Venue -->
+        <nav class="flex mb-8" aria-label="Breadcrumb">
+            <ol role="list" class="flex items-center space-x-4">
+                <li><a href="/" class="text-gray-400 hover:text-white">Home</a></li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right fa-xs text-gray-500 flex-shrink-0"></i>
+                        <a href="/admin/settings" class="ml-4 text-gray-400 hover:text-white">Admin</a>
+                    </div>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right fa-xs text-gray-500 flex-shrink-0"></i>
+                        <a href="/admin/add-venue" aria-current="page" class="ml-4 font-medium text-white">Add Venue</a>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+
         <section class="max-w-4xl mx-auto">
             <div class="text-center mb-16">
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">ADD NEW <span class="accent-color">VENUE</span></h1>
-                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Use this form to add a new, automatically approved venue to the website.</p>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Quickly add a new venue record to the database.</p>
             </div>
-
-            <form id="add-venue-form" class="card-bg p-8 md:p-12 space-y-6">
-                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label for="name" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label><input type="text" id="name" name="name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                    <div><label for="address" class="block text-sm font-semibold mb-2 accent-color-secondary">Address</label><input type="text" id="address" name="address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required></div>
-                </div>
-                <div><label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description</label><textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
-                <div><label for="opening-hours" class="block text-sm font-semibold mb-2 accent-color-secondary">Opening Hours</label><textarea id="opening-hours" name="opening-hours" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., Mon-Thu: 5pm - 12am..."></textarea></div>
-                <div><label for="accessibility" class="block text-sm font-semibold mb-2 accent-color-secondary">Accessibility Info</label><textarea id="accessibility" name="accessibility" rows="3" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea></div>
-                
-                <div>
-                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Vibe Tags</label>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Lively" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Lively</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Relaxed" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Relaxed</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Party" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Party</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Chilled" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Chilled</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Community-Focused" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Community-Focused</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="vibe-tags" value="Cabaret" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Cabaret</span></label>
+            
+            <div class="card-bg p-8 md:p-12">
+                <form id="add-venue-form" class="space-y-6">
+                    <div>
+                        <label for="venue-name" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Name</label>
+                        <input type="text" id="venue-name" name="venue-name" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
                     </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Features</label>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Drag Shows" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Drag Shows</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Karaoke" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Karaoke</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Live Music" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Live Music</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Serves Food" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Serves Food</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Outdoor Area" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Outdoor Area</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Happy Hour" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Happy Hour</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="venue-features" value="Pool Table" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Pool Table</span></label>
+                    <div>
+                        <label for="address" class="block text-sm font-semibold mb-2 accent-color-secondary">Address</label>
+                        <input type="text" id="address" name="address" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" required>
                     </div>
-                </div>
-
-                <div>
-                    <label for="accessibility-rating" class="block text-sm font-semibold mb-2 accent-color-secondary">Accessibility Rating</label>
-                    <select id="accessibility-rating" name="accessibility-rating" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700 focus:ring-2 focus:ring-accent-color focus:border-transparent outline-none">
-                        <option value="">Select a rating</option>
-                        <option value="Fully Accessible">Fully Accessible</option>
-                        <option value="Partially Accessible">Partially Accessible</option>
-                        <option value="Not Accessible">Not Accessible</option>
-                        <option value="Info Unavailable">Info Unavailable</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold mb-2 accent-color-secondary">Accessibility Features</label>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Step-Free Access" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Step-Free Access</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Accessible Toilets" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Accessible Toilets</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Gender-Neutral Toilets" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Gender-Neutral Toilets</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Ramp Available" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Ramp Available</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" name="accessibility-features" value="Guide Dogs Permitted" class="form-checkbox h-5 w-5 rounded bg-gray-700 border-gray-600 text-accent-color focus:ring-accent-color"><span class="text-white">Guide Dogs Permitted</span></label>
+                    <div>
+                        <label for="website" class="block text-sm font-semibold mb-2 accent-color-secondary">Website (Optional)</label>
+                        <input type="url" id="website" name="website" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="https://">
                     </div>
-                </div>
-
-                <div>
-                    <label for="parking-exception" class="block text-sm font-semibold mb-2 accent-color-secondary">Parking Exception</label>
-                    <textarea id="parking-exception" name="parking-exception" rows="3" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700" placeholder="e.g., On-site car park available after 6 pm."></textarea>
-                </div>
-
-                <div class="border-t border-gray-700 pt-6">
-                    <h3 class="font-bold text-xl mb-4 text-white text-center">Contact Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div><label for="contact-email" class="block text-sm font-semibold mb-2 accent-color-secondary">Contact Email</label><input type="email" id="contact-email" name="contact-email" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
-                        <div><label for="contact-phone" class="block text-sm font-semibold mb-2 accent-color-secondary">Contact Phone</label><input type="tel" id="contact-phone" name="contact-phone" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
+                    <div>
+                        <label for="description" class="block text-sm font-semibold mb-2 accent-color-secondary">Description (Optional)</label>
+                        <textarea id="description" name="description" rows="4" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></textarea>
                     </div>
-                </div>
-
-                <div class="border-t border-gray-700 pt-6">
-                    <h3 class="font-bold text-xl mb-4 text-white text-center">Social & Website Links</h3>
-                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div><label for="website" class="block text-sm font-semibold mb-2 accent-color-secondary">Website URL</label><input type="url" id="website" name="website" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
-                         <div><label for="instagram" class="block text-sm font-semibold mb-2 accent-color-secondary">Instagram URL</label><input type="url" id="instagram" name="instagram" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
-                         <div><label for="facebook" class="block text-sm font-semibold mb-2 accent-color-secondary">Facebook URL</label><input type="url" id="facebook" name="facebook" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
-                         <div><label for="tiktok" class="block text-sm font-semibold mb-2 accent-color-secondary">TikTok URL</label><input type="url" id="tiktok" name="tiktok" class="w-full p-3 bg-gray-900/50 rounded-lg border border-gray-700"></div>
-                     </div>
-                </div>
-                <div><label for="photo" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Photo</label><input type="file" id="photo" name="photo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp"></div>
-                
-                <div class="text-right pt-4">
-                    <button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity flex items-center">
-                         <span id="save-button-text">Add Venue</span>
-                         <span id="save-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
-                    </button>
-                </div>
-                <div id="success-message" class="text-green-400 mt-4 text-center hidden"></div>
-            </form>
+                    <div>
+                        <label for="logo" class="block text-sm font-semibold mb-2 accent-color-secondary">Venue Photo (Optional)</label>
+                        <input type="file" id="logo" name="logo" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/webp">
+                    </div>
+                    <div id="form-status" class="text-center hidden p-4 rounded-lg"></div>
+                    <div class="text-right pt-4">
+                        <button type="submit" id="submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Add Venue</button>
+                    </div>
+                </form>
+            </div>
         </section>
     </main>
 
+    <div id="footer-placeholder"></div>
+    <script src="/js/main.js" defer></script>
     <script>
-        const form = document.getElementById('add-venue-form');
-        const saveBtnText = document.getElementById('save-button-text');
-        const saveLoader = document.getElementById('save-loader');
-        const successMessage = document.getElementById('success-message');
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('add-venue-form');
+            const statusDiv = document.getElementById('form-status');
+            const submitButton = document.getElementById('submit-button');
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                submitButton.disabled = true;
+                statusDiv.textContent = 'Adding venue, please wait...';
+                statusDiv.className = 'text-center p-4 rounded-lg bg-gray-700 text-white';
+                statusDiv.classList.remove('hidden');
 
-            saveBtnText.textContent = 'Saving...';
-            saveLoader.classList.remove('hidden');
-            successMessage.classList.add('hidden');
-            form.querySelector('button[type=submit]').disabled = true;
+                const formData = new FormData(form);
 
-            try {
-                const response = await fetch('/.netlify/functions/create-approved-venue', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.message);
-                
-                successMessage.textContent = result.message;
-                successMessage.classList.remove('hidden');
-                form.reset();
+                try {
+                    const response = await fetch('/.netlify/functions/venue-submission', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
 
-            } catch (error) {
-                alert(`Error adding venue: ${error.toString()}`);
-            } finally {
-                saveBtnText.textContent = 'Add Venue';
-                saveLoader.classList.add('hidden');
-                form.querySelector('button[type=submit]').disabled = false;
-                 setTimeout(() => {
-                     successMessage.classList.add('hidden');
-                }, 4000);
-            }
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || 'Server error during venue submission.');
+                    }
+                    
+                    statusDiv.textContent = 'Success! Venue added successfully.';
+                    statusDiv.className = 'text-center p-4 rounded-lg bg-green-800 text-white';
+                    form.reset();
+                } catch (error) {
+                    statusDiv.textContent = `Error: ${error.message}`;
+                    statusDiv.className = 'text-center p-4 rounded-lg bg-red-800 text-white';
+                } finally {
+                    submitButton.disabled = false;
+                }
+            });
         });
     </script>
-
 </body>
 </html>

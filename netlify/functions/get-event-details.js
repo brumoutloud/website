@@ -37,9 +37,9 @@ exports.handler = async function (event, context) {
                 console.log(`[${slug}] Standalone event not found, checking for parent series.`);
 
                 // The filter to find an anchor record for the series.
-                // We're relying on either the full slug matching an event (if the parent itself has a slug),
-                // or if any event in the series starts with the given slug.
-                const seriesAnchorFilter = `OR({Slug} = "${slug}", STARTS_WITH({Slug}, "${slug}-"))`;
+                // Using FIND to simulate STARTS_WITH
+                const escapedSlug = slug.replace(/"/g, '\\"'); // Escape any quotes in the slug for the formula
+                const seriesAnchorFilter = `OR({Slug} = "${escapedSlug}", FIND("${escapedSlug}-", {Slug}) = 1)`;
 
                 console.log(`[${slug}] Series Anchor Filter: ${seriesAnchorFilter}`);
 
@@ -57,7 +57,6 @@ exports.handler = async function (event, context) {
                     console.log(`[${slug}] Raw Parent Event Name from anchor: "${rawParentEventName}"`);
                     console.log(`[${slug}] Raw Event Name from anchor: "${rawEventName}"`);
 
-                    // Determine the canonical series name for the query
                     const seriesNameForQuery = rawParentEventName || rawEventName;
 
                     if (!seriesNameForQuery) {

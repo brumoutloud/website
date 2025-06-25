@@ -230,35 +230,34 @@
         /* Ensure filter buttons stretch to full width on mobile for better touch target */
         @media (max-width: 767px) {
             #filter-bar-container {
-                flex-direction: column; /* Stack filters vertically on mobile */
-                align-items: stretch; /* Stretch items to full width */
+                display: grid; /* Changed to grid for 2 columns */
+                grid-template-columns: repeat(2, 1fr); /* Two equal columns */
+                gap: 0.75rem; /* Consistent gap */
+                align-items: center; /* Vertically align items in grid */
             }
-            /* Apply to direct children (buttons and popover containers) */
+            /* Apply to all direct children of the filter bar for equal column distribution */
             #filter-bar-container > * {
-                width: 100%; /* Full width for individual filter buttons on mobile */
+                width: 100%; /* Fill the grid column */
+                margin-left: 0 !important; /* Override any ml-auto */
             }
-            /* Specific width for the groups that have grid layout inside */
-            #filter-bar-container .grid {
-                width: 100%; /* Ensure nested grids also take full width */
+            /* Specific style for the NSFW toggle container to place it correctly */
+            #nsfw-toggle-container {
+                 grid-column: span 2; /* Make it span both columns on mobile */
+                 order: 99; /* Push to the end of the flex container (now grid) so it wraps cleanly */
+                 margin-top: 0.75rem; /* Add some space above it if it wraps */
+                 width: 100%; /* Ensure it spans fully */
+                 justify-content: space-between; /* Space out toggle and text */
             }
-            /* Ensure filter buttons within the grid also fill their space */
-            #filter-bar-container .grid .filter-button {
-                width: 100%; /* Force buttons to fill grid cell */
+            /* Filter buttons inside grid should also fill their column */
+            #filter-bar-container .filter-button {
                 justify-content: center; /* Center text within buttons */
             }
-            /* Adjust popover width to match full container width on mobile */
+            /* Popover width adjustment for mobile */
             .popover {
-                width: calc(100% - 2rem); /* Full width minus main section padding */
-                left: 1rem; /* Adjust position to account for padding */
-                right: 1rem;
+                width: calc(100% - 2rem);
+                left: 1rem; right: 1rem;
             }
-            /* NSFW toggle specific mobile layout */
-            #nsfw-toggle-container {
-                 order: 99;
-                 margin-top: 0.75rem;
-                 margin-left: 0 !important;
-                 width: 100%;
-            }
+            /* Text labels for NSFW toggle on mobile */
             #nsfw-toggle-label {
                  justify-content: space-between;
             }
@@ -273,19 +272,28 @@
         /* Desktop specific layout adjustments */
         @media (min-width: 768px) {
             #filter-bar-container {
-                flex-direction: row; align-items: center; flex-wrap: wrap;
+                display: flex; /* Back to flex on desktop */
+                flex-direction: row; flex-wrap: wrap; align-items: center;
+                gap: 1rem; /* md:gap-4 from HTML */
             }
+            /* Apply to all direct children for desktop flex distribution */
             #filter-bar-container > * {
-                width: auto;
+                width: auto; /* Revert to auto width */
             }
-            #filter-bar-container .grid {
-                width: auto;
-            }
+            /* For the filter buttons, allow them to grow and enforce some base styling */
             #filter-bar-container .filter-button {
-                justify-content: flex-start;
+                flex-grow: 1; /* Allow to grow and take equal space */
+                min-width: 120px; /* Optional: minimum width for aesthetic consistency */
+                justify-content: center; /* Center text for equal distribution */
             }
+            /* Specific adjustments for popover buttons as they contain spans/icons */
+            #category-btn, #venue-btn, #custom-date-btn {
+                min-width: 150px; /* Adjust as needed for content */
+            }
+            /* NSFW toggle for desktop */
             #nsfw-toggle-container {
                 order: auto; margin-top: 0; margin-left: auto; width: auto;
+                flex-grow: 0; /* Don't grow, maintain explicit width */
             }
             #nsfw-toggle-label {
                  justify-content: flex-start;
@@ -318,43 +326,39 @@
                  </div>
             </div>
 
-            <div id="filter-bar-container" class="mb-12 flex flex-col md:flex-row items-center gap-3 md:gap-4">
+            <div id="filter-bar-container" class="mb-12 flex flex-wrap items-center gap-3 md:gap-4">
 
-                <div class="grid grid-cols-2 gap-3 w-full md:flex md:flex-row md:w-auto md:gap-4">
-                    <button class="filter-button active w-full" data-filter-type="date" data-filter-value="all">All Upcoming</button>
-                    <button class="filter-button w-full" data-filter-type="date" data-filter-value="today">Today</button>
-                    <button class="filter-button w-full" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
-                    <div class="relative w-full"> <button id="custom-date-btn" class="filter-button w-full">Custom Date</button>
-                        <div id="custom-date-popover" class="popover">
-                            <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
-                            <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
-                            <label for="date-to" class="block text-sm font-semibold mb-1 text-gray-400">To</label>
-                            <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md text-white">
-                        </div>
+                <button class="filter-button active w-full" data-filter-type="date" data-filter-value="all">All Upcoming</button>
+                <button class="filter-button w-full" data-filter-type="date" data-filter-value="today">Today</button>
+                <button class="filter-button w-full" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
+                <div class="relative w-full"> <button id="custom-date-btn" class="filter-button w-full">Custom Date</button>
+                    <div id="custom-date-popover" class="popover">
+                        <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
+                        <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
+                        <label for="date-to" class="block text-sm font-semibold mb-1 text-gray-400">To</label>
+                        <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md text-white">
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 w-full md:flex md:flex-row md:w-auto md:gap-4">
-                    <div class="relative w-full"> <button id="category-btn" class="filter-button w-full">
-                            <span>All Categories</span>
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="category-popover" class="popover max-h-80 overflow-y-auto">
-                            <p class="text-gray-400">Loading categories...</p>
-                        </div>
-                    </div>
-
-                    <div class="relative w-full"> <button id="venue-btn" class="filter-button w-full">
-                            <span>All Venues</span>
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div id="venue-popover" class="popover max-h-80 overflow-y-auto">
-                            <p class="text-gray-400">Loading venues...</p>
-                        </div>
+                <div class="relative w-full"> <button id="category-btn" class="filter-button w-full">
+                        <span>All Categories</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="category-popover" class="popover max-h-80 overflow-y-auto">
+                           <p class="text-gray-400">Loading categories...</p>
                     </div>
                 </div>
 
-                <div id="nsfw-toggle-container" class="filter-button flex items-center justify-between !p-3 w-full md:w-auto min-w-fit ml-auto md:ml-0 order-last">
+                <div class="relative w-full"> <button id="venue-btn" class="filter-button w-full">
+                        <span>All Venues</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="venue-popover" class="popover max-h-80 overflow-y-auto">
+                        <p class="text-gray-400">Loading venues...</p>
+                    </div>
+                </div>
+
+                <div id="nsfw-toggle-container" class="filter-button flex items-center justify-between !p-3 w-full min-w-fit ml-auto order-last">
                     <label id="nsfw-toggle-label" for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
                         <div class="relative flex-shrink-0">
                             <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>

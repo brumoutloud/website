@@ -45,6 +45,7 @@ exports.handler = async function (event, context) {
         const fields = venue.fields;
         const venueName = fields['Name'];
         
+        // --- REVERTED TO ORIGINAL CODE ---
         const upcomingEventsRecords = await base('Events').select({
             filterByFormula: `AND({Venue} = '${venueId}', {Status} = 'Approved', IS_AFTER({Date}, TODAY()))`,
             sort: [{field: 'Date', direction: 'asc'}],
@@ -58,7 +59,7 @@ exports.handler = async function (event, context) {
 
             return `
                 <a href="/event/${eventFields['Slug']}" class="item-card card-bg block group">
-                    <div class="relative aspect-[4/3] bg-gray-900/50">
+                    <div class="relative aspect-video bg-gray-900/50">
                         <img src="${imageUrl}" alt="${eventFields['Event Name']}" class="absolute h-full w-full object-cover">
                         <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
                             <p class="font-bold text-xl leading-none">${eventDate.getDate()}</p>
@@ -72,6 +73,7 @@ exports.handler = async function (event, context) {
                 </a>
             `;
         }).join('') : '<div class="card-bg p-8 text-center text-gray-400 lg:col-span-3">No upcoming events scheduled at this time.</div>';
+        // --- END OF REVERTED CODE ---
 
         const photos = fields['Photo'] || [];
         const mainPhoto = photos.length > 0 ? photos[0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';

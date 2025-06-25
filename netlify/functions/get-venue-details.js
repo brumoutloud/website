@@ -36,7 +36,7 @@ function generateStars(rating) {
 }
 
 /**
- * **NEW & IMPROVED**: Parses opening hours text to determine current status.
+ * Parses opening hours text to determine current status.
  * Handles single time slots, multiple (comma-separated) slots, day ranges, and overnight hours.
  * @param {string} openingHoursText - The multi-line text from Airtable.
  * @returns {{html: string}} - The HTML for the status badge.
@@ -217,9 +217,33 @@ exports.handler = async function (event, context) {
             }
         }
         
-        // Event fetching logic (unchanged)
-        const eventRecords = await base('Events').select({ filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()))`, sort: [{ field: 'Date', direction: 'asc' }], fields: ['Event Name', 'Date', 'Slug'] }).all();
-        const upcomingEventsHtml = eventRecords.length > 0 ? eventRecords.map(record => { const event = record.fields; const eventDate = new Date(event.Date); return `<a href="/event/${event.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block"><div class="text-center w-20 flex-shrink-0"><p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p><p class="text-lg text-gray-400">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p></div><div class="flex-grow"><h4 class="font-bold text-white text-xl">${event['Event Name']}</h4><p class="text-sm text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p></div><div class="text-accent-color"><i class="fas fa-arrow-right"></i></div></a>`; }).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>';
+        // **UPDATED**: Added 'Promo Image' to fields and reverted to card layout
+        const eventRecords = await base('Events').select({
+            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()))`,
+            sort: [{ field: 'Date', direction: 'asc' }],
+            fields: ['Event Name', 'Date', 'Slug', 'Promo Image'] 
+        }).all();
+
+        const upcomingEventsHtml = eventRecords.length > 0 ? eventRecords.map(record => {
+            const event = record.fields;
+            const eventDate = new Date(event.Date);
+            const imageUrl = event['Promo Image'] ? event['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
+            return `
+                <a href="/event/${event.Slug}" class="item-card card-bg block group">
+                    <div class="relative aspect-video bg-gray-900/50">
+                        <img src="${imageUrl}" alt="${event['Event Name']}" class="absolute h-full w-full object-cover">
+                        <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
+                            <p class="font-bold text-xl leading-none">${eventDate.getDate()}</p>
+                            <p class="text-sm uppercase">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:text-accent-color transition-colors">${event['Event Name']}</h3>
+                        <p class="text-gray-400 text-sm">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
+                    </div>
+                </a>
+            `;
+        }).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>';
 
         const photos = venue['Photo'] || [];
         const mainPhoto = photos.length > 0 ? photos[0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';
@@ -228,7 +252,7 @@ exports.handler = async function (event, context) {
         // Prepare data for sidebar
         const openingHoursText = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
         const openingStatus = getOpeningStatus(openingHoursText);
-        const openingHoursContent = openingHoursText; // Keep it clean for the section body
+        const openingHoursContent = openingHoursText;
         
         const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
         const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
@@ -260,7 +284,9 @@ exports.handler = async function (event, context) {
                     <div class="grid lg:grid-cols-3 gap-16">
                         <div class="lg:col-span-2">
                              <h2 class="font-anton text-4xl mb-8"><span class="accent-color">What's On</span> at ${venue.Name}</h2>
-                             <div class="space-y-4">${upcomingEventsHtml}</div>
+                             <div class="grid md:grid-cols-2 gap-8">
+                                ${upcomingEventsHtml}
+                             </div>
                              ${googleReviewsHtml}
                              ${photoGalleryHtml}
                         </div>
@@ -293,4 +319,3 @@ exports.handler = async function (event, context) {
         return { statusCode: 500, body: 'Server error building venue page.' };
     }
 };
-

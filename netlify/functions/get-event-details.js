@@ -3,7 +3,9 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
-    if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
+    if (!slug) {
+        return { statusCode: 400, body: 'Error: Event slug not provided.' };
+    }
 
     try {
         const dateMatch = slug.match(/\d{4}-\d{2}-\d{2}$/);
@@ -18,30 +20,41 @@ exports.handler = async function (event, context) {
             }).firstPage();
         } else {
             // Case 2: Slug does NOT have a date. This could be a standalone event or a parent series.
-            // First, try to find a standalone event with this exact slug.
+            // First, try to find a standalone event with this exact dateless slug.
             eventRecords = await base('Events').select({
                 maxRecords: 1,
                 filterByFormula: `{Slug} = "${slug}"`
             }).firstPage();
 
             if (!eventRecords || eventRecords.length === 0) {
-                // If no standalone event was found, now check if it's a parent event series
+                // If no standalone event was found, now check if it implies a parent event series
                 // that should redirect to its next instance.
-                const potentialParentRecords = await base('Events').select({
+
+                // Find ANY event record associated with this "parent" slug to determine the series name.
+                // We assume if a slug is dateless and not a standalone event, it refers to a series.
+                const seriesAnchorRecords = await base('Events').select({
                     maxRecords: 1,
-                    // Look for events where the slug exactly matches OR where the slug starts with this slug
-                    // (e.g., 'concert-series' should match 'concert-series-2025-01-01' to find the parent name)
-                    filterByFormula: `OR({Slug} = "${slug}", STARTS_WITH({Slug}, "${slug}-"))`
+                    // Look for an event whose main slug or parent event slug matches
+                    // or where its slug starts with the current slug.
+                    filterByFormula: `OR({Slug} = "${slug}", STARTS_WITH({Slug}, "${slug}-"), {Parent Slug} = "${slug}")`
                 }).firstPage();
 
-                if (potentialParentRecords && potentialParentRecords.length > 0) {
-                    // Extract the Parent Event Name from an existing event in the series
-                    const parentName = potentialParentRecords[0].fields['Parent Event Name'] || potentialParentRecords[0].fields['Event Name'];
+                if (seriesAnchorRecords && seriesAnchorRecords.length > 0) {
+                    const anchorRecord = seriesAnchorRecords[0];
+                    // Prefer Parent Event Name, but fall back to Event Name if it's the "root" event
+                    // of the series and thus has no parent name.
+                    const seriesNameForQuery = anchorRecord.fields['Parent Event Name'] || anchorRecord.fields['Event Name'];
 
-                    // Find the next upcoming instance of this parent series
+                    if (!seriesNameForQuery) {
+                        return { statusCode: 404, body: `Could not identify series name for '${slug}'.` };
+                    }
+
+                    // Find the next upcoming instance of this series
                     const nextInstanceRecords = await base('Events').select({
                         maxRecords: 1,
-                        filterByFormula: `AND({Parent Event Name} = "${parentName.replace(/"/g, '\\"')}", IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`,
+                        // Use both Parent Event Name and Event Name for robustness,
+                        // as sometimes the 'root' event might not have a Parent Event Name
+                        filterByFormula: `AND(OR({Parent Event Name} = "${seriesNameForQuery.replace(/"/g, '\\"')}", {Event Name} = "${seriesNameForQuery.replace(/"/g, '\\"')}"), IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`,
                         sort: [{ field: 'Date', direction: 'asc' }]
                     }).firstPage();
 
@@ -54,11 +67,12 @@ exports.handler = async function (event, context) {
                             };
                         }
                     }
-                    // If a parent was identified but no upcoming instance, then conclude the series is over.
-                    return { statusCode: 404, body: 'This event series has concluded or has no upcoming dates.' };
+                    // If a series was identified but no upcoming instance.
+                    return { statusCode: 404, body: `Event series '${seriesNameForQuery}' has concluded or has no upcoming dates.` };
+                } else {
+                    // If it's not a dated slug, not a standalone event, and not identifiable as any series.
+                    return { statusCode: 404, body: `Event '${slug}' not found.` };
                 }
-                // If it's not a dated slug, not a standalone event, and not identifiable as a parent series.
-                return { statusCode: 404, body: `Event not found.` };
             }
         }
 
@@ -75,6 +89,7 @@ exports.handler = async function (event, context) {
             const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
             filterFormula = `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
         } else if (recurringInfo) {
+            // If it's a standalone recurring event without a specific Parent Event Name
             const eventNameForQuery = eventName.replace(/"/g, '\\"');
             filterFormula = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info}, IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
         }
@@ -166,7 +181,7 @@ exports.handler = async function (event, context) {
         return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
 
     } catch (error) {
-        console.error(error);
-        return { statusCode: 500, body: 'Server error fetching event details.' };
+        console.error("Caught error in handler:", error); // More specific logging
+        return { statusCode: 500, body: 'Server error fetching event details. Please try again later.' };
     }
 };

@@ -29,7 +29,8 @@ exports.handler = async function (event, context) {
                     'Parking Exception',
                     'Vibe Tags',
                     'Venue Features',
-                    'Google Rating' // NEW: Fetch Google Rating
+                    'Google Rating',        // Keep fetching for completeness if needed elsewhere
+                    'Number of Reviews'     // NEW: Fetch Number of Reviews
                 ],
                 maxRecords: 100,
             })
@@ -60,7 +61,8 @@ exports.handler = async function (event, context) {
                 vibeTags: record.get('Vibe Tags') || [],
                 venueFeatures: record.get('Venue Features') || [],
                 accessibilityFeatures: record.get('Accessibility Features') || [],
-                googleRating: record.get('Google Rating') || 0, // NEW: Include Google Rating, default to 0
+                googleRating: record.get('Google Rating') || 0,          // Keep for completeness
+                numberOfReviews: record.get('Number of Reviews') || 0,  // NEW: Map Number of Reviews
             };
         });
 

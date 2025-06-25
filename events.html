@@ -337,24 +337,14 @@
             }
         }
 
-        /* Styles for the toggle switch */
+        /* Styles for the toggle switch (from design system) */
         .toggle-dot {
             transition: transform 0.2s ease-in-out;
         }
         input:checked ~ .toggle-dot {
-            transform: translateX(1.5rem); /* w-6 */
+            transform: translateX(1.5rem); /* w-6 from toggle button parent width */
         }
-        .sr-only { /* Standard screen reader only class from Tailwind */
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0,0,0,0);
-            white-space: nowrap;
-            border-width: 0;
-        }
+        /* sr-only is defined globally by Tailwind, no need to redefine */
     </style>
 </head>
 <body class="antialiased">
@@ -376,7 +366,7 @@
                  </div>
             </div>
 
-            <div id="filter-bar-container" class="mb-12 flex flex-wrap gap-3">
+            <div id="filter-bar-container" class="mb-12 flex flex-wrap items-center gap-3 md:gap-4">
                 <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
                 <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
                 <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
@@ -411,13 +401,12 @@
                     </div>
                 </div>
 
-                <div class="filter-button flex items-center justify-between !p-3">
-                    <label for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
+                <div class="ml-auto md:ml-0 filter-button flex items-center justify-between !p-3"> <label for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
                         <div class="relative">
                             <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
                             <div class="toggle-dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full"></div>
                         </div>
-                        <div class="ml-3 text-white font-medium">SFW Mode</div>
+                        <span class="ml-3 text-white font-medium">SFW Mode</span>
                     </label>
                 </div>
             </div>
@@ -610,7 +599,7 @@
             });
         }
 
-        // NEW: Render Venue Options
+        // NEW: Render Venue Options (now uses allVenuesForFilter from get-events.js)
         function renderVenueOptions() {
             venuePopover.innerHTML = ''; // Clear existing options
 
@@ -620,6 +609,7 @@
             allButton.dataset.filterValue = 'all';
             venuePopover.appendChild(allButton);
 
+            // Populate from the allVenuesForFilter array
             allVenuesForFilter.forEach(venue => {
                 const button = document.createElement('button');
                 button.className = 'popover-option';
@@ -642,6 +632,7 @@
             categoryBtn.querySelector('span').textContent = 'All Categories';
             venueBtn.querySelector('span').textContent = 'All Venues'; // NEW: Reset venue button text
             nsfwToggle.checked = true; // NEW: Reset NSFW toggle state
+            nsfwToggle.nextElementSibling.textContent = 'SFW Mode'; // Update text visually
 
             dateFromInput.value = '';
             dateToInput.value = '';
@@ -652,20 +643,28 @@
         function setupEventListeners() {
             filterBarContainer.addEventListener('click', e => {
                 const button = e.target.closest('.filter-button');
-                if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn' || button.id === 'venue-btn' || button.querySelector('#nsfw-toggle')) return; // Exclude popover/toggle buttons
+                // Ensure the clicked element is a filter button and not part of a popover or the toggle itself
+                if (!button || button.id === 'custom-date-btn' || button.id === 'category-btn' || button.id === 'venue-btn' || button.contains(nsfwToggle)) {
+                    // If it's the NSFW toggle's container, let its specific change listener handle it.
+                    // If it's a popover button, let its specific click listener handle it.
+                    return;
+                }
 
-                document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
-                button.classList.add('active');
+                // If it's a date filter button (All Upcoming, Today, This Weekend)
+                if (button.dataset.filterType === 'date') {
+                    document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
 
-                activeDateFilter.type = button.dataset.filterValue;
-                activeDateFilter.from = null;
-                activeDateFilter.to = null;
-                applyFilters();
+                    activeDateFilter.type = button.dataset.filterValue;
+                    activeDateFilter.from = null;
+                    activeDateFilter.to = null;
+                    applyFilters();
+                }
             });
 
-            customDateBtn.addEventListener('click', (e) => { e.stopPropagation(); categoryPopover.classList.remove('show'); venuePopover.classList.remove('show'); customDatePopover.classList.toggle('show'); }); // NEW: Close venue popover
-            categoryBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); venuePopover.classList.remove('show'); categoryPopover.classList.toggle('show'); }); // NEW: Close venue popover
-            venueBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); venuePopover.classList.toggle('show'); }); // NEW: Open venue popover
+            customDateBtn.addEventListener('click', (e) => { e.stopPropagation(); categoryPopover.classList.remove('show'); venuePopover.classList.remove('show'); customDatePopover.classList.toggle('show'); });
+            categoryBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); venuePopover.classList.remove('show'); categoryPopover.classList.toggle('show'); });
+            venueBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); venuePopover.classList.toggle('show'); });
             
             clearFiltersBtn.addEventListener('click', resetFilters);
 
@@ -702,7 +701,6 @@
             // NEW: NSFW Toggle Event Listener
             nsfwToggle.addEventListener('change', () => {
                 isSfwMode = nsfwToggle.checked;
-                // Optional: Update text beside toggle immediately
                 nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
                 applyFilters();
             });
@@ -711,11 +709,11 @@
             window.addEventListener('click', () => { 
                 customDatePopover.classList.remove('show'); 
                 categoryPopover.classList.remove('show'); 
-                venuePopover.classList.remove('show'); // NEW: Close venue popover
+                venuePopover.classList.remove('show');
             });
         }
 
-        // --- NEW: Slideshow Functions (Unchanged) ---
+        // --- Slideshow Functions (Unchanged) ---
         function showSlide(index) {
             const slides = slideshowContainer.querySelectorAll('.slide');
             const dots = slideshowDotsContainer.querySelectorAll('.dot');
@@ -769,7 +767,7 @@
                             <h3 class="slide-title">${event.name}</h3>
                             <p class="slide-venue">${event.venue}</p>
                             <p class="slide-description">${event.description || ''}</p>
-                            <a href="${event.slug}" class="cta-button">View Event</a>
+                            <a href="/event/${event.slug}" class="cta-button">View Event</a>
                         </div>
                         <div class="slide-poster-container">
                             <img class="slide-poster-image" src="${imageUrl}" alt="${event.name} Poster">
@@ -795,44 +793,34 @@
         }
 
 
-        // NEW: Load Venue Options Function
-        async function loadVenueOptions() {
-            try {
-                const response = await fetch('/.netlify/functions/get-venue-list');
-                if (!response.ok) throw new Error('Failed to fetch venues for dropdown.');
-                allVenuesForFilter = await response.json();
-                renderVenueOptions(); // Render the options after fetching
-            } catch (error) {
-                console.error("Error fetching venue list for filter:", error);
-                venuePopover.innerHTML = '<p class="text-red-400">Could not load venues.</p>';
-            }
-        }
-
-
-        // --- Initial Data Fetch ---
+        // --- Initial Data Fetch & Processing ---
         async function initializePage() {
             try {
-                // Fetch events from your Netlify function
-                const eventsResponse = await fetch('/.netlify/functions/get-events');
-                const fetchedEvents = await eventsResponse.json();
+                // Fetch events and venues from your Netlify function
+                const response = await fetch('/.netlify/functions/get-events');
+                const data = await response.json(); // Now expects { events: [], venues: [] }
 
-                // Comment out this line to disable the featured banner temporarily
-                // featuredEvents = fetchedEvents.filter(event => event.isFeatured);
+                // Assign fetched data to global state
+                allEvents = data.events.sort((a, b) => new Date(a.date) - new Date(b.date));
+                allVenuesForFilter = data.venues; // Assign the unique venues list
+                
+                // Initialize NSFW toggle state and text
+                nsfwToggle.checked = isSfwMode;
+                nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
+
+
+                // Featured events logic (unchanged, will be hidden if featuredEvents is empty)
+                // featuredEvents = allEvents.filter(event => event.isFeatured);
                 featuredEvents = []; // Explicitly clear featuredEvents to hide the banner
 
-                // Ensure allEvents includes boosted events and is sorted
-                allEvents = fetchedEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                createSlideshowElements(); // Render featured banner (will be hidden due to empty featuredEvents)
-                
-                // NEW: Load venue options before applying filters
-                await loadVenueOptions(); // Ensure venues are loaded before filtering
+                createSlideshowElements(); // Render featured banner
 
                 renderCategoryOptions();
+                renderVenueOptions(); // Render venue filter options from fetched data
                 setupEventListeners();
                 applyFilters(); // Apply initial filters after all data is loaded and setup
             } catch (error) {
-                console.error("Error fetching events:", error);
+                console.error("Error fetching events and venues:", error);
                 eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
             }
         }
@@ -840,25 +828,7 @@
         // Call initializePage when the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', initializePage);
 
-        // --- Removed: Duplicate Global Header and Footer Loading ---
-        // The original main.js already handles this. Duplicating it here can cause conflicts.
-        // If your main.js is properly linked, this function is redundant.
-        /*
-        async function loadGlobalComponents() {
-            try {
-                const headerResponse = await fetch('/global/header.html');
-                const headerHtml = await headerResponse.text();
-                document.getElementById('header-placeholder').innerHTML = headerHtml;
-
-                const footerResponse = await fetch('/global/footer.html');
-                const footerHtml = await footerResponse.text();
-                document.getElementById('footer-placeholder').innerHTML = footerHtml;
-            } catch (error) {
-                console.error('Error loading global components:', error);
-            }
-        }
-        document.addEventListener('DOMContentLoaded', loadGlobalComponents);
-        */
+        // --- Removed: Duplicate Global Header and Footer Loading (as handled by main.js) ---
     </script>
     <script src="/js/main.js"></script>
 </body>

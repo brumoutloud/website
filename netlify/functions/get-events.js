@@ -1,78 +1,90 @@
-// netlify/functions/get-venues.js
 const Airtable = require('airtable');
-
 const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(process.env.AIRTABLE_BASE_ID);
 
-exports.handler = async function (event, context) {
+exports.handler = async (event, context) => {
     try {
-        const records = await base('Venues')
-            .select({
-                filterByFormula: "AND({Status} = 'Approved', {Listing Status} = 'Listed')",
-                fields: [
-                    'Name',
-                    'Description',
-                    'Slug',
-                    'Photo URL',
-                    'Photo Medium URL',
-                    'Photo Thumbnail URL',
-                    'Address',
-                    'Opening Hours',
-                    'Accessibility',
-                    'Website',
-                    'Instagram',
-                    'Facebook',
-                    'TikTok',
-                    'Contact Email',
-                    'Contact Phone',
-                    'Accessibility Rating',
-                    'Accessibility Features',
-                    'Parking Exception',
-                    'Vibe Tags',
-                    'Venue Features',
-                    'Google Rating' // NEW: Fetch Google Rating
-                ],
-                maxRecords: 100,
-            })
-            .all();
+        const { view } = event.queryStringParameters;
+        if (view === 'admin') {
+            // Admin view logic remains unchanged
+            const query = base('Events').select({ view: "Approved Upcoming", sort: [{ field: 'Date', direction: 'asc' }]});
+            const allRecords = await query.all();
+            const records = allRecords.map(record => ({ id: record.id, fields: record.fields }));
+            return { statusCode: 200, body: JSON.stringify({ events: records, offset: allRecords.offset }) };
+        }
 
-        const venues = records.map((record) => {
-            return {
+        // --- PUBLIC SITE LOGIC ---
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const allRecords = await base('Events').select({
+            filterByFormula: "AND({Status} = 'Approved', IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))",
+            sort: [{ field: 'Date', direction: 'asc' }],
+            fields: [
+                'Event Name', 'Description', 'Date', 'Promo Image', 'Slug', 
+                'Venue Name', 'VenueText', 'Category',
+                'Featured Banner Start Date', 'Featured Banner End Date',
+                'Boosted Listing Start Date', 'Boosted Listing End Date'
+            ]
+        }).all();
+        
+        const events = [];
+        const uniqueVenues = new Map(); // To store unique venue names and a placeholder ID if needed
+
+        allRecords.forEach((record) => {
+            const fields = record.fields;
+            let isFeatured = false;
+            let isBoosted = false;
+
+            const featuredStartDate = fields['Featured Banner Start Date'] ? new Date(fields['Featured Banner Start Date']) : null;
+            const featuredEndDate = fields['Featured Banner End Date'] ? new Date(fields['Featured Banner End Date']) : null;
+            if (featuredStartDate && featuredEndDate && today >= featuredStartDate && today <= new Date(featuredEndDate.getTime() + 86400000) ) { // Add one day to include end date
+                isFeatured = true;
+            }
+
+            const boostedStartDate = fields['Boosted Listing Start Date'] ? new Date(fields['Boosted Listing Start Date']) : null;
+            const boostedEndDate = fields['Boosted Listing End Date'] ? new Date(fields['Boosted Listing End Date']) : null;
+            if (boostedStartDate && boostedEndDate && today >= boostedStartDate && today <= new Date(boostedEndDate.getTime() + 86400000) ) {
+                isBoosted = true;
+            }
+
+            const promoImage = fields['Promo Image'] && fields['Promo Image'][0] ? fields['Promo Image'][0] : null;
+            const venueName = (fields['Venue Name'] ? fields['Venue Name'][0] : fields['VenueText']) || 'TBC';
+
+            events.push({
                 id: record.id,
-                name: record.get('Name'),
-                description: record.get('Description'),
-                slug: record.get('Slug') || '',
-                photo: {
-                    original: record.get('Photo URL') || null,
-                    medium: record.get('Photo Medium URL') || null,
-                    thumbnail: record.get('Photo Thumbnail URL') || null,
-                },
-                address: record.get('Address') || '',
-                openingHours: record.get('Opening Hours') || '',
-                accessibility: record.get('Accessibility') || '',
-                website: record.get('Website') || '',
-                instagram: record.get('Instagram') || '',
-                facebook: record.get('Facebook') || '',
-                tiktok: record.get('TikTok') || '',
-                contactEmail: record.get('Contact Email') || '',
-                contactPhone: record.get('Contact Phone') || '',
-                accessibilityRating: record.get('Accessibility Rating') || '',
-                parkingException: record.get('Parking Exception') || '',
-                vibeTags: record.get('Vibe Tags') || [],
-                venueFeatures: record.get('Venue Features') || [],
-                accessibilityFeatures: record.get('Accessibility Features') || [],
-                googleRating: record.get('Google Rating') || 0, // NEW: Include Google Rating, default to 0
-            };
+                name: fields['Event Name'],
+                description: fields['Description'],
+                date: fields['Date'],
+                venue: venueName, // Use the resolved venue name
+                image: promoImage ? promoImage.url : null,
+                imageWidth: promoImage?.width,
+                imageHeight: promoImage?.height,
+                slug: fields['Slug'] || `#event-${record.id}`,
+                category: fields['Category'] || [],
+                isFeatured: isFeatured,
+                isBoosted: isBoosted
+            });
+
+            // Populate uniqueVenues map only with venues that have associated events
+            if (venueName && !uniqueVenues.has(venueName)) {
+                uniqueVenues.set(venueName, { id: venueName, name: venueName }); // Using name as ID for client-side filter
+            }
         });
+        
+        // Convert map values to an array for the response
+        const venues = Array.from(uniqueVenues.values());
 
         return {
             statusCode: 200,
-            body: JSON.stringify(venues),
+            body: JSON.stringify({ events: events, venues: venues }), // Return both events and venues
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         };
+
     } catch (error) {
-        console.error('Error fetching venues within handler:', error);
+        console.error("Error in get-events function:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Failed to fetch venues' }),
+            body: JSON.stringify({ error: 'Failed to fetch events and venues', details: error.message }),
         };
     }
 };

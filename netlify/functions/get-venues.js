@@ -7,7 +7,6 @@ exports.handler = async function (event, context) {
     try {
         const records = await base('Venues')
             .select({
-                // --- FIX: Added a check to ensure only "Listed" venues are fetched ---
                 filterByFormula: "AND({Status} = 'Approved', {Listing Status} = 'Listed')",
                 fields: [
                     'Name',
@@ -29,7 +28,8 @@ exports.handler = async function (event, context) {
                     'Accessibility Features',
                     'Parking Exception',
                     'Vibe Tags',
-                    'Venue Features'
+                    'Venue Features',
+                    'Google Rating' // NEW: Fetch Google Rating
                 ],
                 maxRecords: 100,
             })
@@ -60,6 +60,7 @@ exports.handler = async function (event, context) {
                 vibeTags: record.get('Vibe Tags') || [],
                 venueFeatures: record.get('Venue Features') || [],
                 accessibilityFeatures: record.get('Accessibility Features') || [],
+                googleRating: record.get('Google Rating') || 0, // NEW: Include Google Rating, default to 0
             };
         });
 

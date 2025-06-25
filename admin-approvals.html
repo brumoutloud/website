@@ -64,6 +64,25 @@
 
     <main class="container mx-auto px-8 py-16">
         <section class="max-w-4xl mx-auto">
+
+            <!-- Breadcrumb Start -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a href="admin-settings.html" class="text-sm font-medium text-gray-400 hover:text-white">Admin Panel</a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right fa-xs text-gray-500 flex-shrink-0" aria-hidden="true"></i>
+                            <span aria-current="page" class="ml-4 text-sm font-medium text-white">
+                                Pending Approvals
+                            </span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            <!-- Breadcrumb End -->
+
             <div class="text-center mb-16">
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">PENDING <span class="accent-color">APPROVALS</span></h1>
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Review user-submitted events and venues before they go live on the site.</p>
@@ -476,6 +495,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', loadInitialData);
+        cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
     </script>
 </body>
 </html>

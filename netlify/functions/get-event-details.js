@@ -13,72 +13,96 @@ exports.handler = async function (event, context) {
 
         if (dateMatch) {
             // Case 1: Slug has a date. This is a specific child event.
+            console.log(`[${slug}] Attempting to fetch specific dated event.`);
             const dateFromSlug = dateMatch[0];
             eventRecords = await base('Events').select({
                 maxRecords: 1,
                 filterByFormula: `AND({Slug} = "${slug}", DATETIME_FORMAT(Date, 'YYYY-MM-DD') = '${dateFromSlug}')`
             }).firstPage();
+            console.log(`[${slug}] Specific dated event records found: ${eventRecords.length > 0}`);
+
         } else {
             // Case 2: Slug does NOT have a date. This could be a standalone event or a parent series.
             // First, try to find a standalone event with this exact dateless slug.
+            console.log(`[${slug}] Attempting to fetch standalone dateless event.`);
             eventRecords = await base('Events').select({
                 maxRecords: 1,
                 filterByFormula: `{Slug} = "${slug}"`
             }).firstPage();
+            console.log(`[${slug}] Standalone dateless event records found: ${eventRecords.length > 0}`);
 
             if (!eventRecords || eventRecords.length === 0) {
                 // If no standalone event was found, now check if it implies a parent event series
                 // that should redirect to its next instance.
+                console.log(`[${slug}] Standalone event not found, checking for parent series.`);
 
-                // Find ANY event record associated with this "parent" slug to determine the series name.
-                // We assume if a slug is dateless and not a standalone event, it refers to a series.
+                // The filter to find an anchor record for the series.
+                // We're relying on either the full slug matching an event (if the parent itself has a slug),
+                // or if any event in the series starts with the given slug.
+                const seriesAnchorFilter = `OR({Slug} = "${slug}", STARTS_WITH({Slug}, "${slug}-"))`;
+
+                console.log(`[${slug}] Series Anchor Filter: ${seriesAnchorFilter}`);
+
                 const seriesAnchorRecords = await base('Events').select({
                     maxRecords: 1,
-                    // Look for an event whose main slug or parent event slug matches
-                    // or where its slug starts with the current slug.
-                    filterByFormula: `OR({Slug} = "${slug}", STARTS_WITH({Slug}, "${slug}-"), {Parent Slug} = "${slug}")`
+                    filterByFormula: seriesAnchorFilter
                 }).firstPage();
+                console.log(`[${slug}] Series Anchor Records found: ${seriesAnchorRecords.length > 0}`);
 
                 if (seriesAnchorRecords && seriesAnchorRecords.length > 0) {
                     const anchorRecord = seriesAnchorRecords[0];
-                    // Prefer Parent Event Name, but fall back to Event Name if it's the "root" event
-                    // of the series and thus has no parent name.
-                    const seriesNameForQuery = anchorRecord.fields['Parent Event Name'] || anchorRecord.fields['Event Name'];
+                    const rawParentEventName = anchorRecord.fields['Parent Event Name'];
+                    const rawEventName = anchorRecord.fields['Event Name'];
+
+                    console.log(`[${slug}] Raw Parent Event Name from anchor: "${rawParentEventName}"`);
+                    console.log(`[${slug}] Raw Event Name from anchor: "${rawEventName}"`);
+
+                    // Determine the canonical series name for the query
+                    const seriesNameForQuery = rawParentEventName || rawEventName;
 
                     if (!seriesNameForQuery) {
+                        console.error(`[${slug}] ERROR: Could not derive series name from anchor record.`);
                         return { statusCode: 404, body: `Could not identify series name for '${slug}'.` };
                     }
+
+                    const escapedSeriesName = seriesNameForQuery.replace(/"/g, '\\"');
+                    const nextInstanceFilter = `AND(OR({Parent Event Name} = "${escapedSeriesName}", {Event Name} = "${escapedSeriesName}"), IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`;
+                    console.log(`[${slug}] Next Instance Filter: ${nextInstanceFilter}`);
 
                     // Find the next upcoming instance of this series
                     const nextInstanceRecords = await base('Events').select({
                         maxRecords: 1,
-                        // Use both Parent Event Name and Event Name for robustness,
-                        // as sometimes the 'root' event might not have a Parent Event Name
-                        filterByFormula: `AND(OR({Parent Event Name} = "${seriesNameForQuery.replace(/"/g, '\\"')}", {Event Name} = "${seriesNameForQuery.replace(/"/g, '\\"')}"), IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`,
+                        filterByFormula: nextInstanceFilter,
                         sort: [{ field: 'Date', direction: 'asc' }]
                     }).firstPage();
+                    console.log(`[${slug}] Next Instance Records found: ${nextInstanceRecords.length > 0}`);
 
                     if (nextInstanceRecords && nextInstanceRecords.length > 0) {
                         const nextInstanceSlug = nextInstanceRecords[0].fields.Slug;
                         if (nextInstanceSlug) {
+                            console.log(`[${slug}] Redirecting to next instance: /event/${nextInstanceSlug}`);
                             return {
-                                statusCode: 302, // 302 is a temporary redirect, good for "next available"
+                                statusCode: 302,
                                 headers: { 'Location': `/event/${nextInstanceSlug}` }
                             };
                         }
                     }
                     // If a series was identified but no upcoming instance.
+                    console.log(`[${slug}] Series identified, but no upcoming dates found.`);
                     return { statusCode: 404, body: `Event series '${seriesNameForQuery}' has concluded or has no upcoming dates.` };
                 } else {
                     // If it's not a dated slug, not a standalone event, and not identifiable as any series.
+                    console.log(`[${slug}] Not found as dated, standalone, or parent series.`);
                     return { statusCode: 404, body: `Event '${slug}' not found.` };
                 }
             }
         }
 
-        // If we reached here, it means a specific event instance (either standalone or dated child) was found.
+        // --- Rest of your HTML generation logic remains the same ---
         const eventRecord = eventRecords[0];
         const fields = eventRecord.fields;
+        console.log(`[${slug}] Successfully found event record. Processing page generation.`);
+
         const eventName = fields['Event Name'];
         const parentEventName = fields['Parent Event Name'];
         const recurringInfo = fields['Recurring Info'];
@@ -89,7 +113,6 @@ exports.handler = async function (event, context) {
             const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
             filterFormula = `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
         } else if (recurringInfo) {
-            // If it's a standalone recurring event without a specific Parent Event Name
             const eventNameForQuery = eventName.replace(/"/g, '\\"');
             filterFormula = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info}, IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
         }
@@ -181,7 +204,7 @@ exports.handler = async function (event, context) {
         return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
 
     } catch (error) {
-        console.error("Caught error in handler:", error); // More specific logging
+        console.error("Caught error in handler:", error);
         return { statusCode: 500, body: 'Server error fetching event details. Please try again later.' };
     }
 };

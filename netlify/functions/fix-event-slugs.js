@@ -16,66 +16,68 @@ const slugify = (text) => {
 };
 
 exports.handler = async function (event, context) {
-  console.log("Starting slug cleanup process...");
+  console.log("Starting FINAL slug cleanup process...");
 
   try {
     const allEvents = await base('Events').select({
       fields: ['Event Name', 'Parent Event Name', 'Recurring Info', 'Date', 'Slug'],
-      sort: [{field: 'Date', direction: 'asc'}]
     }).all();
 
     console.log(`Fetched ${allEvents.length} total events.`);
 
     const updates = [];
-    const parentSlugs = {}; // To store the base slug for each parent event
+    const eventSeries = new Map();
 
-    // First pass: Identify parent events and their base slugs
+    // Group events by their 'Parent Event Name'
     allEvents.forEach(record => {
       const fields = record.fields;
-      if (fields['Recurring Info'] && !fields['Parent Event Name']) {
-        const baseSlug = slugify(fields['Event Name']);
-        parentSlugs[fields['Event Name']] = baseSlug;
+      const parentName = fields['Parent Event Name'];
 
-        // Add the parent event itself to the update list if its slug is incorrect
-        if (fields.Slug !== baseSlug) {
-            updates.push({
-                id: record.id,
-                fields: { 'Slug': baseSlug }
-            });
+      // Only process records that are part of a series (i.e., have a Parent Event Name)
+      if (parentName) {
+        if (!eventSeries.has(parentName)) {
+          eventSeries.set(parentName, []);
         }
+        eventSeries.get(parentName).push(record);
       }
     });
 
-    console.log(`Identified ${Object.keys(parentSlugs).length} parent events.`);
+    console.log(`Found ${eventSeries.size} event series based on 'Parent Event Name'.`);
 
-    // Second pass: Update slugs for all child instances
-    allEvents.forEach(record => {
+    // Iterate over the grouped series
+    for (const [parentName, records] of eventSeries.entries()) {
+      // Generate the base slug from the parent name text itself
+      const baseSlug = slugify(parentName);
+
+      records.forEach(record => {
         const fields = record.fields;
-        const parentName = fields['Parent Event Name'];
-
-        if (parentName && parentSlugs[parentName]) {
-            const baseSlug = parentSlugs[parentName];
-            const eventDate = new Date(fields.Date);
-            // Format date as YYYY-MM-DD
-            const dateString = eventDate.toISOString().split('T')[0];
-            const newSlug = `${baseSlug}-${dateString}`;
-
-            // Only add to updates if the slug needs changing
-            if (fields.Slug !== newSlug) {
-                 updates.push({
-                    id: record.id,
-                    fields: { 'Slug': newSlug }
-                });
-            }
+        const eventDate = new Date(fields.Date);
+        
+        if (isNaN(eventDate.getTime())) {
+            console.warn(`Skipping record with invalid date: ID ${record.id}, Name: ${fields['Event Name']}`);
+            return; // Skip this record if the date is invalid
         }
-    });
+
+        // Format date as YYYY-MM-DD
+        const dateString = eventDate.toISOString().split('T')[0];
+        const newSlug = `${baseSlug}-${dateString}`;
+
+        // If the current slug is not the new, unique slug, schedule an update.
+        if (fields.Slug !== newSlug) {
+          updates.push({
+            id: record.id,
+            fields: { 'Slug': newSlug }
+          });
+        }
+      });
+    }
 
     console.log(`Found ${updates.length} records that need a slug update.`);
 
     if (updates.length === 0) {
       return {
         statusCode: 200,
-        body: JSON.stringify({ message: "All event slugs are already correct. No updates needed." }),
+        body: JSON.stringify({ message: "All recurring event slugs appear to be correct. No updates needed." }),
       };
     }
 
@@ -85,7 +87,7 @@ exports.handler = async function (event, context) {
       const batch = updates.slice(i, i + 10);
       await base('Events').update(batch);
       updatedCount += batch.length;
-      console.log(`Updated batch ${i/10 + 1}. Total updated: ${updatedCount}`);
+      console.log(`Updated batch ${Math.floor(i/10) + 1}. Total updated: ${updatedCount}`);
     }
 
     return {

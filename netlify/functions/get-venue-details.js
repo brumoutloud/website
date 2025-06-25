@@ -219,9 +219,10 @@ exports.handler = async function (event, context) {
             }
         }
         
-        // --- **Revised**: Fetch one-off events (no Recurring Info, no Parent Event Name) ---
+        // --- **Updated**: Fetch one-off events (no Recurring Info, no Parent Event Name, and not a dated child slug) ---
+        // This ensures truly standalone, one-off events.
         const oneOffEventsRecords = await base('Events').select({
-            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), BLANK({Recurring Info}), BLANK({Parent Event Name}))`,
+            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), BLANK({Recurring Info}), BLANK({Parent Event Name}), NOT(REGEX_MATCH({Slug}, '-\\d{4}-\\d{2}-\\d{2}$')) )`,
             sort: [{ field: 'Date', direction: 'asc' }],
             fields: ['Event Name', 'Date', 'Slug', 'Promo Image'],
             maxRecords: 6
@@ -259,12 +260,11 @@ exports.handler = async function (event, context) {
         ` : '';
 
 
-        // --- **Revised**: Fetch and process recurring events ---
+        // --- **Updated**: Fetch and process recurring events ---
         // This query finds all *distinct series* based on 'Recurring Info'
-        // For each series, we need to identify its "parent" slug.
         const rawRecurringSeriesRecords = await base('Events').select({
             filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", NOT(BLANK({Recurring Info})))`,
-            fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name'] // Fetch Parent Event Name too
+            fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name']
         }).all();
 
         // Group events by a unique series identifier (Recurring Info + Parent Event Name or Event Name)
@@ -272,33 +272,39 @@ exports.handler = async function (event, context) {
 
         rawRecurringSeriesRecords.forEach(record => {
             const fields = record.fields;
-            const recurringInfo = fields['Recurring Info'];
+            // Normalize "undefined" string values to actual undefined/null for consistent blank checks
+            const recurringInfo = (fields['Recurring Info'] === "undefined" || !fields['Recurring Info']) ? undefined : fields['Recurring Info'];
             const eventName = fields['Event Name'];
-            const parentEventName = fields['Parent Event Name'];
+            const parentEventName = (fields['Parent Event Name'] === "undefined" || !fields['Parent Event Name']) ? undefined : fields['Parent Event Name'];
             const slug = fields['Slug'];
 
-            console.log(`[Venue: ${slug}] Processing recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}"`);
+            console.log(`[Venue: ${slug}] Processing raw recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}"`);
 
-            // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
-            const seriesIdentifier = parentEventName || eventName;
+            // Only process if recurringInfo is not truly undefined/blank after normalization
+            if (recurringInfo) {
+                // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
+                const seriesIdentifier = parentEventName || eventName;
 
-            // Determine the "link slug" for the series. This should be the parent slug if it exists.
-            let linkSlug = slug; // Default to its own slug (might be a standalone recurring event)
-            if (parentEventName) {
-                 // If there's a Parent Event Name, generate a slug from it.
-                 // This assumes a consistent slugging convention where the parent slug is
-                 // just the hyphenated parent event name.
-                 linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-            }
+                // Determine the "link slug" for the series.
+                // If there's a Parent Event Name, generate a slug from it.
+                // This assumes a consistent slugging convention where the parent slug is
+                // just the hyphenated parent event name.
+                let linkSlug = slug; // Default to its own slug
+                if (parentEventName) {
+                    linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                }
 
-            const seriesKey = `${seriesIdentifier}-${recurringInfo}`; // Unique key including recurring info
+                const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
 
-            if (!uniqueRecurringSeries[seriesKey]) {
-                uniqueRecurringSeries[seriesKey] = {
-                    eventName: seriesIdentifier, // Use the series identifier for display name
-                    recurringInfo: recurringInfo,
-                    slug: linkSlug // Use the determined parent slug
-                };
+                if (!uniqueRecurringSeries[seriesKey]) {
+                    uniqueRecurringSeries[seriesKey] = {
+                        eventName: seriesIdentifier,
+                        recurringInfo: recurringInfo, // Use the normalized recurringInfo
+                        slug: linkSlug
+                    };
+                }
+            } else {
+                console.log(`[Venue: ${slug}] Skipping record due to blank/undefined Recurring Info after normalization.`);
             }
         });
         
@@ -307,7 +313,7 @@ exports.handler = async function (event, context) {
                 <a href="/event/${event.slug}" class="card-bg p-4 flex items-center justify-between hover:bg-gray-800 transition-colors duration-200">
                     <div>
                         <h4 class="font-bold text-white text-xl">${event.eventName}</h4>
-                        <p class="text-sm text-gray-400">${event.recurringInfo || ''}</p>
+                        <p class="text-sm text-gray-400">${event.recurringInfo}</p>
                     </div>
                     <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
                 </a>

@@ -1,7 +1,17 @@
 # This is the main configuration file for your Netlify site.
 
+# Specifies build settings for Netlify
 [build]
-  functions = "netlify/functions"
+  # Directory that contains the deploy-ready HTML files and assets.
+  publish = "/"
+
+# Specifies how serverless functions are handled
+[functions]
+  # Main directory for all serverless functions
+  directory = "netlify/functions/"
+
+
+# --- Page Redirect and Rewrite Rules ---
 
 # Rule for individual EVENT pages
 [[redirects]]
@@ -33,7 +43,7 @@
   to = "/community.html"
   status = 200
 
-# NEW: Rule for the CONTACT page
+# Rule for the CONTACT page
 [[redirects]]
   from = "/contact"
   to = "/contact.html"

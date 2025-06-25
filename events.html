@@ -360,8 +360,13 @@
                 flex-direction: column; /* Stack filters vertically on mobile */
                 align-items: stretch; /* Stretch items to full width */
             }
-            #filter-bar-container > * { /* Apply to direct children (buttons and popover containers) */
+            /* Apply to direct children (buttons and popover containers) */
+            #filter-bar-container > * {
                 width: 100%; /* Full width for individual filter buttons on mobile */
+            }
+            /* Specific width for the groups that have grid layout inside */
+            #filter-bar-container .grid {
+                width: 100%; /* Ensure nested grids also take full width */
             }
             #filter-bar-container .filter-button {
                 justify-content: center; /* Center text within buttons */
@@ -402,7 +407,12 @@
                 align-items: center; /* Align items vertically */
                 flex-wrap: wrap; /* Allow wrapping if there are many filters */
             }
-            #filter-bar-container > * { /* Direct children buttons and popover containers */
+            /* Direct children buttons and popover containers */
+            #filter-bar-container > * {
+                width: auto; /* Revert to auto width on desktop */
+            }
+            /* Specific width for the groups that have grid layout inside */
+            #filter-bar-container .grid {
                 width: auto; /* Revert to auto width on desktop */
             }
             #filter-bar-container .filter-button {
@@ -445,39 +455,43 @@
                  </div>
             </div>
 
-            <div id="filter-bar-container" class="mb-12 flex flex-wrap items-center gap-3 md:gap-4">
-                <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
-                <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
-                <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
+            <div id="filter-bar-container" class="mb-12 flex flex-col md:flex-row items-center gap-3 md:gap-4">
 
-                <div class="relative w-full md:w-auto"> <button id="custom-date-btn" class="filter-button">Custom Date</button>
-                    <div id="custom-date-popover" class="popover">
-                        <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
-                        <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
-                        <label for="date-to" class="block text-sm font-semibold mb-1 text-gray-400">To</label>
-                        <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md text-white">
+                <div class="grid grid-cols-2 gap-3 w-full md:flex md:flex-row md:w-auto md:gap-4">
+                    <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
+                    <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
+                    <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
+                    <div class="relative w-full"> <button id="custom-date-btn" class="filter-button">Custom Date</button>
+                        <div id="custom-date-popover" class="popover">
+                            <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
+                            <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
+                            <label for="date-to" class="block text-sm font-semibold mb-1 text-gray-400">To</label>
+                            <input type="date" id="date-to" class="w-full p-2 bg-gray-800 rounded-md text-white">
+                        </div>
                     </div>
                 </div>
 
-                <div class="relative w-full md:w-auto"> <button id="category-btn" class="filter-button">
-                        <span>All Categories</span>
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </button>
-                    <div id="category-popover" class="popover max-h-80 overflow-y-auto">
-                           <p class="text-gray-400">Loading categories...</p>
+                <div class="grid grid-cols-2 gap-3 w-full md:flex md:flex-row md:w-auto md:gap-4">
+                    <div class="relative w-full"> <button id="category-btn" class="filter-button">
+                            <span>All Categories</span>
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="category-popover" class="popover max-h-80 overflow-y-auto">
+                            <p class="text-gray-400">Loading categories...</p>
+                        </div>
+                    </div>
+
+                    <div class="relative w-full"> <button id="venue-btn" class="filter-button">
+                            <span>All Venues</span>
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="venue-popover" class="popover max-h-80 overflow-y-auto">
+                            <p class="text-gray-400">Loading venues...</p>
+                        </div>
                     </div>
                 </div>
 
-                <div class="relative w-full md:w-auto"> <button id="venue-btn" class="filter-button">
-                        <span>All Venues</span>
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </button>
-                    <div id="venue-popover" class="popover max-h-80 overflow-y-auto">
-                        <p class="text-gray-400">Loading venues...</p>
-                    </div>
-                </div>
-
-                <div id="nsfw-toggle-container" class="filter-button flex items-center justify-between !p-3 w-full md:w-auto min-w-fit ml-auto md:ml-0">
+                <div id="nsfw-toggle-container" class="filter-button flex items-center justify-between !p-3 w-full md:w-auto min-w-fit ml-auto md:ml-0 order-last">
                     <label id="nsfw-toggle-label" for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
                         <div class="relative flex-shrink-0">
                             <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
@@ -745,7 +759,7 @@
 
             customDateBtn.addEventListener('click', (e) => { e.stopPropagation(); categoryPopover.classList.remove('show'); venuePopover.classList.remove('show'); customDatePopover.classList.toggle('show'); });
             categoryBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); venuePopover.classList.remove('show'); categoryPopover.classList.toggle('show'); });
-            venueBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); venuePopover.classList.toggle('show'); });
+            venueBtn.addEventListener('click', (e) => { e.stopPropagation(); customDatePopover.classList.remove('show'); categoryPopover.classList.remove('show'); venuePopover.classList.remove('show'); }); // Corrected to close all others
             
             clearFiltersBtn.addEventListener('click', resetFilters);
 

@@ -5,17 +5,17 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 function createTagsHtml(tags, iconClass) {
     if (!tags || tags.length === 0) return '';
     const tagsHtml = tags.map(tag => `<span class="inline-flex items-center bg-gray-700/50 text-gray-300 text-sm font-semibold px-3 py-1 rounded-full"><i class="${iconClass} mr-2 opacity-60"></i>${tag}</span>`).join('');
-    return `<div class="flex flex-wrap gap-3">${tagsHtml}</div>`;
+    return `<div class="flex flex-wrap gap-2">${tagsHtml}</div>`; // Reduced gap for tighter packing in sidebar
 }
 
-// Helper function to create an info section if data exists
-function createInfoSection(title, content, iconClass) {
+// Helper function to create a simple info section in the sidebar
+function createSidebarSection(title, content, iconClass) {
     if (!content || (Array.isArray(content) && content.length === 0)) return '';
     return `
-        <div>
+        <div class="border-t border-gray-700 pt-6">
             <h3 class="font-bold text-lg accent-color-secondary mb-3 flex items-center"><i class="${iconClass} mr-3 text-xl opacity-80"></i>${title}</h3>
-            <div class="prose prose-invert prose-md max-w-none text-gray-400 pl-8">
-                ${Array.isArray(content) ? `<ul>${content.map(item => `<li>${item}</li>`).join('')}</ul>` : content.replace(/\n/g, '<br>')}
+            <div class="prose prose-invert prose-sm max-w-none text-gray-400">
+                ${content}
             </div>
         </div>
     `;
@@ -29,7 +29,6 @@ exports.handler = async function (event, context) {
         const venueRecords = await base('Venues').select({
             maxRecords: 1,
             filterByFormula: `{Slug} = "${slug}"`,
-            // Fetch all the new rich data fields
             fields: [
                 'Name', 'Description', 'Address', 'Photo', 'Instagram', 'Website', 'Facebook', 'TikTok',
                 'Opening Hours', 'Accessibility', 'Vibe Tags', 'Venue Features', 'Accessibility Rating', 
@@ -94,12 +93,12 @@ exports.handler = async function (event, context) {
         const facebook = fields['Facebook'];
         const tiktok = fields['TikTok'];
 
-        // Rich data fields
+        // Rich data fields for sidebar
         const vibeTagsHtml = createTagsHtml(fields['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
         const venueFeaturesHtml = createTagsHtml(fields['Venue Features'], 'fa-solid fa-star');
-        const openingHoursContent = fields['Opening Hours'] || 'Not Available';
+        const openingHoursContent = fields['Opening Hours'] ? fields['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
         
-        // Build Accessibility Section
+        // Build Accessibility Section content
         let accessibilityInfo = [];
         if (fields['Accessibility Rating']) {
             accessibilityInfo.push(`<strong>Rating:</strong> ${fields['Accessibility Rating']}`);
@@ -113,7 +112,7 @@ exports.handler = async function (event, context) {
         if (fields['Parking Exception']) {
             accessibilityInfo.push(`<strong>Parking:</strong> ${fields['Parking Exception']}`);
         }
-        const accessibilityHtml = accessibilityInfo.length > 0 ? accessibilityInfo.join('<br>') : 'No specific accessibility information has been provided.';
+        const accessibilityHtml = accessibilityInfo.length > 0 ? accessibilityInfo.join('<br><br>') : 'No specific accessibility information has been provided.';
         
         const mailtoLink = `mailto:feedback@brumoutloud.co.uk?subject=Issue with ${encodeURIComponent(venueName)} page`;
 
@@ -148,28 +147,25 @@ exports.handler = async function (event, context) {
                             <div class="prose prose-invert prose-lg max-w-none text-gray-300 mb-12">
                                 ${description}
                             </div>
-                            
-                            <div class="space-y-8">
-                                ${vibeTagsHtml ? `<div><h3 class="font-anton text-3xl text-white mb-4">The Vibe</h3>${vibeTagsHtml}</div>` : ''}
-                                ${venueFeaturesHtml ? `<div><h3 class="font-anton text-3xl text-white mb-4">Venue Features</h3>${venueFeaturesHtml}</div>` : ''}
-                                <div class="border-t border-gray-800 pt-8">
-                                     <h3 class="font-anton text-3xl text-white mb-4">Accessibility</h3>
-                                     <div class="prose prose-invert max-w-none text-gray-300">${accessibilityHtml}</div>
-                                </div>
-                            </div>
-
                         </div>
                         <div class="lg:col-span-2">
                              <div class="card-bg p-8 sticky top-8 space-y-6">
-                                ${createInfoSection('Address', address, 'fa-solid fa-map-location-dot')}
+                                <div>
+                                    <h3 class="font-bold text-lg accent-color-secondary mb-3 flex items-center"><i class="fa-solid fa-map-location-dot mr-3 text-xl opacity-80"></i>Address</h3>
+                                    <p class="text-gray-300 pl-9">${address}</p>
+                                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}" target="_blank" class="text-sm text-accent-color hover:underline pl-9">Get Directions</a>
+                                </div>
                                 
-                                ${createInfoSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}
+                                ${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}
+                                ${createSidebarSection('The Vibe', vibeTagsHtml, 'fa-solid fa-martini-glass-citrus')}
+                                ${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}
+                                ${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}
 
-                                <div class="flex flex-wrap gap-4 pt-4 border-t border-gray-700">
-                                    ${website ? `<a href="${website}" target="_blank" class="social-button"><i class="fas fa-globe mr-2"></i>Website</a>` : ''}
-                                    ${instagram ? `<a href="${instagram}" target="_blank" class="social-button"><i class="fab fa-instagram mr-2"></i>Instagram</a>` : ''}
-                                    ${facebook ? `<a href="${facebook}" target="_blank" class="social-button"><i class="fab fa-facebook mr-2"></i>Facebook</a>` : ''}
-                                    ${tiktok ? `<a href="${tiktok}" target="_blank" class="social-button"><i class="fab fa-tiktok mr-2"></i>TikTok</a>` : ''}
+                                <div class="border-t border-gray-700 pt-6 flex flex-wrap gap-4">
+                                    ${website ? `<a href="${website}" target="_blank" class="social-button flex-grow"><i class="fas fa-globe mr-2"></i>Website</a>` : ''}
+                                    ${instagram ? `<a href="${instagram}" target="_blank" class="social-button flex-grow"><i class="fab fa-instagram mr-2"></i>Instagram</a>` : ''}
+                                    ${facebook ? `<a href="${facebook}" target="_blank" class="social-button flex-grow"><i class="fab fa-facebook mr-2"></i>Facebook</a>` : ''}
+                                    ${tiktok ? `<a href="${tiktok}" target="_blank" class="social-button flex-grow"><i class="fab fa-tiktok mr-2"></i>TikTok</a>` : ''}
                                 </div>
                                 <div class="pt-4 text-center">
                                     <a href="${mailtoLink}" class="text-xs text-gray-500 hover:text-accent-color transition-colors">Something wrong? Let us know</a>

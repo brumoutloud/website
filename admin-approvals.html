@@ -60,7 +60,6 @@
 </head>
 <body class="antialiased">
 
-    <!-- Header will be injected by main.js if header-placeholder exists, otherwise this static one is used -->
     <div id="header-placeholder"></div>
 
     <main class="container mx-auto px-8 py-16">
@@ -84,7 +83,6 @@
         </section>
     </main>
 
-    <!-- Edit Modal (for editing pending submissions before approval/rejection) -->
     <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <form id="edit-form" class="card-bg p-8 w-full max-w-3xl space-y-4 max-h-[90vh] overflow-y-auto">
              <h3 class="font-anton text-3xl text-white">Edit Event Submission</h3>
@@ -96,7 +94,6 @@
         </form>
     </div>
 
-    <!-- Rejection Modal -->
     <div id="rejection-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="card-bg p-8 w-full max-w-lg">
             <h3 class="font-anton text-3xl text-white mb-4">Reason for Rejection</h3>
@@ -109,7 +106,6 @@
         </div>
     </div>
     
-    <!-- Footer will be injected by main.js if footer-placeholder exists, otherwise no footer -->
     <div id="footer-placeholder"></div>
 
     <script src="/js/main.js" defer></script>
@@ -127,13 +123,12 @@
         const confirmRejectionBtn = document.getElementById('confirm-rejection-btn');
         
         const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
-        let currentItemForAction = null; // Stores the item (event) currently being reviewed/edited
-        let allVenues = []; // Variable to hold venues for the dropdown in edit form
+        let currentItemForAction = null; 
+        let allVenues = []; 
 
-        // Helper to display status messages (similar to admin-edit-events.html)
         function showStatusMessage(message, isError = false) {
-            const statusDiv = document.getElementById('status-message'); // Assume an element with this ID exists if needed, or create one.
-            if (!statusDiv) { // Fallback if no dedicated status div
+            const statusDiv = document.getElementById('status-message');
+            if (!statusDiv) { 
                 console.log('Status: ' + message);
                 return;
             }
@@ -143,7 +138,6 @@
             setTimeout(() => statusDiv.classList.add('hidden'), 5000);
         }
 
-        // Renders a single pending item (now strictly an event)
         function renderItem(item) {
             const fields = item.fields;
             let title = fields['Event Name'];
@@ -156,7 +150,7 @@
             const card = document.createElement('div');
             card.className = 'approval-card';
             card.dataset.id = item.id;
-            card.dataset.type = item.type; // Will always be 'Event' now
+            card.dataset.type = item.type; 
             card.innerHTML = `
                 <div class="approval-card-header">
                     <h3 class="text-xl font-bold text-white">${title} <span class="text-sm text-gray-400 ml-2">(Event)</span></h3>
@@ -180,23 +174,21 @@
             return card;
         }
 
-        // Fetches and renders all pending items (now strictly events)
         async function loadPendingItems() {
             loadingState.classList.remove('hidden');
-            approvalList.innerHTML = ''; // Clear previous list
-            noItemsMessage.classList.add('hidden'); // Hide no items message initially
+            approvalList.innerHTML = ''; 
+            noItemsMessage.classList.add('hidden');
 
             try {
-                const response = await fetch('/.netlify/functions/get-pending-items'); // This now only returns events
+                const response = await fetch('/.netlify/functions/get-pending-items');
                 if (!response.ok) throw new Error('Failed to fetch pending items.');
                 
-                const items = await response.json(); // These should all be 'Event' type now
+                const items = await response.json();
                 
                 loadingState.classList.add('hidden');
 
                 if (items && items.length > 0) {
                     items.forEach(item => {
-                        // Assuming 'Type' field is added as 'Event' by get-pending-items.js
                         approvalList.appendChild(renderItem(item));
                     });
                 } else {
@@ -205,16 +197,14 @@
             } catch (error) {
                 console.error("Error loading pending items:", error);
                 loadingState.innerHTML = `<p class="text-red-400 text-center">Failed to load pending items: ${error.message}</p>`;
-                loadingState.classList.remove('hidden'); // Keep loading state visible if error
+                loadingState.classList.remove('hidden');
             }
         }
 
-        // Populates the edit modal form (now strictly for events)
         function populateEditForm(item) {
-            currentItemForAction = item;
-            editModal.classList.remove('hidden'); // Show the modal
+            console.log('Populating edit form for item:', item);
+            editModal.classList.remove('hidden'); 
 
-            // Clear previous fields
             editFormFields.innerHTML = '';
 
             const fields = item.fields;
@@ -223,11 +213,10 @@
 
             const eventDate = fields['Date'] ? new Date(fields['Date']).toISOString().split('T')[0] : '';
             const eventTime = fields['Date'] ? new Date(fields['Date']).toTimeString().substring(0, 5) : '';
-            const venueId = fields.Venue && fields.Venue.length > 0 ? fields.Venue[0] : ''; // Linked venue ID
-            const venueText = fields.VenueText || ''; // Fallback for unlinked venue text
+            const venueId = fields.Venue && fields.Venue.length > 0 ? fields.Venue[0] : '';
+            const venueText = fields.VenueText || '';
             const currentPromoImageUrl = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : '';
 
-            // Event specific fields
             const eventNameDiv = document.createElement('div');
             eventNameDiv.innerHTML = `<label>Event Name</label><input type="text" name="Event Name" value="${fields['Event Name'] || ''}" required>`;
             editFormFields.appendChild(eventNameDiv);
@@ -236,8 +225,6 @@
             contactEmailDiv.innerHTML = `<label>Submitter Email</label><input type="email" name="Submitter Email" value="${fields['Submitter Email'] || fields['Contact Email'] || ''}" placeholder="Contact email if available">`;
             editFormFields.appendChild(contactEmailDiv);
 
-
-            // Venue select and New Venue Fields (replicated logic from admin-edit-events)
             const venueSelectDiv = document.createElement('div');
             const venueSelectLabel = document.createElement('label');
             venueSelectLabel.textContent = 'Venue';
@@ -263,22 +250,18 @@
             `;
             editFormFields.appendChild(newVenueFields);
 
-            // Set initial venue selection
-            if (venueId) { // If linked venue
+            if (venueId) {
                 venueSelect.value = venueId;
-            } else if (venueText) { // If unlinked venue text is present, pre-fill new venue fields
-                // Attempt to select '__CREATE_NEW__' and pre-fill fields if it's the "__CREATE_NEW__" option
+            } else if (venueText) {
                 venueSelect.value = '__CREATE_NEW__';
                 newVenueFields.querySelector('#new-venue-name').value = venueText;
             }
 
-            // Handle change listener for venueSelect (shows/hides new venue fields)
             venueSelect.addEventListener('change', () => {
                 const showNew = venueSelect.value === '__CREATE_NEW__';
                 newVenueFields.classList.toggle('hidden', !showNew);
                 newVenueFields.querySelectorAll('input').forEach(input => input.required = showNew);
             });
-            // Set initial visibility based on default/pre-filled value
             newVenueFields.classList.toggle('hidden', venueSelect.value !== '__CREATE_NEW__');
             newVenueFields.querySelectorAll('input').forEach(input => input.required = (venueSelect.value === '__CREATE_NEW__'));
 
@@ -316,12 +299,10 @@
             categoriesDiv.innerHTML = `<label>Categories</label><div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 p-3 rounded-md border border-gray-700">${categoryCheckboxes}</div>`;
             editFormFields.appendChild(categoriesDiv);
 
-            // Apply common styling to all input elements generated
             editFormFields.querySelectorAll('input:not([type=checkbox]):not([type=file]), textarea, select').forEach(el => el.className = 'w-full p-2 bg-gray-900/50 rounded-md border border-gray-700 text-white');
             editFormFields.querySelectorAll('label').forEach(el => el.className = 'block text-sm font-semibold mb-1 accent-color-secondary');
         }
 
-        // Handle form submission from the edit modal (now strictly for events)
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = editForm.querySelector('button[type=submit]');
@@ -330,7 +311,7 @@
 
             let venueId = null;
             const venueSelect = editFormFields.querySelector('.venue-select');
-            if (venueSelect) { // This block only runs for Events
+            if (venueSelect) {
                 venueId = venueSelect.value;
                 if (venueId === '__CREATE_NEW__') {
                     const newVenueName = editFormFields.querySelector('#new-venue-name').value;
@@ -349,7 +330,7 @@
                         });
                         const result = await response.json();
                         if (!result.success) throw new Error(result.message);
-                        venueId = result.id; // Use the ID of the newly created venue
+                        venueId = result.id;
                     } catch (error) {
                         showStatusMessage(`Error creating new venue: ${error.message}`, true);
                         submitBtn.disabled = false;
@@ -361,11 +342,11 @@
 
             const formData = new FormData(editForm);
             formData.append('id', currentItemForAction.id);
-            formData.append('type', 'Event'); // Type is always Event now
+            formData.append('type', 'Event');
 
-            if (venueId) { // For events, set the venueId
+            if (venueId) {
                 formData.set('venueId', venueId);
-            } else { // If no venue selected or new venue creation failed, remove venueId
+            } else {
                 formData.delete('venueId');
             }
             
@@ -379,7 +360,7 @@
 
                 showStatusMessage('Submission updated successfully!', false);
                 editModal.classList.add('hidden');
-                loadPendingItems(); // Refresh the list after update
+                loadPendingItems();
             } catch (error) {
                 showStatusMessage(`Error updating submission: ${error.message}`, true);
             } finally {
@@ -388,67 +369,58 @@
             }
         });
 
-        // Event handlers for Approve, Reject, Edit buttons on the approval cards
         approvalList.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) {
-                console.log('Clicked, but not a button or child of button.'); // Diagnostic
+                console.log('Clicked, but not a button or child of button.');
                 return;
             }
 
             const card = e.target.closest('.approval-card');
             if (!card) {
-                console.log('Clicked button is not within an approval card.'); // Diagnostic
+                console.log('Clicked button is not within an approval card.');
                 return;
             }
-            console.log('Button clicked:', button.dataset.action, 'on card ID:', card.dataset.id, 'type:', card.dataset.type); // Diagnostic
+            console.log('Button clicked:', button.dataset.action, 'on card ID:', card.dataset.id, 'type:', card.dataset.type);
 
-            // Fetch the entire item's data to ensure we have all fields for populateEditForm
             try {
-                // Since we only fetch Events now, simplify endpoint
-                // FIX: Ensure get-event-details takes 'id' not 'slug' for admin approval
-                const endpoint = '/.netlify/functions/get-event-details';
-                console.log(`Fetching details for ${card.dataset.type} ID: ${card.dataset.id} from ${endpoint}`); // Diagnostic
+                const endpoint = '/.netlify/functions/get-event-details-by-id'; // FIX: Use the new function for ID-based fetch
+                console.log(`Fetching details for Event ID: ${card.dataset.id} from ${endpoint}`);
                 const response = await fetch(`${endpoint}?id=${card.dataset.id}`); 
                 const fetchedItem = await response.json();
 
                 if (!response.ok || !fetchedItem || !fetchedItem.fields) {
-                    throw new Error(fetchedItem.message || 'Failed to fetch item details.');
+                    throw new Error(fetchedItem.message || 'Failed to fetch event details.');
                 }
-                // Assign the fetched item with full fields to currentItemForAction
                 currentItemForAction = {
                     id: card.dataset.id,
-                    type: 'Event', // Type is always 'Event' now as per get-pending-items.js
-                    fields: fetchedItem.fields // Use the full fields from the details endpoint
+                    type: 'Event',
+                    fields: fetchedItem.fields
                 };
-                console.log('Fetched item details:', currentItemForAction); // Diagnostic
+                console.log('Fetched item details for action:', currentItemForAction);
 
             } catch (error) {
-                console.error('Error in fetching item details:', error); // More robust error log
-                showStatusMessage(`Error loading item details for edit: ${error.message}`, true);
-                return; // Stop execution if details cannot be fetched
+                console.error('Error fetching item details:', error);
+                showStatusMessage(`Error loading item details: ${error.message}`, true);
+                return;
             }
 
-
             const action = button.dataset.action;
-            console.log('Performing action:', action); // Diagnostic
+            console.log('Performing action:', action);
 
             if (action === 'edit') {
                 populateEditForm(currentItemForAction);
                 return;
             }
 
-            // For Approve/Reject actions
             const actionStatus = action === 'approve' ? 'Approved' : 'Rejected';
             let rejectionReason = '';
 
             if (action === 'reject') {
                 rejectionModal.classList.remove('hidden');
-                // Set up handlers for rejection modal buttons
                 const handleCancelRejection = () => {
                     rejectionModal.classList.add('hidden');
                     rejectionReasonInput.value = '';
-                    // Remove listeners to prevent memory leaks and duplicate calls
                     cancelRejectionBtn.removeEventListener('click', handleCancelRejection);
                     confirmRejectionBtn.removeEventListener('click', handleConfirmRejection);
                 };
@@ -456,25 +428,19 @@
                     rejectionReason = rejectionReasonInput.value;
                     rejectionModal.classList.add('hidden');
                     rejectionReasonInput.value = '';
-                    // Remove listeners to prevent memory leaks and duplicate calls
                     cancelRejectionBtn.removeEventListener('click', handleCancelRejection);
                     confirmRejectionBtn.removeEventListener('click', handleConfirmRejection);
                     await updateItemStatus(currentItemForAction.id, currentItemForAction.type, actionStatus, rejectionReason);
                 };
-
-                // Add listeners
                 cancelRejectionBtn.addEventListener('click', handleCancelRejection);
                 confirmRejectionBtn.addEventListener('click', handleConfirmRejection);
-                // Note: Removed { once: true } as previous removal logic handles it.
-
-            } else { // It's an 'approve' action
+            } else {
                 await updateItemStatus(currentItemForAction.id, currentItemForAction.type, actionStatus);
             }
         });
 
-        // Function to send status update to Netlify Function
         async function updateItemStatus(id, type, status, rejectionReason = '') {
-            console.log(`Attempting to update status for ${type} ID: ${id} to ${status}`); // Diagnostic
+            console.log(`Attempting to update status for ${type} ID: ${id} to ${status}`);
             try {
                 const response = await fetch('/.netlify/functions/update-item-status', {
                     method: 'POST',
@@ -483,28 +449,25 @@
                 });
 
                 const result = await response.json();
-                console.log('update-item-status response:', result); // Diagnostic
+                console.log('update-item-status response:', result);
                 if (!response.ok) throw new Error(result.message || 'Server error');
 
                 showStatusMessage(`${type} ${status} successfully!`, false);
-                loadPendingItems(); // Refresh the list
+                loadPendingItems();
             } catch (error) {
-                console.error('Error in updateItemStatus:', error); // More robust error log
+                console.error('Error in updateItemStatus:', error);
                 showStatusMessage(`Error ${status} ${type}: ${error.message}`, true);
             }
         }
 
-        // --- Fetch venues and then load pending items on page load ---
         async function loadInitialData() {
             loadingState.classList.remove('hidden');
             try {
-                // Fetch venues first for the edit form dropdown (still needed for Event venue selection)
                 const venuesResponse = await fetch('/.netlify/functions/get-venue-list');
                 if (!venuesResponse.ok) throw new Error('Failed to fetch venues for dropdown.');
                 allVenues = await venuesResponse.json();
                 console.log('Venues loaded for dropdown:', allVenues.length);
 
-                // Now load the pending items (which will only be events)
                 await loadPendingItems();
             } catch (error) {
                 console.error("Error during initial data load:", error);

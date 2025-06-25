@@ -151,8 +151,7 @@
             <div id="venue-filter-bar-container" class="mb-12 flex flex-wrap items-center gap-3 md:gap-4">
                 <div class="relative w-full md:w-auto">
                     <button id="vibe-tags-btn" class="filter-button">
-                        <span>All Vibe Tags</span>
-                        <i class="fas fa-chevron-down text-xs"></i>
+                        <span>All Vibes</span> <i class="fas fa-chevron-down text-xs"></i>
                     </button>
                     <div id="vibe-tags-popover" class="popover max-h-80 overflow-y-auto">
                         <p class="text-gray-400">Loading vibe tags...</p>
@@ -204,6 +203,7 @@
     <script>
         // --- Global State ---
         let allVenues = [];
+        // Removed currentSortOrder as sorting is now implicit
         let activeVibeTagFilter = 'all';
         let activeVenueFeatureFilter = 'all';
         let activeAccessibilityFilter = 'all'; 
@@ -274,14 +274,13 @@
                 venuesToDisplay.forEach(venue => {
                     const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
                     const mediumSrc = venue.photo?.medium || placeholder;
-                    // Removed ratingStarsHtml from here as it's not displayed
                     const vibeTagsHtml = venue.vibeTags.map(tag => `<span class="category-tag">${tag}</span>`).join('');
 
                     const venueCard = `
                         <a href="/venue/${venue.slug}" class="item-card card-bg block group animate-fade-in">
                             <div class="item-card-image-container">
                                 <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
-                                </div>
+                            </div>
                             <div class="p-6">
                                 <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${venue.name}</h3>
                                 <p class="text-gray-400 h-12 overflow-hidden">${venue.description || ''}</p>
@@ -299,7 +298,8 @@
             popoverElement.innerHTML = '';
             const allButton = document.createElement('button');
             allButton.className = 'popover-option';
-            allButton.textContent = `All ${filterName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+            // Changed text here
+            allButton.textContent = `All ${filterName === 'vibes' ? 'Vibes' : filterName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`; 
             allButton.dataset.filterValue = 'all';
             popoverElement.appendChild(allButton);
 
@@ -315,16 +315,17 @@
 
         // --- Reset Filters ---
         function resetFilters() {
-            // Removed currentSortOrder reset as sorting is implicit
             activeVibeTagFilter = 'all';
             activeVenueFeatureFilter = 'all';
             activeAccessibilityFilter = 'all';
 
             // Reset UI active states/texts
             document.querySelectorAll('#venue-filter-bar-container .filter-button').forEach(btn => btn.classList.remove('active'));
-            // No specific sort button to set active
             
-            vibeTagsBtn.querySelector('span').textContent = 'All Vibe Tags';
+            // Set first active filter to 'All Vibes' (or whichever is the primary filter button)
+            vibeTagsBtn.classList.add('active'); // Assuming All Vibes is the default active state visually
+
+            vibeTagsBtn.querySelector('span').textContent = 'All Vibes'; // Changed text
             venueFeaturesBtn.querySelector('span').textContent = 'All Features';
             accessibilityBtn.querySelector('span').textContent = 'All Accessibility';
 
@@ -333,8 +334,6 @@
 
         // --- Event Listeners ---
         function setupEventListeners() {
-            // Removed sorting event listener as sorting is implicit
-
             // Popover Toggles
             vibeTagsBtn.addEventListener('click', (e) => { e.stopPropagation(); venueFeaturesPopover.classList.remove('show'); accessibilityPopover.classList.remove('show'); vibeTagsPopover.classList.toggle('show'); });
             venueFeaturesBtn.addEventListener('click', (e) => { e.stopPropagation(); vibeTagsPopover.classList.remove('show'); accessibilityPopover.classList.remove('show'); venueFeaturesPopover.classList.toggle('show'); });
@@ -379,12 +378,12 @@
                 allVenues = fetchedVenues; 
 
                 // Populate popover options dynamically
-                renderFilterOptions(allVenues.map(v => v.vibeTags), vibeTagsPopover, 'vibe-tags');
+                renderFilterOptions(allVenues.map(v => v.vibeTags), vibeTagsPopover, 'vibes'); // Changed filterName here
                 renderFilterOptions(allVenues.map(v => v.venueFeatures), venueFeaturesPopover, 'venue-features');
                 renderFilterOptions(allVenues.map(v => v.accessibilityFeatures), accessibilityPopover, 'accessibility-features');
 
                 setupEventListeners();
-                applyFiltersAndSort(); // Apply initial sort and filters
+                resetFilters(); // Initialize filters to their default state and apply
             } catch (error) {
                 console.error("Error initializing venues page:", error);
                 venueGrid.innerHTML = ''; // Clear loader

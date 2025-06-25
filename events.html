@@ -340,11 +340,12 @@
         /* Styles for the toggle switch (from design system) */
         .toggle-dot {
             transition: transform 0.2s ease-in-out;
+            /* Removed background-color here, using bg-white in HTML */
         }
-        /* When checked, make the dot move and change background */
+        /* When checked, make the dot move */
         input:checked ~ .toggle-dot {
             transform: translateX(1.5rem); /* Move 1.5rem */
-            background-color: #B564F7; /* Primary accent color for dot when active */
+            /* Removed background-color: white !important; */
         }
         /* When checked, also change the background of the track */
         input:checked ~ .block {
@@ -480,8 +481,7 @@
                     <label id="nsfw-toggle-label" for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
                         <div class="relative flex-shrink-0">
                             <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
-                            <div class="toggle-dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full"></div>
-                        </div>
+                            <div class="toggle-dot absolute left-1 top-1 w-6 h-6 rounded-full bg-white"></div> </div>
                         <span id="nsfw-mode-text-mobile" class="ml-3 text-white font-medium">SFW Mode</span>
                         <span id="nsfw-mode-text-desktop" class="ml-3 text-white font-medium">SFW Mode</span>
                     </label>
@@ -539,7 +539,7 @@
         let featuredEvents = [];
         let activeDateFilter = { type: 'all', from: null, to: null };
         let activeCategoryFilter = 'all';
-        let activeVenueFilter = 'all';
+        let activeVenueFilter = 'all'; // Added activeVenueFilter
         let isSfwMode = true; // true = SFW (hide fetish), false = NSFW (show fetish)
         let allVenuesForFilter = []; // Stores unique venues associated with events
 
@@ -557,11 +557,12 @@
         const featuredEventsSection = document.getElementById('featured-events-section');
         const slideshowContainer = document.querySelector('#featured-banner .slideshow-container');
         const slideshowDotsContainer = document.querySelector('#featured-banner .slideshow-dots');
+        // Added DOM elements for venue filter and NSFW toggle
         const venueBtn = document.getElementById('venue-btn');
         const venuePopover = document.getElementById('venue-popover');
         const nsfwToggle = document.getElementById('nsfw-toggle');
-        const nsfwModeTextMobile = document.getElementById('nsfw-mode-text-mobile'); // Get the specific span for mobile text
-        const nsfwModeTextDesktop = document.getElementById('nsfw-mode-text-desktop'); // Get the specific span for desktop text
+        const nsfwModeTextMobile = document.getElementById('nsfw-mode-text-mobile');
+        const nsfwModeTextDesktop = document.getElementById('nsfw-mode-text-desktop');
 
 
         // --- Slideshow State ---
@@ -887,7 +888,6 @@
                 
                 // Initialize NSFW toggle state and text
                 nsfwToggle.checked = isSfwMode;
-                // Update both mobile and desktop text labels
                 nsfwModeTextMobile.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
                 nsfwModeTextDesktop.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
 
@@ -910,8 +910,6 @@
 
         // Call initializePage when the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', initializePage);
-
-        // --- Removed: Duplicate Global Header and Footer Loading (as handled by main.js) ---
     </script>
     <script src="/js/main.js"></script>
 </body>

@@ -35,6 +35,134 @@ function generateStars(rating) {
     return stars;
 }
 
+// **NEW**: Helper function to get the dynamic Open/Closed status
+function getOpeningStatus(openingHoursText) {
+    if (!openingHoursText || openingHoursText === 'Not Available') {
+        return { html: '' }; // No hours, no status
+    }
+
+    const schedule = {}; // 0=Sun, 1=Mon...
+    const dayIndexes = { "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6 };
+    const dayShortNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    const lines = openingHoursText.split('<br>');
+    for (const line of lines) {
+        const parts = line.split(':');
+        if (parts.length < 2) continue;
+        const [dayPart, timePart] = parts;
+        
+        const daysToApply = [];
+        const trimmedDayPart = dayPart.trim();
+        if (trimmedDayPart.includes('-')) {
+            const [startDay, endDay] = trimmedDayPart.split('-').map(d => d.trim());
+            let current = dayIndexes[startDay];
+            let end = dayIndexes[endDay];
+            if (current === undefined || end === undefined) continue;
+            
+            while (true) {
+                daysToApply.push(current);
+                if (current === end) break;
+                current = (current + 1) % 7;
+            }
+        } else {
+             const dayIndex = dayIndexes[trimmedDayPart];
+             if (dayIndex !== undefined) daysToApply.push(dayIndex);
+        }
+
+        if (timePart.trim().toLowerCase() === 'closed') {
+            daysToApply.forEach(dayIndex => schedule[dayIndex] = { isClosed: true });
+            continue;
+        }
+        
+        const timeMatches = timePart.trim().match(/(\d{1,2}(?::\d{2})?)(am|pm)\s*-\s*(\d{1,2}(?::\d{2})?)(am|pm)/i);
+        if (!timeMatches) continue;
+
+        let [, openTimeStr, openPeriod, closeTimeStr, closePeriod] = timeMatches;
+
+        const toMinutes = (timeStr, period) => {
+            let [hour, minute] = timeStr.split(':').map(Number);
+            minute = minute || 0;
+            if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+            if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
+            return hour * 60 + minute;
+        };
+
+        const openMinutes = toMinutes(openTimeStr, openPeriod);
+        const closeMinutes = toMinutes(closeTimeStr, closePeriod);
+
+        daysToApply.forEach(dayIndex => {
+            schedule[dayIndex] = {
+                isClosed: false,
+                opens: openMinutes,
+                closes: closeMinutes,
+                openDisplay: `${openTimeStr}${openPeriod}`,
+                closeDisplay: `${closeTimeStr}${closePeriod}`
+            };
+        });
+    }
+    
+    // Now determine status
+    const now = new Date();
+    const londonTimeOpts = { timeZone: 'Europe/London' };
+    const currentDayIndex = now.getDay(); // 0 for Sunday, 1 for Monday, etc.
+    const prevDayIndex = (currentDayIndex + 6) % 7;
+    
+    const hour = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, hour: '2-digit', hour12: false }), 10);
+    const minute = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, minute: '2-digit' }), 10);
+    const currentTimeInMinutes = hour * 60 + minute;
+
+    let status = 'Closed';
+    let message = 'Currently Closed';
+    let color = 'red';
+
+    const todaySchedule = schedule[currentDayIndex];
+    const yesterdaySchedule = schedule[prevDayIndex];
+
+    // Check if still open from yesterday
+    if (yesterdaySchedule && !yesterdaySchedule.isClosed && yesterdaySchedule.closes < yesterdaySchedule.opens) {
+        if (currentTimeInMinutes < yesterdaySchedule.closes) {
+            status = 'Open';
+            message = `Open until ${yesterdaySchedule.closeDisplay}`;
+            color = 'green';
+        }
+    }
+
+    // If not open from yesterday, check today's schedule
+    if (status === 'Closed' && todaySchedule && !todaySchedule.isClosed) {
+        const opensToday = todaySchedule.opens;
+        const closesToday = todaySchedule.closes;
+
+        const isOpenNow = (closesToday > opensToday) ? // Same day closing
+            (currentTimeInMinutes >= opensToday && currentTimeInMinutes < closesToday) :
+            (currentTimeInMinutes >= opensToday); // Overnight closing
+
+        if (isOpenNow) {
+            status = 'Open';
+            message = `Open until ${todaySchedule.closeDisplay}`;
+            color = 'green';
+        } else if (currentTimeInMinutes < opensToday && (opensToday - currentTimeInMinutes <= 60)) {
+            // Check if it opens soon
+            status = 'Opens Soon';
+            message = `Opens at ${todaySchedule.openDisplay}`;
+            color = 'orange';
+        }
+    }
+    
+    const colorClasses = {
+        red: 'bg-red-500/10 text-red-400 border-red-500/30',
+        green: 'bg-green-500/10 text-green-400 border-green-500/30',
+        orange: 'bg-orange-500/10 text-orange-400 border-orange-500/30'
+    };
+
+    const statusHtml = `
+        <div class="p-3 rounded-lg border text-center ${colorClasses[color]} mb-4">
+            <p class="font-bold text-lg">${status}</p>
+            <p class="text-sm">${message}</p>
+        </div>
+    `;
+    
+    return { html: statusHtml };
+}
 
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
@@ -66,7 +194,6 @@ exports.handler = async function (event, context) {
         let googleReviewsHtml = '';
         let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
 
-
         if (GOOGLE_PLACES_API_KEY) {
             if (!placeId) {
                 const findPlaceQuery = encodeURIComponent(`${venue.Name}, ${venue.Address}`);
@@ -88,7 +215,7 @@ exports.handler = async function (event, context) {
                     const placeDetailsData = await placeDetailsResponse.json();
                     if (placeDetailsData.status === 'OK' && placeDetailsData.result) {
                         const { rating, user_ratings_total, reviews, url } = placeDetailsData.result;
-                        if(url) googleMapsUrl = url; // Use the more precise URL from Google if available
+                        if(url) googleMapsUrl = url;
 
                         if (rating) {
                             const stars = generateStars(rating);
@@ -101,7 +228,7 @@ exports.handler = async function (event, context) {
                         }
 
                         if (reviews && reviews.length > 0) {
-                            googleReviewsHtml = `
+                             googleReviewsHtml = `
                                 <div class="mt-24">
                                     <h2 class="font-anton text-5xl text-white mb-8">Recent Reviews from Google</h2>
                                     <div class="space-y-4">
@@ -170,7 +297,10 @@ exports.handler = async function (event, context) {
 
         const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
         const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
-        const openingHoursContent = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
+        const openingHoursText = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
+        const openingStatus = getOpeningStatus(openingHoursText);
+        const openingHoursContent = openingStatus.html + openingHoursText;
+        
         let accessibilityInfo = [];
         if (venue['Accessibility Rating']) accessibilityInfo.push(`<strong>Rating:</strong> ${venue['Accessibility Rating']}`);
         if (venue['Accessibility Features']) accessibilityInfo.push(`<strong>Features:</strong> ${venue['Accessibility Features'].join(', ')}`);

@@ -343,8 +343,74 @@
         }
         input:checked ~ .toggle-dot {
             transform: translateX(1.5rem); /* w-6 from toggle button parent width */
+            background-color: #B564F7; /* Accent color for active toggle dot */
+        }
+        /* When checked, also change the background of the track */
+        input:checked ~ .block {
+             background-color: #B564F7; /* Accent color for active toggle track */
         }
         /* sr-only is defined globally by Tailwind, no need to redefine */
+
+        /* Custom styles for filter bar layout */
+        /* Ensure filter buttons stretch to full width on mobile for better touch target */
+        @media (max-width: 767px) {
+            #filter-bar-container .filter-button {
+                width: 100%; /* Full width for individual filter buttons on mobile */
+                justify-content: center; /* Center text within buttons */
+            }
+            /* For popover containers, ensure they also take full width */
+            #filter-bar-container .relative {
+                width: 100%;
+            }
+            /* Adjust popover width to match full container width on mobile */
+            .popover {
+                width: calc(100% - 2rem); /* Full width minus main section padding */
+                left: 1rem; /* Adjust position to account for padding */
+                right: 1rem;
+            }
+            /* Adjust the NSFW toggle container specifically */
+            #filter-bar-container .filter-button:has(#nsfw-toggle) {
+                width: 100%;
+                justify-content: space-between; /* Keep toggle and text separated */
+            }
+            /* Hide the duplicate "SFW Mode" text */
+            #filter-bar-container .filter-button:has(#nsfw-toggle) span:nth-child(2) {
+                display: none;
+            }
+            /* Apply custom class to the visible text part of the toggle */
+            #nsfw-mode-text {
+                display: block; /* Make sure it's visible */
+                flex-grow: 1; /* Allow it to take available space */
+                text-align: right; /* Align text to the right for toggle */
+                padding-right: 0.5rem; /* Small padding */
+                white-space: nowrap; /* Prevent text from wrapping */
+                overflow: hidden; /* Hide overflow if text is too long */
+                text-overflow: ellipsis; /* Add ellipsis if text overflows */
+            }
+        }
+        /* Desktop specific layout adjustments */
+        @media (min-width: 768px) {
+            #filter-bar-container {
+                flex-wrap: nowrap; /* Prevent wrapping on desktop if possible */
+            }
+            /* Ensure popover buttons don't stretch */
+            #filter-bar-container .relative {
+                width: auto;
+            }
+            #filter-bar-container .filter-button {
+                width: auto; /* Revert to auto width on desktop */
+                justify-content: flex-start;
+            }
+            #filter-bar-container .filter-button:has(#nsfw-toggle) {
+                width: auto; /* Allow shrink-wrap */
+            }
+            #filter-bar-container .filter-button:has(#nsfw-toggle) span:nth-child(2) {
+                display: inline-block; /* Show original span on desktop */
+            }
+            #nsfw-mode-text {
+                display: none; /* Hide custom text on desktop */
+            }
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -371,8 +437,7 @@
                 <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
                 <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
 
-                <div class="relative" id="custom-date-popover-container">
-                    <button id="custom-date-btn" class="filter-button">Custom Date</button>
+                <div class="relative w-full md:w-auto"> <button id="custom-date-btn" class="filter-button">Custom Date</button>
                     <div id="custom-date-popover" class="popover">
                         <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
                         <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
@@ -381,8 +446,7 @@
                     </div>
                 </div>
 
-                <div class="relative" id="category-popover-container">
-                    <button id="category-btn" class="filter-button">
+                <div class="relative w-full md:w-auto"> <button id="category-btn" class="filter-button">
                         <span>All Categories</span>
                         <i class="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -391,8 +455,7 @@
                     </div>
                 </div>
 
-                <div class="relative" id="venue-popover-container">
-                    <button id="venue-btn" class="filter-button">
+                <div class="relative w-full md:w-auto"> <button id="venue-btn" class="filter-button">
                         <span>All Venues</span>
                         <i class="fas fa-chevron-down text-xs"></i>
                     </button>
@@ -401,12 +464,14 @@
                     </div>
                 </div>
 
-                <div class="ml-auto md:ml-0 filter-button flex items-center justify-between !p-3"> <label for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow">
-                        <div class="relative">
+                <div class="filter-button flex items-center justify-between !p-3 w-full md:w-auto ml-auto md:ml-0">
+                    <label for="nsfw-toggle" class="flex items-center cursor-pointer flex-grow justify-between">
+                        <div class="relative flex-shrink-0">
                             <input type="checkbox" id="nsfw-toggle" class="sr-only" checked> <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
                             <div class="toggle-dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full"></div>
                         </div>
-                        <span class="ml-3 text-white font-medium">SFW Mode</span>
+                        <span id="nsfw-mode-text" class="ml-3 text-white font-medium flex-grow text-right pr-2">SFW Mode</span>
+                        <span class="ml-3 text-white font-medium hidden md:inline">SFW Mode</span>
                     </label>
                 </div>
             </div>
@@ -459,12 +524,12 @@
     <script>
         // --- Global State ---
         let allEvents = [];
-        let featuredEvents = []; // New array for featured events
+        let featuredEvents = [];
         let activeDateFilter = { type: 'all', from: null, to: null };
         let activeCategoryFilter = 'all';
-        let activeVenueFilter = 'all'; // NEW: State for venue filter
-        let isSfwMode = true; // NEW: State for NSFW toggle (true = SFW, no fetish events)
-        let allVenuesForFilter = []; // NEW: Store all venues for the filter
+        let activeVenueFilter = 'all';
+        let isSfwMode = true; // true = SFW (hide fetish), false = NSFW (show fetish)
+        let allVenuesForFilter = []; // Stores unique venues associated with events
 
         // --- DOM Elements ---
         const eventGrid = document.getElementById('event-grid');
@@ -477,18 +542,16 @@
         const categoryBtn = document.getElementById('category-btn');
         const categoryPopover = document.getElementById('category-popover');
         const clearFiltersBtn = document.getElementById('clear-filters-btn');
-        // NEW: Featured section DOM elements
         const featuredEventsSection = document.getElementById('featured-events-section');
         const slideshowContainer = document.querySelector('#featured-banner .slideshow-container');
         const slideshowDotsContainer = document.querySelector('#featured-banner .slideshow-dots');
-        // NEW: Venue filter DOM elements
         const venueBtn = document.getElementById('venue-btn');
         const venuePopover = document.getElementById('venue-popover');
-        // NEW: NSFW Toggle DOM element
         const nsfwToggle = document.getElementById('nsfw-toggle');
+        const nsfwModeText = document.getElementById('nsfw-mode-text'); // Get the specific span for mobile text
 
 
-        // --- NEW: Slideshow State ---
+        // --- Slideshow State ---
         let currentSlide = 0;
         let slideshowInterval;
         const SLIDESHOW_INTERVAL_TIME = 5000; // 5 seconds
@@ -505,6 +568,7 @@
             let filteredEvents = [...allEvents];
             const today = getToday();
 
+            // Date Filters
             if (activeDateFilter.type !== 'all') {
                 filteredEvents = filteredEvents.filter(event => {
                     const eventDate = new Date(event.date);
@@ -532,16 +596,17 @@
                 });
             }
 
+            // Category Filter
             if (activeCategoryFilter !== 'all') {
                 filteredEvents = filteredEvents.filter(e => e.category && e.category.includes(activeCategoryFilter));
             }
             
-            // NEW: Apply Venue Filter
+            // Venue Filter
             if (activeVenueFilter !== 'all') {
                 filteredEvents = filteredEvents.filter(e => e.venue === activeVenueFilter);
             }
 
-            // NEW: Apply NSFW Filter
+            // NSFW Filter
             if (isSfwMode) { // If SFW mode is active, filter out 'Fetish'
                 filteredEvents = filteredEvents.filter(e => !(e.category && e.category.includes('Fetish')));
             }
@@ -559,8 +624,6 @@
                 const tagsHTML = event.category.map(cat => `<span class="category-tag">${cat}</span>`).join('');
                 const imageUrl = event.image || 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
 
-                // Determine if the event is boosted based on its data
-                // This 'isBoosted' property should come from your Netlify function
                 const isBoosted = event.isBoosted;
 
                 const eventCard = `
@@ -623,16 +686,21 @@
         function resetFilters() {
             activeDateFilter = { type: 'all', from: null, to: null };
             activeCategoryFilter = 'all';
-            activeVenueFilter = 'all'; // NEW: Reset venue filter
-            isSfwMode = true; // NEW: Reset NSFW toggle to SFW
+            activeVenueFilter = 'all'; // Reset venue filter
+            isSfwMode = true; // Reset NSFW toggle to SFW
 
-            document.querySelectorAll('#filter-bar-container .filter-button').forEach(b => b.classList.remove('active'));
-            document.querySelector('#filter-bar-container .filter-button[data-filter-value="all"][data-filter-type="date"]').classList.add('active'); // Reset date filter active state
+            // Reset active states for date filter buttons
+            document.querySelectorAll('#filter-bar-container .filter-button[data-filter-type="date"]').forEach(b => b.classList.remove('active'));
+            document.querySelector('#filter-bar-container .filter-button[data-filter-value="all"][data-filter-type="date"]').classList.add('active');
             
+            // Reset popover button texts
             categoryBtn.querySelector('span').textContent = 'All Categories';
-            venueBtn.querySelector('span').textContent = 'All Venues'; // NEW: Reset venue button text
-            nsfwToggle.checked = true; // NEW: Reset NSFW toggle state
-            nsfwToggle.nextElementSibling.textContent = 'SFW Mode'; // Update text visually
+            venueBtn.querySelector('span').textContent = 'All Venues';
+            
+            // Reset NSFW toggle state and text
+            nsfwToggle.checked = true;
+            nsfwModeText.textContent = 'SFW Mode'; // Update mobile text
+            nsfwToggle.nextElementSibling.textContent = 'SFW Mode'; // Update desktop text
 
             dateFromInput.value = '';
             dateToInput.value = '';
@@ -701,7 +769,8 @@
             // NEW: NSFW Toggle Event Listener
             nsfwToggle.addEventListener('change', () => {
                 isSfwMode = nsfwToggle.checked;
-                nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
+                nsfwModeText.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update mobile text
+                nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode'; // Update desktop text
                 applyFilters();
             });
 
@@ -806,6 +875,8 @@
                 
                 // Initialize NSFW toggle state and text
                 nsfwToggle.checked = isSfwMode;
+                // Update both mobile and desktop text labels
+                nsfwModeText.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
                 nsfwToggle.nextElementSibling.textContent = isSfwMode ? 'SFW Mode' : 'NSFW Mode';
 
 
@@ -820,7 +891,7 @@
                 setupEventListeners();
                 applyFilters(); // Apply initial filters after all data is loaded and setup
             } catch (error) {
-                console.error("Error fetching events and venues:", error);
+                console.error("Error fetching events:", error);
                 eventGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load events.</p>';
             }
         }

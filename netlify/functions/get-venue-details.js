@@ -23,6 +23,19 @@ function createSidebarSection(title, content, iconClass) {
     `;
 }
 
+// Helper function to generate star rating HTML
+function generateStars(rating) {
+    let stars = '';
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5;
+    for (let i = 0; i < fullStars; i++) stars += '<i class="fas fa-star text-yellow-400"></i>';
+    if (halfStar) stars += '<i class="fas fa-star-half-alt text-yellow-400"></i>';
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+    for (let i = 0; i < emptyStars; i++) stars += '<i class="far fa-star text-yellow-400"></i>';
+    return stars;
+}
+
+
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
     if (!slug) { return { statusCode: 400, body: 'Venue slug not provided.' }; }
@@ -51,6 +64,8 @@ exports.handler = async function (event, context) {
         let placeId = venue['Google Place ID'];
         let googleRatingHtml = '';
         let googleReviewsHtml = '';
+        let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
+
 
         if (GOOGLE_PLACES_API_KEY) {
             if (!placeId) {
@@ -72,21 +87,15 @@ exports.handler = async function (event, context) {
                     const placeDetailsResponse = await fetch(placeDetailsUrl);
                     const placeDetailsData = await placeDetailsResponse.json();
                     if (placeDetailsData.status === 'OK' && placeDetailsData.result) {
-                        const { rating, user_ratings_total, reviews, url: googleMapsUrl } = placeDetailsData.result;
+                        const { rating, user_ratings_total, reviews, url } = placeDetailsData.result;
+                        if(url) googleMapsUrl = url; // Use the more precise URL from Google if available
 
                         if (rating) {
-                            let stars = '';
-                            const fullStars = Math.floor(rating);
-                            const halfStar = rating % 1 >= 0.5;
-                            for (let i = 0; i < fullStars; i++) stars += '<i class="fas fa-star text-yellow-400"></i>';
-                            if (halfStar) stars += '<i class="fas fa-star-half-alt text-yellow-400"></i>';
-                            const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
-                            for (let i = 0; i < emptyStars; i++) stars += '<i class="far fa-star text-yellow-400"></i>';
-                            
+                            const stars = generateStars(rating);
                             googleRatingHtml = createSidebarSection(
                                 'Google Rating',
                                 `<div class="flex items-center space-x-2 text-xl"><div>${stars}</div><p class="text-white font-semibold">${rating} <span class="text-gray-400">(${user_ratings_total})</span></p></div>
-                                 ${googleMapsUrl ? `<a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline text-sm mt-1 block">View on Google Maps</a>` : ''}`,
+                                 <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline text-sm mt-1 block">View on Google Maps</a>`,
                                 'fab fa-google'
                             );
                         }
@@ -96,14 +105,25 @@ exports.handler = async function (event, context) {
                                 <div class="mt-24">
                                     <h2 class="font-anton text-5xl text-white mb-8">Recent Reviews from Google</h2>
                                     <div class="space-y-4">
-                                        ${reviews.slice(0, 3).map(review => `
+                                        ${reviews.slice(0, 3).map(review => {
+                                            const reviewStars = generateStars(review.rating);
+                                            let reviewText = review.text;
+                                            let readMoreLink = '';
+                                            if (reviewText.length > 280) {
+                                                reviewText = reviewText.substring(0, 280) + '...';
+                                                readMoreLink = `<a href="${googleMapsUrl}" target="_blank" class="text-blue-400 hover:underline text-xs">Read more on Google</a>`;
+                                            }
+
+                                            return `
                                             <div class="card-bg p-4 space-y-2">
                                                 <div class="flex items-center justify-between">
                                                     <p class="font-semibold text-white">${review.author_name}</p>
+                                                    <div class="text-xs">${reviewStars}</div>
                                                 </div>
-                                                <p class="text-gray-300 text-sm">${review.text}</p>
+                                                <p class="text-gray-300 text-sm">${reviewText}</p>
+                                                ${readMoreLink}
                                             </div>
-                                        `).join('')}
+                                        `}).join('')}
                                         <div class="mt-8 text-center">
                                             <img src="https://www.gstatic.com/marketing-cms/assets/images/c5/3a/200414104c669203c62270f7884f/google-wordmarks-2x.webp" alt="Powered by Google" style="max-width:120px; height: auto; margin: 0 auto;">
                                         </div>
@@ -116,11 +136,10 @@ exports.handler = async function (event, context) {
             }
         }
         
-        // --- RESTORED WORKING EVENT FETCHING LOGIC ---
         const eventRecords = await base('Events').select({
             filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()))`,
             sort: [{ field: 'Date', direction: 'asc' }],
-            fields: ['Event Name', 'Date', 'Slug'] // Only fetch fields needed for the list
+            fields: ['Event Name', 'Date', 'Slug'] 
         }).all();
 
         const upcomingEventsHtml = eventRecords.length > 0 ? eventRecords.map(record => {
@@ -149,7 +168,6 @@ exports.handler = async function (event, context) {
             ${photos.slice(1).map(p => `<a href="${p.url}" target="_blank"><img src="${p.thumbnails.large.url}" alt="${venue.Name} Photo" class="w-full h-full aspect-square object-cover rounded-lg shadow-md hover:opacity-80 transition-opacity"></a>`).join('')}
             </div></div>` : '';
 
-        // Prepare data for sidebar
         const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
         const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
         const openingHoursContent = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
@@ -190,7 +208,7 @@ exports.handler = async function (event, context) {
                                 <h3 class="font-bold text-lg accent-color-secondary mb-2">The Vibe</h3>
                                 <p class="text-gray-300 text-base">${venue.Description || 'Info coming soon.'}</p>
                             </div>
-                            ${createSidebarSection('Address', `${venue.Address}<br><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Address)}" target="_blank" class="text-sm text-accent-color hover:underline">Get Directions</a>`, 'fa-solid fa-map-location-dot')}
+                            ${createSidebarSection('Address', `${venue.Address}<br><a href="${googleMapsUrl}" target="_blank" class="text-sm text-accent-color hover:underline">Get Directions</a>`, 'fa-solid fa-map-location-dot')}
                             ${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}
                             ${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}
                             ${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}

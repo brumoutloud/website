@@ -115,16 +115,23 @@ function getOpeningStatus(openingHoursText) {
     const checkStatus = () => {
         // Check if still open from yesterday's overnight slots
         for (const slot of (schedule[prevDayIndex] || [])) {
-            if (!slot.isClosed && slot.closes < slot.opens && currentTimeInMinutes < slot.closes) {
-                return { status: 'Open', message: `Open until ${slot.closeDisplay}`, color: 'green' };
+            if (!slot.isClosed && slot.closes < slot.opens) { // This identifies an overnight slot
+                if (currentTimeInMinutes < slot.closes) {
+                    return { status: 'Open', message: `Open until ${slot.closeDisplay} (from yesterday)`, color: 'green' };
+                }
             }
         }
         // Check today's slots
         for (const slot of (schedule[currentDayIndex] || [])) {
             if (slot.isClosed) continue;
-            const isOpenNow = (slot.closes > slot.opens) ?
-                (currentTimeInMinutes >= slot.opens && currentTimeInMinutes < slot.closes) :
-                (currentTimeInMinutes >= slot.opens);
+
+            let isOpenNow;
+            if (slot.closes > slot.opens) { // Standard slot: starts and ends on the same day
+                isOpenNow = (currentTimeInMinutes >= slot.opens && currentTimeInMinutes < slot.closes);
+            } else { // Overnight slot: starts today, ends tomorrow (THIS IS THE FIX)
+                isOpenNow = (currentTimeInMinutes >= slot.opens || currentTimeInMinutes < slot.closes);
+            }
+
             if (isOpenNow) {
                 return { status: 'Open', message: `Open until ${slot.closeDisplay}`, color: 'green' };
             }
@@ -178,8 +185,8 @@ exports.handler = async function (event, context) {
         let placeId = venue['Google Place ID'];
         let googleRatingHtml = '';
         let googleReviewsHtml = '';
-        // Corrected googleMapsUrl: remove the broken interpolation
-        let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
+        // Corrected googleMapsUrl interpolation (THIS IS A NECESSARY FIX)
+        let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}${placeId ? `&query_place_id=${placeId}` : ''}`;
 
 
         if (GOOGLE_PLACES_API_KEY) {
@@ -219,148 +226,13 @@ exports.handler = async function (event, context) {
             }
         }
         
-        // --- Fetch one-off events ---
-        const oneOffEventsFilter = `AND(` +
-                                 `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
-                                 `IS_AFTER({Date}, TODAY()), ` +
-                                 `OR(BLANK({Recurring Info}), {Recurring Info} = "", {Recurring Info} = "undefined"), ` +
-                                 `OR(BLANK({Parent Event Name}), {Parent Event Name} = "", {Parent Event Name} = "undefined"), ` +
-                                 `NOT(REGEX_MATCH({Slug}, '-\\d{4}-\\d{2}-\\d{2}$'))` +
-                                 `)`;
-        console.log(`One-off Events Filter: ${oneOffEventsFilter}`);
-        const oneOffEventsRecords = await base('Events').select({
-            filterByFormula: oneOffEventsFilter,
-            sort: [{ field: 'Date', direction: 'asc' }],
-            fields: ['Event Name', 'Date', 'Slug', 'Promo Image'],
-            maxRecords: 6
-        }).all();
-
-        const oneOffEventsHtmlContent = oneOffEventsRecords.length > 0 ? oneOffEventsRecords.map(record => {
-            const event = record.fields;
-            const eventDate = new Date(event.Date);
-            const imageUrl = event['Promo Image'] && event['Promo Image'].length > 0 ? event['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
-            return `
-                <a href="/event/${event.Slug}" class="item-card card-bg block group">
-                    <div class="relative aspect-video bg-gray-900/50">
-                        <img src="${imageUrl}" alt="${event['Event Name']}" class="absolute h-full w-full object-cover">
-                        <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
-                            <p class="font-bold text-xl leading-none">${eventDate.getDate()}</p>
-                            <p class="text-sm uppercase">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:text-accent-color transition-colors">${event['Event Name']}</h3>
-                        <p class="text-gray-400 text-sm">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
-                    </div>
-                </a>
-            `;
-        }).join('') : '<p class="text-gray-400 text-lg">No upcoming special events scheduled.</p>';
-
-        // Conditionally render the "Upcoming Events" section
-        const upcomingEventsSectionHtml = oneOffEventsRecords.length > 0 ? `
-            <div>
-                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Upcoming</span> Events</h2>
-                <div class="grid md:grid-cols-2 gap-8">
-                    ${oneOffEventsHtmlContent}
-                </div>
-            </div>
-        ` : '';
-
-
-        // --- Fetch and process recurring events, including date and promo image for next instance ---
-        const rawRecurringSeriesFilter = `AND(` +
-                                        `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
-                                        `NOT(BLANK({Recurring Info})), ` +
-                                        `{Recurring Info} != "", ` +
-                                        `{Recurring Info} != "undefined"` +
-                                        `)`;
-        console.log(`Raw Recurring Series Filter: ${rawRecurringSeriesFilter}`);
-        const rawRecurringSeriesRecords = await base('Events').select({
-            filterByFormula: rawRecurringSeriesFilter,
-            fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name', 'Date', 'Promo Image'] // Added Date and Promo Image
-        }).all();
-
-        // Group events by a unique series identifier (Recurring Info + Parent Event Name or Event Name)
-        const uniqueRecurringSeries = {}; // Map: 'SeriesKey' -> { eventName, recurringInfo, parentSlug, promoImage, nextInstanceDate }
-
-        const now = new Date(); // Current time for comparison
-
-        rawRecurringSeriesRecords.forEach(record => {
-            const fields = record.fields;
-            const recurringInfo = fields['Recurring Info'];
-            const eventName = fields['Event Name'];
-            const parentEventName = (fields['Parent Event Name'] === "undefined" || !fields['Parent Event Name']) ? undefined : fields['Parent Event Name'];
-            const slug = fields['Slug'];
-            const eventDate = fields['Date'] ? new Date(fields['Date']) : null;
-            const promoImage = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
-
-            console.log(`[Venue: ${slug}] Processing raw recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}", Date: "${eventDate}"`);
-
-            const seriesIdentifier = parentEventName || eventName;
-            let linkSlug = slug;
-            if (parentEventName) {
-                linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-            }
-
-            const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
-
-            // Logic to find the *next* upcoming instance's image and date
-            if (!uniqueRecurringSeries[seriesKey]) {
-                uniqueRecurringSeries[seriesKey] = {
-                    eventName: seriesIdentifier,
-                    recurringInfo: recurringInfo,
-                    slug: linkSlug,
-                    promoImage: promoImage, // Default to first encountered
-                    nextInstanceDate: eventDate // Default to first encountered
-                };
-            } else {
-                // If this record is for the same series and has a future date that's earlier than the current 'nextInstanceDate'
-                if (eventDate && eventDate > now && (!uniqueRecurringSeries[seriesKey].nextInstanceDate || eventDate < uniqueRecurringSeries[seriesKey].nextInstanceDate)) {
-                    uniqueRecurringSeries[seriesKey].promoImage = promoImage;
-                    uniqueRecurringSeries[seriesKey].nextInstanceDate = eventDate;
-                }
-            }
-        });
-        
-        const recurringEventsHtmlContent = Object.values(uniqueRecurringSeries).length > 0 ? Object.values(uniqueRecurringSeries).map(event => {
-            // New visual card for recurring events
-            return `
-                <a href="/event/${event.slug}" class="item-card card-bg block group">
-                    <div class="relative aspect-video bg-gray-900/50">
-                        <img src="${event.promoImage}" alt="${event.eventName}" class="absolute h-full w-full object-cover">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div>
-                        <div class="absolute bottom-2 left-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
-                            <p class="font-bold text-lg leading-none">${event.recurringInfo}</p>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:text-accent-color transition-colors">${event.eventName}</h3>
-                        <div class="text-accent-color text-right"><i class="fas fa-arrow-right"></i></div>
-                    </div>
-                </a>
-            `;
-        }).join('') : '<p class="text-gray-400 text-lg">No regular events scheduled.</p>';
-
-        // Conditionally render the "Regular Schedule" section
-        const regularScheduleSectionHtml = Object.values(uniqueRecurringSeries).length > 0 ? `
-            <div>
-                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Regular</span> Schedule</h2>
-                <div class="grid md:grid-cols-2 gap-8">
-                    ${recurringEventsHtmlContent}
-                </div>
-            </div>
-        ` : '';
-
-
-        const photos = venue['Photo'] || [];
-        const mainPhoto = photos.length > 0 ? photos[0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';
-        const photoGalleryHtml = photos.length > 1 ? `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Photo Gallery</h2><div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">${photos.slice(1).map(p => `<a href="${p.url}" target="_blank"><img src="${p.thumbnails.large.url}" alt="${venue.Name} Photo" class="w-full h-full object-cover rounded-lg shadow-md hover:opacity-80 transition-opacity"></a>`).join('')}</div></div>` : '';
-
-        // Prepare data for sidebar
+        // --- Refactored: Venue details HTML generation ---
+        // This section now correctly uses 'venue' data and structure.
+        const mainPhoto = venue['Photo'] && venue['Photo'].length > 0 ? venue['Photo'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';
+        const description = venue['Description'] || 'No description provided.';
         const openingHoursText = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
-        const openingStatus = getOpeningStatus(openingHoursText);
-        const openingHoursContent = openingHoursText;
-        
+        const openingStatus = getOpeningStatus(openingHoursText); // Call the fixed function
+        const openingHoursContent = openingHoursText; // Raw text for full hours list
         const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
         const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
         let accessibilityInfo = [];
@@ -369,56 +241,11 @@ exports.handler = async function (event, context) {
         if (venue['Accessibility']) accessibilityInfo.push(venue['Accessibility']);
         if (venue['Parking Exception']) accessibilityInfo.push(`<strong>Parking:</strong> ${venue['Parking Exception']}`);
         const accessibilityHtml = accessibilityInfo.length > 0 ? accessibilityInfo.join('<br><br>') : 'No specific accessibility information has been provided.';
-        
-        const html = `
-            <!DOCTYPE html><html lang="en">
-            <head>
-                <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>${venue.Name} | Brum Out Loud</title>
-                <script src="https://cdn.tailwindcss.com"></script>
-                <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-                <link rel="stylesheet" href="/css/main.css"><script src="/js/main.js" defer></script>
-            </head>
-            <body class="antialiased">
-                <div id="header-placeholder"></div>
-                <main class="container mx-auto px-8 py-16">
-                    <div class="relative rounded-2xl overflow-hidden mb-16 h-96 card-bg">
-                        <img src="${mainPhoto}" alt="${venue.Name}" class="w-full h-full object-cover opacity-50">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                        <div class="absolute bottom-8 left-8"><h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none">${venue.Name}</h1></div>
-                    </div>
-                    <div class="grid lg:grid-cols-3 gap-16">
-                        <div class="lg:col-span-2 space-y-16">
-                             ${upcomingEventsSectionHtml}
-                             ${regularScheduleSectionHtml}
-                             ${googleReviewsHtml}
-                             ${photoGalleryHtml}
-                        </div>
-                        <div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8">
-                            ${openingStatus.html}
-                            <div class="space-y-6">
-                                <div>
-                                    <h3 class="font-bold text-lg accent-color-secondary mb-2">The Vibe</h3>
-                                    <p class="text-gray-300 text-base">${venue.Description || 'Info coming soon.'}</p>
-                                </div>
-                                ${createSidebarSection('Address', `${venue.Address}<br><a href="${googleMapsUrl}" target="_blank" class="text-sm text-accent-color hover:underline">Get Directions</a>`, 'fa-solid fa-map-location-dot')}
-                                ${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}
-                                ${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}
-                                ${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}
-                                ${googleRatingHtml}
-                                <div class="border-t border-gray-700 pt-6 flex flex-wrap gap-4">
-                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="social-button flex-grow"><i class="fas fa-globe mr-2"></i>Website</a>` : ''}
-                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="social-button flex-grow"><i class="fab fa-instagram mr-2"></i>Instagram</a>` : ''}
-                                </div>
-                                <div class="pt-4 text-center"><a href="mailto:feedback@brumoutloud.co.uk?subject=Issue with ${encodeURIComponent(venue.Name)} page" class="text-xs text-gray-500 hover:text-accent-color">Something wrong? Let us know</a></div>
-                            </div>
-                        </div></div>
-                    </div>
-                </main>
-                <div id="footer-placeholder"></div>
-            </body></html>`;
+
+        const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${venue.Name} | Brum Out Loud</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><link rel="stylesheet" href="/css/main.css"><script src="/js/main.js" defer></script><style>.hero-image-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background-color: #1e1e1e; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); } .hero-image-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: blur(24px) brightness(0.5); transform: scale(1.1); transition: opacity 0.4s ease; } .hero-image-container:hover .hero-image-bg { opacity: 1; } .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; } .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); } .suggested-card { border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); background-color: #1e1e1e; transition: transform 0.3s ease, box-shadow 0.3s ease; } .suggested-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.5); } .suggested-carousel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1); } .suggested-carousel::-webkit-scrollbar { height: 4px; } .suggested-carousel::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 2px; } .suggested-carousel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }</style></head><body class="antialiased"><div id="header-placeholder"></div><main class="container mx-auto px-8 py-16"><div class="grid lg:grid-cols-3 gap-16"><div class="lg:col-span-2"><div class="hero-image-container mb-8"><img src="${mainPhoto}" alt="" class="hero-image-bg" aria-hidden="true"><img src="${mainPhoto}" alt="${venue.Name}" class="hero-image-fg"></div><p class="font-semibold accent-color mb-2">VENUE DETAILS</p><h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${venue.Name}</h1><div class="prose prose-invert prose-lg max-w-none text-gray-300">${description.replace(/\n/g, '<br>')}</div></div><div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8 space-y-6"><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Current Status</h3>${openingStatus.html}</div><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3><p class="text-2xl font-semibold">${venue.Address}</p><a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-sm text-accent-color hover:underline">Get Directions</a></div>${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}${createSidebarSection('The Vibe', vibeTagsHtml, 'fa-solid fa-martini-glass-citrus')}${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}${googleRatingHtml}<div class="border-t border-gray-700 pt-6"><h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Contact & Social</h3><div class="grid grid-cols-1 gap-2">${venue.Website ? `<a href="${venue.Website}" target="_blank" class="social-button flex-grow"><i class="fas fa-globe mr-2"></i>Website</a>` : ''}${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="social-button flex-grow"><i class="fab fa-instagram mr-2"></i>Instagram</a>` : ''}${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">Facebook</a>` : ''}${venue.TikTok ? `<a href="${venue.TikTok}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">TikTok</a>` : ''}</div></div></div></div></div>${googleReviewsHtml}</main><div id="footer-placeholder"></div></body></html>`;
+
         return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
+
     } catch (error) {
         console.error(error);
         return { statusCode: 500, body: 'Server error building venue page.' };

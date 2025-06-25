@@ -27,7 +27,10 @@ exports.handler = async (event, context) => {
             ]
         }).all();
         
-        const events = allRecords.map((record) => {
+        const events = [];
+        const uniqueVenues = new Map(); // To store unique venue names and a placeholder ID if needed
+
+        allRecords.forEach((record) => {
             const fields = record.fields;
             let isFeatured = false;
             let isBoosted = false;
@@ -45,27 +48,35 @@ exports.handler = async (event, context) => {
             }
 
             const promoImage = fields['Promo Image'] && fields['Promo Image'][0] ? fields['Promo Image'][0] : null;
+            const venueName = (fields['Venue Name'] ? fields['Venue Name'][0] : fields['VenueText']) || 'TBC';
 
-            return {
+            events.push({
                 id: record.id,
                 name: fields['Event Name'],
                 description: fields['Description'],
                 date: fields['Date'],
-                venue: (fields['Venue Name'] ? fields['Venue Name'][0] : fields['VenueText']) || 'TBC',
+                venue: venueName, // Use the resolved venue name
                 image: promoImage ? promoImage.url : null,
-                // Add image dimensions for adaptive layout
                 imageWidth: promoImage?.width,
                 imageHeight: promoImage?.height,
                 slug: fields['Slug'] || `#event-${record.id}`,
                 category: fields['Category'] || [],
                 isFeatured: isFeatured,
                 isBoosted: isBoosted
-            };
+            });
+
+            // Populate uniqueVenues map only with venues that have associated events
+            if (venueName && !uniqueVenues.has(venueName)) {
+                uniqueVenues.set(venueName, { id: venueName, name: venueName }); // Using name as ID for client-side filter
+            }
         });
         
+        // Convert map values to an array for the response
+        const venues = Array.from(uniqueVenues.values());
+
         return {
             statusCode: 200,
-            body: JSON.stringify(events),
+            body: JSON.stringify({ events: events, venues: venues }), // Return both events and venues
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         };
 
@@ -73,7 +84,7 @@ exports.handler = async (event, context) => {
         console.error("Error in get-events function:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Failed to fetch events', details: error.message }),
+            body: JSON.stringify({ error: 'Failed to fetch events and venues', details: error.message }),
         };
     }
 };

@@ -176,6 +176,24 @@ exports.handler = async function (event, context) {
       <body class="antialiased">
         <div id="header-placeholder"></div>
         <main class="container mx-auto px-8 py-16">
+            <!-- Breadcrumb Start -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a href="/events" class="text-sm font-medium text-gray-400 hover:text-white">Events</a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right fa-xs text-gray-500 flex-shrink-0" aria-hidden="true"></i>
+                            <span aria-current="page" class="ml-4 text-sm font-medium text-white">
+                                ${eventName}
+                            </span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            <!-- Breadcrumb End -->
+
             <div class="grid lg:grid-cols-3 gap-16">
                 <div class="lg:col-span-2">
                      <div class="hero-image-container mb-8">

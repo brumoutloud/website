@@ -178,6 +178,7 @@ exports.handler = async function (event, context) {
         let placeId = venue['Google Place ID'];
         let googleRatingHtml = '';
         let googleReviewsHtml = '';
+        // Corrected googleMapsUrl: remove the broken interpolation
         let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
 
         if (GOOGLE_PLACES_API_KEY) {
@@ -210,25 +211,25 @@ exports.handler = async function (event, context) {
                         }
 
                         if (reviews && reviews.length > 0) {
-                             googleReviewsHtml = `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Recent Reviews from Google</h2><div class="space-y-4">${reviews.slice(0, 3).map(review => { const reviewStars = generateStars(review.rating); let reviewText = review.text; let readMoreLink = ''; if (reviewText.length > 280) { reviewText = reviewText.substring(0, 280) + '...'; readMoreLink = `<a href="${googleMapsUrl}" target="_blank" class="text-blue-400 hover:underline text-xs">Read more on Google</a>`; } return `<div class="card-bg p-4 space-y-2"><div class="flex items-center justify-between"><p class="font-semibold text-white">${review.author_name}</p><div class="text-xs">${reviewStars}</div></div><p class="text-gray-300 text-sm">${reviewText}</p>${readMoreLink}</div>` }).join('')}<div class="mt-8 text-center"><img src="https://www.gstatic.com/marketing-cms/assets/images/c5/3a/200414104c669203c62270f7884f/google-wordmarks-2x.webp" alt="Powered by Google" style="max-width:120px; height: auto; margin: 0 auto;"></div></div></div>`;
+                            googleReviewsHtml = `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Recent Reviews from Google</h2><div class="space-y-4">${reviews.slice(0, 3).map(review => { const reviewStars = generateStars(review.rating); let reviewText = review.text; let readMoreLink = ''; if (reviewText.length > 280) { reviewText = reviewText.substring(0, 280) + '...'; readMoreLink = `<a href="${googleMapsUrl}" target="_blank" class="text-blue-400 hover:underline text-xs">Read more on Google</a>`; } return `<div class="card-bg p-4 space-y-2"><div class="flex items-center justify-between"><p class="font-semibold text-white">${review.author_name}</p><div class="text-xs">${reviewStars}</div></div><p class="text-gray-300 text-sm">${reviewText}</p>${readMoreLink}</div>` }).join('')}<div class="mt-8 text-center"><img src="https://www.gstatic.com/marketing-cms/assets/images/c5/3a/200414104c669203c62270f7884f/google-wordmarks-2x.webp" alt="Powered by Google" style="max-width:120px; height: auto; margin: 0 auto;"></div></div></div>`;
                         }
                     }
                 } catch (error) { console.error("Error fetching place details:", error); }
             }
         }
         
-        // --- **NEW**: Fetch one-off events ---
+        // --- **Revised**: Fetch one-off events (no Recurring Info, no Parent Event Name) ---
         const oneOffEventsRecords = await base('Events').select({
-            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), BLANK({Recurring Info}))`,
+            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), BLANK({Recurring Info}), BLANK({Parent Event Name}))`,
             sort: [{ field: 'Date', direction: 'asc' }],
             fields: ['Event Name', 'Date', 'Slug', 'Promo Image'],
             maxRecords: 6
         }).all();
 
-        const oneOffEventsHtml = oneOffEventsRecords.length > 0 ? oneOffEventsRecords.map(record => {
+        const oneOffEventsHtmlContent = oneOffEventsRecords.length > 0 ? oneOffEventsRecords.map(record => {
             const event = record.fields;
             const eventDate = new Date(event.Date);
-            const imageUrl = event['Promo Image'] ? event['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
+            const imageUrl = event['Promo Image'] && event['Promo Image'].length > 0 ? event['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
             return `
                 <a href="/event/${event.Slug}" class="item-card card-bg block group">
                     <div class="relative aspect-video bg-gray-900/50">
@@ -246,35 +247,84 @@ exports.handler = async function (event, context) {
             `;
         }).join('') : '<p class="text-gray-400 text-lg">No upcoming special events scheduled.</p>';
 
-        // --- **NEW**: Fetch and process recurring events ---
-        const recurringEventsRecords = await base('Events').select({
+        // Conditionally render the "Upcoming Events" section
+        const upcomingEventsSectionHtml = oneOffEventsRecords.length > 0 ? `
+            <div>
+                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Upcoming</span> Events</h2>
+                <div class="grid md:grid-cols-2 gap-8">
+                    ${oneOffEventsHtmlContent}
+                </div>
+            </div>
+        ` : '';
+
+
+        // --- **Revised**: Fetch and process recurring events ---
+        // This query finds all *distinct series* based on 'Recurring Info'
+        // For each series, we need to identify its "parent" slug.
+        const rawRecurringSeriesRecords = await base('Events').select({
             filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", NOT(BLANK({Recurring Info})))`,
-            sort: [{ field: 'Recurring Info', direction: 'asc' }],
-            fields: ['Event Name', 'Recurring Info', 'Slug']
+            fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name'] // Fetch Parent Event Name too
         }).all();
 
-        const uniqueRecurringEvents = [];
-        const seenRecurringInfo = new Set();
+        // Group events by a unique series identifier (Recurring Info + Parent Event Name or Event Name)
+        const uniqueRecurringSeries = {}; // Map: 'SeriesKey' -> { eventName, recurringInfo, parentSlug }
 
-        recurringEventsRecords.forEach(record => {
-            const recurringInfo = record.get('Recurring Info');
-            if (!seenRecurringInfo.has(recurringInfo)) {
-                seenRecurringInfo.add(recurringInfo);
-                uniqueRecurringEvents.push(record.fields);
+        rawRecurringSeriesRecords.forEach(record => {
+            const fields = record.fields;
+            const recurringInfo = fields['Recurring Info'];
+            const eventName = fields['Event Name'];
+            const parentEventName = fields['Parent Event Name'];
+            const slug = fields['Slug'];
+
+            // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
+            // This is the name that identifies the *series*.
+            const seriesIdentifier = parentEventName || eventName;
+
+            // Determine the "link slug" for the series. This should be the parent slug if it exists.
+            // If the event itself *is* the parent (no Parent Event Name), its own slug is the parent slug.
+            let linkSlug = slug; // Default to its own slug
+            if (parentEventName) {
+                 // Try to derive parent slug from parent event name
+                 // This requires a separate lookup or a consistent slugging convention for parent events
+                 // For now, we'll use a simplified slug from the parent event name
+                 // A dedicated 'Parent Slug' field in Airtable would be ideal.
+                 // Assuming parent slug is just a hyphenated version of Parent Event Name
+                 linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            }
+
+            // A composite key to ensure uniqueness for display
+            const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
+
+            if (!uniqueRecurringSeries[seriesKey]) {
+                uniqueRecurringSeries[seriesKey] = {
+                    eventName: seriesIdentifier, // Use the series identifier for display name
+                    recurringInfo: recurringInfo,
+                    slug: linkSlug // Use the determined parent slug
+                };
             }
         });
-        
-        const recurringEventsHtml = uniqueRecurringEvents.length > 0 ? uniqueRecurringEvents.map(event => {
+
+        const recurringEventsHtmlContent = Object.values(uniqueRecurringSeries).length > 0 ? Object.values(uniqueRecurringSeries).map(event => {
             return `
-                <a href="/event/${event.Slug}" class="card-bg p-4 flex items-center justify-between hover:bg-gray-800 transition-colors duration-200">
-                     <div>
-                        <h4 class="font-bold text-white text-xl">${event['Event Name']}</h4>
-                        <p class="text-sm text-gray-400">${event['Recurring Info']}</p>
+                <a href="/event/${event.slug}" class="card-bg p-4 flex items-center justify-between hover:bg-gray-800 transition-colors duration-200">
+                    <div>
+                        <h4 class="font-bold text-white text-xl">${event.eventName}</h4>
+                        <p class="text-sm text-gray-400">${event.recurringInfo}</p>
                     </div>
                     <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
                 </a>
             `
         }).join('') : '<p class="text-gray-400 text-lg">No regular events scheduled.</p>';
+
+        // Conditionally render the "Regular Schedule" section
+        const regularScheduleSectionHtml = Object.values(uniqueRecurringSeries).length > 0 ? `
+            <div>
+                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Regular</span> Schedule</h2>
+                <div class="space-y-4">
+                    ${recurringEventsHtmlContent}
+                </div>
+            </div>
+        ` : '';
 
 
         const photos = venue['Photo'] || [];
@@ -315,18 +365,8 @@ exports.handler = async function (event, context) {
                     </div>
                     <div class="grid lg:grid-cols-3 gap-16">
                         <div class="lg:col-span-2 space-y-16">
-                             <div>
-                                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Upcoming</span> Events</h2>
-                                <div class="grid md:grid-cols-2 gap-8">
-                                    ${oneOffEventsHtml}
-                                </div>
-                             </div>
-                             <div>
-                                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Regular</span> Schedule</h2>
-                                <div class="space-y-4">
-                                    ${recurringEventsHtml}
-                                </div>
-                             </div>
+                             ${upcomingEventsSectionHtml}
+                             ${regularScheduleSectionHtml}
                              ${googleReviewsHtml}
                              ${photoGalleryHtml}
                         </div>

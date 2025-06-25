@@ -53,7 +53,7 @@ function getOpeningStatus(openingHoursText) {
         let [hour, minute] = timeStr.split(':').map(Number);
         minute = minute || 0;
         if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-        if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
+        if (period.toLowerCase() === 'am' && hour === 12) hour = 0; // Correctly handles 12am as 00:00
         return hour * 60 + minute;
     };
     
@@ -103,9 +103,12 @@ function getOpeningStatus(openingHoursText) {
     
     // 2. Determine the current status based on the schedule
     const now = new Date();
+    // Using 'en-GB' locale for toLocaleString can sometimes cause timezone issues if server isn't in London.
+    // Better to use UTC methods or a specific timezone library if precise timezone handling is critical.
+    // For this context, assuming BST/GMT is handled by the environment's default or this approximation works.
     const londonTimeOpts = { timeZone: 'Europe/London' };
-    const currentDayIndex = now.getDay();
-    const prevDayIndex = (currentDayIndex + 6) % 7;
+    const currentDayIndex = now.getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
+    const prevDayIndex = (currentDayIndex + 6) % 7; // Day before currentDayIndex
     const hour = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, hour: '2-digit', hour12: false }), 10);
     const minute = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, minute: '2-digit' }), 10);
     const currentTimeInMinutes = hour * 60 + minute;
@@ -113,18 +116,28 @@ function getOpeningStatus(openingHoursText) {
     let status = 'Closed', message = 'Currently Closed', color = 'red';
 
     const checkStatus = () => {
-        // Check if still open from yesterday's overnight slots
+        // First, check if currently open from *yesterday's* overnight slot
+        // e.g., if it's Wed 1 AM, check if Tue schedule extends past midnight
         for (const slot of (schedule[prevDayIndex] || [])) {
-            if (!slot.isClosed && slot.closes < slot.opens && currentTimeInMinutes < slot.closes) {
-                return { status: 'Open', message: `Open until ${slot.closeDisplay}`, color: 'green' };
+            if (!slot.isClosed && slot.closes < slot.opens) { // This identifies an overnight slot
+                // If the current time is AFTER midnight (00:00) AND before the closing time of yesterday's overnight slot
+                if (currentTimeInMinutes < slot.closes) {
+                    return { status: 'Open', message: `Open until ${slot.closeDisplay} (from yesterday)`, color: 'green' };
+                }
             }
         }
-        // Check today's slots
+
+        // Then, check today's slots
         for (const slot of (schedule[currentDayIndex] || [])) {
             if (slot.isClosed) continue;
-            const isOpenNow = (slot.closes > slot.opens) ?
-                (currentTimeInMinutes >= slot.opens && currentTimeInMinutes < slot.closes) :
-                (currentTimeInMinutes >= slot.opens);
+
+            let isOpenNow;
+            if (slot.closes > slot.opens) { // Standard slot: starts and ends on the same day (e.g., 9am - 5pm)
+                isOpenNow = (currentTimeInMinutes >= slot.opens && currentTimeInMinutes < slot.closes);
+            } else { // Overnight slot: starts today, ends tomorrow (e.g., 7pm - 2am)
+                isOpenNow = (currentTimeInMinutes >= slot.opens || currentTimeInMinutes < slot.closes);
+            }
+
             if (isOpenNow) {
                 return { status: 'Open', message: `Open until ${slot.closeDisplay}`, color: 'green' };
             }
@@ -136,14 +149,16 @@ function getOpeningStatus(openingHoursText) {
     
     if (currentStatus) {
         ({ status, message, color } = currentStatus);
-    } else { // If closed, check if it opens soon
-        for (const slot of (schedule[currentDayIndex] || [])) {
-             if (!slot.isClosed && currentTimeInMinutes < slot.opens && (slot.opens - currentTimeInMinutes <= 60)) {
-                 status = 'Opens Soon';
-                 message = `Opens at ${slot.openDisplay}`;
-                 color = 'orange';
-                 break; 
-             }
+    } else { // If closed, check if it opens soon (within 60 minutes)
+        // Find the next opening time for today
+        const todaySlots = (schedule[currentDayIndex] || []).filter(s => !s.isClosed && s.opens > currentTimeInMinutes).sort((a, b) => a.opens - b.opens);
+        if (todaySlots.length > 0) {
+            const nextOpening = todaySlots[0];
+            if (nextOpening.opens - currentTimeInMinutes <= 60) {
+                status = 'Opens Soon';
+                message = `Opens at ${nextOpening.openDisplay}`;
+                color = 'orange';
+            }
         }
     }
     
@@ -155,272 +170,205 @@ function getOpeningStatus(openingHoursText) {
 
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
-    if (!slug) { return { statusCode: 400, body: 'Venue slug not provided.' }; }
-    
-    const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+    if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
 
     try {
-        const venueRecords = await base('Venues').select({
-            maxRecords: 1,
-            filterByFormula: `{Slug} = "${slug}"`,
-            fields: [ "Name", "Description", "Address", "Opening Hours", "Accessibility", "Website", "Instagram", "Facebook", "TikTok", "Photo", "Google Place ID", "Vibe Tags", "Venue Features", "Accessibility Rating", "Accessibility Features", "Parking Exception" ]
-        }).all();
+        const dateMatch = slug.match(/\d{4}-\d{2}-\d{2}$/);
+        let eventRecords = [];
 
-        if (!venueRecords || venueRecords.length === 0) {
-            return { statusCode: 404, body: 'Venue not found.' };
-        }
-        
-        const venueRecord = venueRecords[0];
-        const venue = venueRecord.fields;
-        const venueRecordId = venueRecord.id;
+        if (dateMatch) {
+            // Case 1: Slug has a date. This is a specific child event.
+            console.log(`[${slug}] Attempting to fetch specific dated event.`);
+            const dateFromSlug = dateMatch[0];
+            eventRecords = await base('Events').select({
+                maxRecords: 1,
+                filterByFormula: `AND({Slug} = "${slug}", DATETIME_FORMAT(Date, 'YYYY-MM-DD') = '${dateFromSlug}')`
+            }).firstPage();
+            console.log(`[${slug}] Specific dated event records found: ${eventRecords.length > 0}`);
 
-        // --- GOOGLE PLACES API INTEGRATION ---
-        let placeId = venue['Google Place ID'];
-        let googleRatingHtml = '';
-        let googleReviewsHtml = '';
-        // Corrected googleMapsUrl: remove the broken interpolation
-        let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
+        } else {
+            // Case 2: Slug does NOT have a date. This could be a standalone event or a parent series.
+            // First, try to find a standalone event with this exact dateless slug.
+            console.log(`[${slug}] Attempting to fetch standalone dateless event.`);
+            eventRecords = await base('Events').select({
+                maxRecords: 1,
+                filterByFormula: `{Slug} = "${slug}"`
+            }).firstPage();
+            console.log(`[${slug}] Standalone dateless event records found: ${eventRecords.length > 0}`);
 
+            if (!eventRecords || eventRecords.length === 0) {
+                // If no standalone event was found, now check if it implies a parent event series
+                // that should redirect to its next instance.
+                console.log(`[${slug}] Standalone event not found, checking for parent series.`);
 
-        if (GOOGLE_PLACES_API_KEY) {
-            // Logic to fetch Google Place ID and details (unchanged)
-            if (!placeId) {
-                const findPlaceQuery = encodeURIComponent(`${venue.Name}, ${venue.Address}`);
-                const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${findPlaceQuery}&inputtype=textquery&fields=place_id&key=${GOOGLE_PLACES_API_KEY}`;
-                try {
-                    const findPlaceResponse = await fetch(findPlaceUrl);
-                    const findPlaceData = await findPlaceResponse.json();
-                    if (findPlaceData.status === 'OK' && findPlaceData.candidates.length > 0) {
-                        placeId = findPlaceData.candidates[0].place_id;
-                        await base('Venues').update([{ id: venueRecordId, fields: { "Google Place ID": placeId } }]);
+                // The filter to find an anchor record for the series.
+                // Using FIND to simulate STARTS_WITH
+                const escapedSlug = slug.replace(/"/g, '\\"'); // Escape any quotes in the slug for the formula
+                const seriesAnchorFilter = `OR({Slug} = "${escapedSlug}", FIND("${escapedSlug}-", {Slug}) = 1)`;
+
+                console.log(`[${slug}] Series Anchor Filter: ${seriesAnchorFilter}`);
+
+                const seriesAnchorRecords = await base('Events').select({
+                    maxRecords: 1,
+                    filterByFormula: seriesAnchorFilter
+                }).firstPage();
+                console.log(`[${slug}] Series Anchor Records found: ${seriesAnchorRecords.length > 0}`);
+
+                if (seriesAnchorRecords && seriesAnchorRecords.length > 0) {
+                    const anchorRecord = seriesAnchorRecords[0];
+                    const rawParentEventName = anchorRecord.fields['Parent Event Name'];
+                    const rawEventName = anchorRecord.fields['Event Name'];
+
+                    console.log(`[${slug}] Raw Parent Event Name from anchor: "${rawParentEventName}"`);
+                    console.log(`[${slug}] Raw Event Name from anchor: "${rawEventName}"`);
+
+                    const seriesNameForQuery = rawParentEventName || rawEventName;
+
+                    if (!seriesNameForQuery) {
+                        console.error(`[${slug}] ERROR: Could not derive series name from anchor record.`);
+                        return { statusCode: 404, body: `Could not identify series name for '${slug}'.` };
                     }
-                } catch (error) { console.error("Error finding place ID:", error); }
-            }
 
-            if (placeId) {
-                const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=rating,user_ratings_total,reviews,url&key=${GOOGLE_PLACES_API_KEY}`;
-                try {
-                    const placeDetailsResponse = await fetch(placeDetailsUrl);
-                    const placeDetailsData = await placeDetailsResponse.json();
-                    if (placeDetailsData.status === 'OK' && placeDetailsData.result) {
-                        const { rating, user_ratings_total, reviews, url } = placeDetailsData.result;
-                        if(url) googleMapsUrl = url;
+                    const escapedSeriesName = seriesNameForQuery.replace(/"/g, '\\"');
+                    const nextInstanceFilter = `AND(OR({Parent Event Name} = "${escapedSeriesName}", {Event Name} = "${escapedSeriesName}"), IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`;
+                    console.log(`[${slug}] Next Instance Filter: ${nextInstanceFilter}`);
 
-                        if (rating) {
-                            const stars = generateStars(rating);
-                            googleRatingHtml = createSidebarSection( 'Google Rating', `<div class="flex items-center space-x-2 text-xl"><div>${stars}</div><p class="text-white font-semibold">${rating} <span class="text-gray-400">(${user_ratings_total})</span></p></div> <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline text-sm mt-1 block">View on Google Maps</a>`, 'fab fa-google' );
-                        }
+                    // Find the next upcoming instance of this series
+                    const nextInstanceRecords = await base('Events').select({
+                        maxRecords: 1,
+                        filterByFormula: nextInstanceFilter,
+                        sort: [{ field: 'Date', direction: 'asc' }]
+                    }).firstPage();
+                    console.log(`[${slug}] Next Instance Records found: ${nextInstanceRecords.length > 0}`);
 
-                        if (reviews && reviews.length > 0) {
-                            googleReviewsHtml = `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Recent Reviews from Google</h2><div class="space-y-4">${reviews.slice(0, 3).map(review => { const reviewStars = generateStars(review.rating); let reviewText = review.text; let readMoreLink = ''; if (reviewText.length > 280) { reviewText = reviewText.substring(0, 280) + '...'; readMoreLink = `<a href="${googleMapsUrl}" target="_blank" class="text-blue-400 hover:underline text-xs">Read more on Google</a>`; } return `<div class="card-bg p-4 space-y-2"><div class="flex items-center justify-between"><p class="font-semibold text-white">${review.author_name}</p><div class="text-xs">${reviewStars}</div></div><p class="text-gray-300 text-sm">${reviewText}</p>${readMoreLink}</div>` }).join('')}<div class="mt-8 text-center"><img src="https://www.gstatic.com/marketing-cms/assets/images/c5/3a/200414104c669203c62270f7884f/google-wordmarks-2x.webp" alt="Powered by Google" style="max-width:120px; height: auto; margin: 0 auto;"></div></div></div>`;
+                    if (nextInstanceRecords && nextInstanceRecords.length > 0) {
+                        const nextInstanceSlug = nextInstanceRecords[0].fields.Slug;
+                        if (nextInstanceSlug) {
+                            console.log(`[${slug}] Redirecting to next instance: /event/${nextInstanceSlug}`);
+                            return {
+                                statusCode: 302,
+                                headers: { 'Location': `/event/${nextInstanceSlug}` }
+                            };
                         }
                     }
-                } catch (error) { console.error("Error fetching place details:", error); }
-            }
-        }
-        
-        // --- Fetch one-off events ---
-        const oneOffEventsFilter = `AND(` +
-                                 `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
-                                 `IS_AFTER({Date}, TODAY()), ` +
-                                 `OR(BLANK({Recurring Info}), {Recurring Info} = "", {Recurring Info} = "undefined"), ` +
-                                 `OR(BLANK({Parent Event Name}), {Parent Event Name} = "", {Parent Event Name} = "undefined"), ` +
-                                 `NOT(REGEX_MATCH({Slug}, '-\\d{4}-\\d{2}-\\d{2}$'))` +
-                                 `)`;
-        console.log(`One-off Events Filter: ${oneOffEventsFilter}`);
-        const oneOffEventsRecords = await base('Events').select({
-            filterByFormula: oneOffEventsFilter,
-            sort: [{ field: 'Date', direction: 'asc' }],
-            fields: ['Event Name', 'Date', 'Slug', 'Promo Image'],
-            maxRecords: 6
-        }).all();
-
-        const oneOffEventsHtmlContent = oneOffEventsRecords.length > 0 ? oneOffEventsRecords.map(record => {
-            const event = record.fields;
-            const eventDate = new Date(event.Date);
-            const imageUrl = event['Promo Image'] && event['Promo Image'].length > 0 ? event['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
-            return `
-                <a href="/event/${event.Slug}" class="item-card card-bg block group">
-                    <div class="relative aspect-video bg-gray-900/50">
-                        <img src="${imageUrl}" alt="${event['Event Name']}" class="absolute h-full w-full object-cover">
-                        <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
-                            <p class="font-bold text-xl leading-none">${eventDate.getDate()}</p>
-                            <p class="text-sm uppercase">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:text-accent-color transition-colors">${event['Event Name']}</h3>
-                        <p class="text-gray-400 text-sm">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
-                    </div>
-                </a>
-            `;
-        }).join('') : '<p class="text-gray-400 text-lg">No upcoming special events scheduled.</p>';
-
-        // Conditionally render the "Upcoming Events" section
-        const upcomingEventsSectionHtml = oneOffEventsRecords.length > 0 ? `
-            <div>
-                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Upcoming</span> Events</h2>
-                <div class="grid md:grid-cols-2 gap-8">
-                    ${oneOffEventsHtmlContent}
-                </div>
-            </div>
-        ` : '';
-
-
-        // --- Fetch and process recurring events, including date and promo image for next instance ---
-        const rawRecurringSeriesFilter = `AND(` +
-                                        `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
-                                        `NOT(BLANK({Recurring Info})), ` +
-                                        `{Recurring Info} != "", ` +
-                                        `{Recurring Info} != "undefined"` +
-                                        `)`;
-        console.log(`Raw Recurring Series Filter: ${rawRecurringSeriesFilter}`);
-        const rawRecurringSeriesRecords = await base('Events').select({
-            filterByFormula: rawRecurringSeriesFilter,
-            fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name', 'Date', 'Promo Image'] // Added Date and Promo Image
-        }).all();
-
-        // Group events by a unique series identifier (Recurring Info + Parent Event Name or Event Name)
-        const uniqueRecurringSeries = {}; // Map: 'SeriesKey' -> { eventName, recurringInfo, parentSlug, promoImage, nextInstanceDate }
-
-        const now = new Date(); // Current time for comparison
-
-        rawRecurringSeriesRecords.forEach(record => {
-            const fields = record.fields;
-            const recurringInfo = fields['Recurring Info'];
-            const eventName = fields['Event Name'];
-            const parentEventName = (fields['Parent Event Name'] === "undefined" || !fields['Parent Event Name']) ? undefined : fields['Parent Event Name'];
-            const slug = fields['Slug'];
-            const eventDate = fields['Date'] ? new Date(fields['Date']) : null;
-            const promoImage = fields['Promo Image'] && fields['Promo Image'].length > 0 ? fields['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
-
-            console.log(`[Venue: ${slug}] Processing raw recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}", Date: "${eventDate}"`);
-
-            const seriesIdentifier = parentEventName || eventName;
-            let linkSlug = slug;
-            if (parentEventName) {
-                linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-            }
-
-            const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
-
-            // Logic to find the *next* upcoming instance's image and date
-            if (!uniqueRecurringSeries[seriesKey]) {
-                uniqueRecurringSeries[seriesKey] = {
-                    eventName: seriesIdentifier,
-                    recurringInfo: recurringInfo,
-                    slug: linkSlug,
-                    promoImage: promoImage, // Default to first encountered
-                    nextInstanceDate: eventDate // Default to first encountered
-                };
-            } else {
-                // If this record is for the same series and has a future date that's earlier than the current 'nextInstanceDate'
-                if (eventDate && eventDate > now && (!uniqueRecurringSeries[seriesKey].nextInstanceDate || eventDate < uniqueRecurringSeries[seriesKey].nextInstanceDate)) {
-                    uniqueRecurringSeries[seriesKey].promoImage = promoImage;
-                    uniqueRecurringSeries[seriesKey].nextInstanceDate = eventDate;
+                    // If a series was identified but no upcoming instance.
+                    console.log(`[${slug}] Series identified, but no upcoming dates found.`);
+                    return { statusCode: 404, body: `Event series '${seriesNameForQuery}' has concluded or has no upcoming dates.` };
+                } else {
+                    // If it's not a dated slug, not a standalone event, and not identifiable as any series.
+                    console.log(`[${slug}] Not found as dated, standalone, or parent series.`);
+                    return { statusCode: 404, body: `Event '${slug}' not found.` };
                 }
             }
-        });
-        
-        const recurringEventsHtmlContent = Object.values(uniqueRecurringSeries).length > 0 ? Object.values(uniqueRecurringSeries).map(event => {
-            // New visual card for recurring events
-            return `
-                <a href="/event/${event.slug}" class="item-card card-bg block group">
-                    <div class="relative aspect-video bg-gray-900/50">
-                        <img src="${event.promoImage}" alt="${event.eventName}" class="absolute h-full w-full object-cover">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div>
-                        <div class="absolute bottom-2 left-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
-                            <p class="font-bold text-lg leading-none">${event.recurringInfo}</p>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:text-accent-color transition-colors">${event.eventName}</h3>
-                        <div class="text-accent-color text-right"><i class="fas fa-arrow-right"></i></div>
-                    </div>
-                </a>
-            `;
-        }).join('') : '<p class="text-gray-400 text-lg">No regular events scheduled.</p>';
+        }
 
-        // Conditionally render the "Regular Schedule" section
-        const regularScheduleSectionHtml = Object.values(uniqueRecurringSeries).length > 0 ? `
-            <div>
-                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Regular</span> Schedule</h2>
-                <div class="grid md:grid-cols-2 gap-8">
-                    ${recurringEventsHtmlContent}
-                </div>
-            </div>
-        ` : '';
+        // --- The rest of the page generation logic from your live code ---
+        const eventRecord = eventRecords[0];
+        const fields = eventRecord.fields;
+        console.log(`[${slug}] Successfully found event record. Processing page generation.`);
 
+        const eventName = fields['Event Name'];
+        const parentEventName = fields['Parent Event Name'];
+        const recurringInfo = fields['Recurring Info'];
+        let allFutureInstances = [];
 
-        const photos = venue['Photo'] || [];
-        const mainPhoto = photos.length > 0 ? photos[0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';
-        const photoGalleryHtml = photos.length > 1 ? `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Photo Gallery</h2><div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">${photos.slice(1).map(p => `<a href="${p.url}" target="_blank"><img src="${p.thumbnails.large.url}" alt="${venue.Name} Photo" class="w-full h-full object-cover rounded-lg shadow-md hover:opacity-80 transition-opacity"></a>`).join('')}</div></div>` : '';
+        let filterFormula;
+        if (parentEventName) {
+            const parentNameForQuery = parentEventName.replace(/"/g, '\\"');
+            filterFormula = `AND({Parent Event Name} = "${parentNameForQuery}", IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
+        } else if (recurringInfo) {
+            const eventNameForQuery = eventName.replace(/"/g, '\\"');
+            filterFormula = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info}, IS_AFTER({Date}, DATEADD(TODAY(),-1,'days')))`
+        }
 
-        // Prepare data for sidebar
-        const openingHoursText = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
-        const openingStatus = getOpeningStatus(openingHoursText);
-        const openingHoursContent = openingHoursText;
-        
-        const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
-        const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
-        let accessibilityInfo = [];
-        if (venue['Accessibility Rating']) accessibilityInfo.push(`<strong>Rating:</strong> ${venue['Accessibility Rating']}`);
-        if (venue['Accessibility Features']) accessibilityInfo.push(`<strong>Features:</strong> ${venue['Accessibility Features'].join(', ')}`);
-        if (venue['Accessibility']) accessibilityInfo.push(venue['Accessibility']);
-        if (venue['Parking Exception']) accessibilityInfo.push(`<strong>Parking:</strong> ${venue['Parking Exception']}`);
-        const accessibilityHtml = accessibilityInfo.length > 0 ? accessibilityInfo.join('<br><br>') : 'No specific accessibility information has been provided.';
-        
-        const html = `
-            <!DOCTYPE html><html lang="en">
-            <head>
-                <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>${venue.Name} | Brum Out Loud</title>
-                <script src="https://cdn.tailwindcss.com"></script>
-                <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-                <link rel="stylesheet" href="/css/main.css"><script src="/js/main.js" defer></script>
-            </head>
-            <body class="antialiased">
-                <div id="header-placeholder"></div>
-                <main class="container mx-auto px-8 py-16">
-                    <div class="relative rounded-2xl overflow-hidden mb-16 h-96 card-bg">
-                        <img src="${mainPhoto}" alt="${venue.Name}" class="w-full h-full object-cover opacity-50">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                        <div class="absolute bottom-8 left-8"><h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none">${venue.Name}</h1></div>
-                    </div>
-                    <div class="grid lg:grid-cols-3 gap-16">
-                        <div class="lg:col-span-2 space-y-16">
-                             ${upcomingEventsSectionHtml}
-                             ${regularScheduleSectionHtml}
-                             ${googleReviewsHtml}
-                             ${photoGalleryHtml}
-                        </div>
-                        <div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8">
-                            ${openingStatus.html}
-                            <div class="space-y-6">
-                                <div>
-                                    <h3 class="font-bold text-lg accent-color-secondary mb-2">The Vibe</h3>
-                                    <p class="text-gray-300 text-base">${venue.Description || 'Info coming soon.'}</p>
-                                </div>
-                                ${createSidebarSection('Address', `${venue.Address}<br><a href="${googleMapsUrl}" target="_blank" class="text-sm text-accent-color hover:underline">Get Directions</a>`, 'fa-solid fa-map-location-dot')}
-                                ${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}
-                                ${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}
-                                ${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}
-                                ${googleRatingHtml}
-                                <div class="border-t border-gray-700 pt-6 flex flex-wrap gap-4">
-                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="social-button flex-grow"><i class="fas fa-globe mr-2"></i>Website</a>` : ''}
-                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="social-button flex-grow"><i class="fab fa-instagram mr-2"></i>Instagram</a>` : ''}
-                                </div>
-                                <div class="pt-4 text-center"><a href="mailto:feedback@brumoutloud.co.uk?subject=Issue with ${encodeURIComponent(venue.Name)} page" class="text-xs text-gray-500 hover:text-accent-color">Something wrong? Let us know</a></div>
-                            </div>
-                        </div></div>
-                    </div>
-                </main>
-                <div id="footer-placeholder"></div>
-            </body></html>`;
-        return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
-    } catch (error) {
-        console.error(error);
-        return { statusCode: 500, body: 'Server error building venue page.' };
-    }
+        if (filterFormula) {
+            const futureInstanceRecords = await base('Events').select({
+                filterByFormula: filterFormula,
+                sort: [{ field: 'Date', direction: 'asc' }]
+            }).all();
+            allFutureInstances = futureInstanceRecords.map(rec => rec.fields);
+        }
+
+        let venueNameForDisplay = fields['Venue Name'] ? fields['Venue Name'][0] : (fields['VenueText'] || 'TBC');
+        let venueHtml = `<p class="text-2xl font-semibold">${venueNameForDisplay}</p>`;
+
+        const venueId = fields['Venue'] ? fields['Venue'][0] : null;
+
+        if (venueId) {
+            try {
+                const venueRecord = await base('Venues').find(venueId);
+                const status = venueRecord.get('Listing Status');
+                const name = venueRecord.get('Name');
+                const venueSlug = venueRecord.get('Slug');
+                venueNameForDisplay = name || venueNameForDisplay;
+                if (status === 'Listed' && venueSlug) {
+                    venueHtml = `<a href="/venue/${venueSlug}" class="text-2xl font-semibold hover:text-white underline">${venueNameForDisplay}</a>`;
+                } else {
+                    venueHtml = `<p class="text-2xl font-semibold">${venueNameForDisplay}</p>`;
+                }
+            } catch (venueError) { console.error("Could not fetch linked venue, falling back to text.", venueError); }
+        }
+
+        let suggestedEventsHtml = '';
+        const primaryEventCategories = fields['Category'] || [];
+        const currentEventId = eventRecord.id;
+
+        if (primaryEventCategories.length > 0) {
+            const categoryFilterString = primaryEventCategories.map(cat => `FIND("${cat.replace(/"/g, '\\"')}", ARRAYJOIN({Category}, ","))`).join(', ');
+
+            const suggestedEventsFilter = `AND({Status} = 'Approved', IS_AFTER({Date}, TODAY()), NOT(RECORD_ID() = '${currentEventId}'), OR(${categoryFilterString}))`;
+
+            const suggestedRecords = await base('Events').select({
+                filterByFormula: suggestedEventsFilter,
+                sort: [{ field: 'Date', direction: 'asc' }],
+                maxRecords: 6,
+                fields: ['Event Name', 'Date', 'Promo Image', 'Slug', 'Venue Name', 'VenueText']
+            }).all();
+
+            if (suggestedRecords.length > 0) {
+                const suggestedCardsHtml = suggestedRecords.map(suggEvent => {
+                    const suggEventName = suggEvent.get('Event Name');
+                    const suggEventDate = new Date(suggEvent.get('Date'));
+                    const suggImageUrl = suggEvent.get('Promo Image') ? suggEvent.get('Promo Image')[0].url : 'https://placehold.co/400x600/1e1e1e/EAEAEA?text=Event';
+                    const suggEventSlug = suggEvent.get('Slug');
+
+                    return `<a href="/event/${suggEventSlug}" class="suggested-card aspect-[2/3] w-10/12 md:w-5/12 lg:w-[32%] flex-shrink-0 relative overflow-hidden flex flex-col justify-end snap-start"><div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${suggImageUrl}')"></div><div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent"></div><div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-20"><p class="font-bold text-xl leading-none">${suggEventDate.getDate()}</p><p class="text-sm uppercase">${suggEventDate.toLocaleDateString('en-GB', { month: 'short' })}</p></div><div class="relative z-10 p-4"><h4 class="font-extrabold text-white text-2xl">${suggEventName}</h4></div></a>`;
+                }).join('');
+
+                suggestedEventsHtml = `<div class="mt-16 suggested-events-section"><h2 class="font-anton text-4xl mb-8">Don't Miss These...</h2><div class="suggested-carousel flex overflow-x-auto gap-6 snap-x snap-mandatory pr-6">${suggestedCardsHtml}</div></div>`;
+            }
+        }
+
+        const eventDate = new Date(fields['Date']);
+        const description = fields['Description'] || 'No description provided.';
+        const pageUrl = `https://brumoutloud.co.uk${event.path}`;
+        const imageUrl = fields['Promo Image'] ? fields['Promo Image'][0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Brum+Out+Loud';
+
+        const calendarData = {
+            title: eventName,
+            description: `${description.replace(/\n/g, '\\n')}\\n\\nFind out more: ${pageUrl}`,
+            location: venueNameForDisplay,
+            startTime: eventDate.toISOString(),
+            endTime: new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+            isRecurring: (parentEventName || recurringInfo) && allFutureInstances.length > 1,
+            recurringDates: allFutureInstances.map(i => i.Date)
+        };
+
+        const otherInstancesToDisplay = allFutureInstances.filter(inst => inst.Date !== fields['Date']);
+
+        const otherInstancesHTML = otherInstancesToDisplay.slice(0, 5).map(instance => {
+            const d = new Date(instance.Date);
+            const day = d.toLocaleDateString('en-GB', { day: 'numeric' });
+            const month = d.toLocaleDateString('en-GB', { month: 'short' });
+            return `<a href="/event/${instance.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block"><div class="text-center w-20 flex-shrink-0"><p class="text-2xl font-bold text-white">${day}</p><p class="text-lg text-gray-400">${month}</p></div><div class="flex-grow"><h4 class="font-bold text-white text-xl">${instance['Event Name']}</h4><p class="text-sm text-gray-400">${d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p></div><div class="text-accent-color"><i class="fas fa-arrow-right"></i></div></a>`;
+        }).join('');
+
+        const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${eventName} | Brum Out Loud</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"><link rel="stylesheet" href="/css/main.css"><script src="/js/main.js" defer></script><style>.hero-image-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background-color: #1e1e1e; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); } .hero-image-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: blur(24px) brightness(0.5); transform: scale(1.1); transition: opacity 0.4s ease; } .hero-image-container:hover .hero-image-bg { opacity: 1; } .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; } .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); } .suggested-card { border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); background-color: #1e1e1e; transition: transform 0.3s ease, box-shadow 0.3s ease; } .suggested-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.5); } .suggested-carousel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1); } .suggested-carousel::-webkit-scrollbar { height: 4px; } .suggested-carousel::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 2px; } .suggested-carousel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }</style></head><body class="antialiased"><div id="header-placeholder"></div><main class="container mx-auto px-8 py-16"><div class="grid lg:grid-cols-3 gap-16"><div class="lg:col-span-2"><div class="hero-image-container mb-8"><img src="${imageUrl}" alt="" class="hero-image-bg" aria-hidden="true"><img src="${imageUrl}" alt="${eventName}" class="hero-image-fg"></div><p class="font-semibold accent-color mb-2">EVENT DETAILS</p><h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${eventName}</h1><div class="prose prose-invert prose-lg max-w-none text-gray-300">${description.replace(/\n/g, '<br>')}</div>${(parentEventName || recurringInfo) && otherInstancesHTML ? `<div class="mt-16"><h2 class="font-anton text-4xl mb-8"><span class="accent-color">Other Events</span> in this Series</h2><div class="space-y-4">${otherInstancesHTML}</div></div>` : ''}</div><div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8 space-y-6"><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Date & Time</h3><p class="text-2xl font-semibold">${eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p><p class="text-xl text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>${recurringInfo ? `<p class="mt-2 inline-block bg-teal-400/10 text-teal-300 text-xs font-semibold px-2 py-1 rounded-full">${recurringInfo}</p>` : ''}</div><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3>${venueHtml}</div>${fields['Link'] ? `<a href="${fields['Link']}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-accent-color text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition-opacity text-xl">GET TICKETS</a>` : ''}<div id="add-to-calendar-section" class="border-t border-gray-700 pt-6"><h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Add to Calendar</h3><div class="grid grid-cols-1 gap-2"></div></div></div></div></div>${suggestedEventsHtml}</main><div id="footer-placeholder"></div><script>const calendarData = ${JSON.stringify(calendarData)}; function toICSDate(dateStr) { return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; } function generateGoogleLink(isSeries) { const params = new URLSearchParams({ action: 'TEMPLATE', text: calendarData.title, dates: toICSDate(calendarData.startTime) + '/' + toICSDate(calendarData.endTime), details: calendarData.description, location: calendarData.location }); if (isSeries && calendarData.isRecurring) { const rrule = 'RRULE:RDATE;VALUE=DATE-TIME:' + calendarData.recurringDates.map(d => toICSDate(d)).join(','); params.set('recur', rrule); } return 'https://www.google.com/calendar/render?' + params.toString(); } function generateICSFile(isSeries) { let icsContent = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BrumOutLoud//EN', 'BEGIN:VEVENT', 'UID:' + new Date().getTime() + '@brumoutloud.co.uk', 'DTSTAMP:' + toICSDate(new Date()), 'DTSTART:' + toICSDate(calendarData.startTime), 'DTEND:' + toICSDate(calendarData.endTime), 'SUMMARY:' + calendarData.title, 'DESCRIPTION:' + calendarData.description, 'LOCATION:' + calendarData.location]; if (isSeries && calendarData.isRecurring) { const rdateString = calendarData.recurringDates.map(d => toICSDate(d)).join(','); icsContent.push('RDATE;VALUE=DATE-TIME:' + rdateString); } icsContent.push('END:VEVENT', 'END:VCALENDAR'); const blob = new Blob([icsContent.join('\\r\\n')], { type: 'text/calendar;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = calendarData.title.replace(/ /g, '_') + '.ics'; document.body.appendChild(a); a.click(); document.body.removeChild(a); } document.addEventListener('DOMContentLoaded', () => { const container = document.querySelector('#add-to-calendar-section .grid'); let buttonsHTML = ''; if (calendarData.isRecurring) { buttonsHTML = '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Cal (This Event)</a>' + '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (This Event)</button>' + '<a href="' + generateGoogleLink(true) + '" target="_blank" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Google Cal (All)</a>' + '<button onclick="generateICSFile(true)" class="bg-accent-color text-white font-bold py-3 px-4 rounded-lg text-center hover:opacity-90">Apple/Outlook (All)</button>'; } else { buttonsHTML = '<a href="' + generateGoogleLink(false) + '" target="_blank" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Google Calendar</a>' + '<button onclick="generateICSFile(false)" class="bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-center hover:bg-gray-600">Apple/Outlook (.ics)</button>'; } container.innerHTML = buttonsHTML; });</script></body></html>`;
+
+    return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
+
+  } catch (error) {
+    console.error(error);
+    return { statusCode: 500, body: 'Server error fetching event details.' };
+  }
 };

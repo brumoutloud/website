@@ -6,11 +6,26 @@ exports.handler = async function (event, context) {
   if (!slug) { return { statusCode: 400, body: 'Error: Event slug not provided.' }; }
 
   try {
+    // --- CORRECTED FETCH LOGIC ---
+    // The original issue is that multiple events might share a slug.
+    // To fix this, we make the lookup more specific by checking the date from the slug itself.
+    let filter;
+    const dateMatch = slug.match(/\d{4}-\d{2}-\d{2}$/); // Look for a YYYY-MM-DD date at the end of the slug.
+    
+    if (dateMatch) {
+      const dateFromSlug = dateMatch[0];
+      // This formula now ensures we get the event with the correct slug AND the correct date.
+      filter = `AND({Slug} = "${slug}", DATETIME_FORMAT(DATEADD({Date}, 0, 'seconds'), 'YYYY-MM-DD') = '${dateFromSlug}')`;
+    } else {
+      // Fallback for slugs without a date.
+      filter = `{Slug} = "${slug}"`;
+    }
+
     const eventRecords = await base('Events').select({
         maxRecords: 1,
-        filterByFormula: `{Slug} = "${slug}"`,
-        fields: ['Event Name', 'Description', 'Date', 'Promo Image', 'Link', 'Recurring Info', 'Venue', 'Venue Name', 'Venue Slug', 'Parent Event Name', 'VenueText', 'Category']
+        filterByFormula: filter
     }).firstPage();
+    // --- END OF FIX ---
 
     if (!eventRecords || eventRecords.length === 0) {
       return { statusCode: 404, body: `Event not found.` };
@@ -18,42 +33,6 @@ exports.handler = async function (event, context) {
 
     const eventRecord = eventRecords[0];
     const fields = eventRecord.fields;
-
-    // --- CORRECTED REDIRECT LOGIC ---
-    // If the visited event is part of a recurring series...
-    if (fields['Recurring Info']) {
-        let seriesFilter;
-        const eventNameForQuery = fields['Event Name'].replace(/"/g, '\\"');
-
-        // Identify the series by Parent Event Name, or by its own name if no parent is set
-        if (fields['Parent Event Name']) {
-            const parentNameForQuery = fields['Parent Event Name'].replace(/"/g, '\\"');
-            seriesFilter = `{Parent Event Name} = "${parentNameForQuery}"`;
-        } else {
-            seriesFilter = `AND({Event Name} = "${eventNameForQuery}", {Recurring Info})`;
-        }
-
-        // Find the next actual instance in that series from today onwards
-        const nextInstanceRecords = await base('Events').select({
-            maxRecords: 1,
-            filterByFormula: `AND(${seriesFilter}, IS_AFTER({Date}, DATEADD(TODAY(), -1, 'days')))`,
-            sort: [{ field: 'Date', direction: 'asc' }]
-        }).firstPage();
-
-        if (nextInstanceRecords && nextInstanceRecords.length > 0) {
-            const nextInstanceSlug = nextInstanceRecords[0].fields.Slug;
-            // Only redirect if the current page's slug is NOT the next upcoming one.
-            // This forwards users from generic/old links but allows direct access to specific future dates.
-            if (nextInstanceSlug && nextInstanceSlug !== slug) {
-                return {
-                    statusCode: 302,
-                    headers: { 'Location': `/event/${nextInstanceSlug}` }
-                };
-            }
-        }
-    }
-    // --- END REDIRECT LOGIC ---
-
     const eventName = fields['Event Name'];
     const parentEventName = fields['Parent Event Name'];
     const recurringInfo = fields['Recurring Info'];
@@ -208,24 +187,6 @@ exports.handler = async function (event, context) {
       <body class="antialiased">
         <div id="header-placeholder"></div>
         <main class="container mx-auto px-8 py-16">
-            <!-- Breadcrumb Start -->
-            <nav class="flex mb-8" aria-label="Breadcrumb">
-                <ol role="list" class="flex items-center space-x-4">
-                    <li>
-                        <a href="/events" class="text-sm font-medium text-gray-400 hover:text-white">Events</a>
-                    </li>
-                    <li>
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right fa-xs text-gray-500 flex-shrink-0" aria-hidden="true"></i>
-                            <span aria-current="page" class="ml-4 text-sm font-medium text-white">
-                                ${eventName}
-                            </span>
-                        </div>
-                    </li>
-                </ol>
-            </nav>
-            <!-- Breadcrumb End -->
-
             <div class="grid lg:grid-cols-3 gap-16">
                 <div class="lg:col-span-2">
                      <div class="hero-image-container mb-8">

@@ -220,9 +220,17 @@ exports.handler = async function (event, context) {
         }
         
         // --- **Updated**: Fetch one-off events (no Recurring Info, no Parent Event Name, and not a dated child slug) ---
-        // This ensures truly standalone, one-off events.
+        // This ensures truly standalone, one-off events by excluding explicit "undefined" strings and dated slugs.
+        const oneOffEventsFilter = `AND(` +
+                                 `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
+                                 `IS_AFTER({Date}, TODAY()), ` +
+                                 `OR(BLANK({Recurring Info}), {Recurring Info} = "undefined"), ` + // Treat "undefined" string as blank
+                                 `OR(BLANK({Parent Event Name}), {Parent Event Name} = "undefined"), ` + // Treat "undefined" string as blank
+                                 `NOT(REGEX_MATCH({Slug}, '-\\d{4}-\\d{2}-\\d{2}$'))` +
+                                 `)`;
+        console.log(`One-off Events Filter: ${oneOffEventsFilter}`); // Log the filter
         const oneOffEventsRecords = await base('Events').select({
-            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), BLANK({Recurring Info}), BLANK({Parent Event Name}), NOT(REGEX_MATCH({Slug}, '-\\d{4}-\\d{2}-\\d{2}$')) )`,
+            filterByFormula: oneOffEventsFilter,
             sort: [{ field: 'Date', direction: 'asc' }],
             fields: ['Event Name', 'Date', 'Slug', 'Promo Image'],
             maxRecords: 6
@@ -262,8 +270,15 @@ exports.handler = async function (event, context) {
 
         // --- **Updated**: Fetch and process recurring events ---
         // This query finds all *distinct series* based on 'Recurring Info'
+        // And also explicitly excludes the "undefined" string value.
+        const rawRecurringSeriesFilter = `AND(` +
+                                        `{Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", ` +
+                                        `NOT(BLANK({Recurring Info})), ` + // Must not be truly blank
+                                        `NOT({Recurring Info} = "undefined")` + // Must not be the string "undefined"
+                                        `)`;
+        console.log(`Raw Recurring Series Filter: ${rawRecurringSeriesFilter}`); // Log the filter
         const rawRecurringSeriesRecords = await base('Events').select({
-            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", NOT(BLANK({Recurring Info})))`,
+            filterByFormula: rawRecurringSeriesFilter,
             fields: ['Event Name', 'Recurring Info', 'Slug', 'Parent Event Name']
         }).all();
 
@@ -272,39 +287,34 @@ exports.handler = async function (event, context) {
 
         rawRecurringSeriesRecords.forEach(record => {
             const fields = record.fields;
-            // Normalize "undefined" string values to actual undefined/null for consistent blank checks
-            const recurringInfo = (fields['Recurring Info'] === "undefined" || !fields['Recurring Info']) ? undefined : fields['Recurring Info'];
+            // No need to normalize recurringInfo and parentEventName here, as the filter already handles it
+            const recurringInfo = fields['Recurring Info']; // This should now be a real value
             const eventName = fields['Event Name'];
-            const parentEventName = (fields['Parent Event Name'] === "undefined" || !fields['Parent Event Name']) ? undefined : fields['Parent Event Name'];
+            const parentEventName = fields['Parent Event Name']; // This might still be undefined if the field is truly empty for root recurring events
             const slug = fields['Slug'];
 
             console.log(`[Venue: ${slug}] Processing raw recurring record: Event Name: "${eventName}", Recurring Info: "${recurringInfo}", Parent Event Name: "${parentEventName}", Slug: "${slug}"`);
 
-            // Only process if recurringInfo is not truly undefined/blank after normalization
-            if (recurringInfo) {
-                // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
-                const seriesIdentifier = parentEventName || eventName;
+            // Determine the "series key". If Parent Event Name exists, use that. Otherwise, use Event Name.
+            const seriesIdentifier = parentEventName || eventName; // Use eventName if parentEventName is truly blank/undefined
 
-                // Determine the "link slug" for the series.
-                // If there's a Parent Event Name, generate a slug from it.
-                // This assumes a consistent slugging convention where the parent slug is
-                // just the hyphenated parent event name.
-                let linkSlug = slug; // Default to its own slug
-                if (parentEventName) {
-                    linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-                }
+            // Determine the "link slug" for the series.
+            // If there's a Parent Event Name (which implies a child event), generate a slug from it.
+            // This assumes a consistent slugging convention where the parent slug is
+            // just the hyphenated parent event name.
+            let linkSlug = slug; // Default to its own slug (e.g., standalone recurring event)
+            if (parentEventName) { // Check if parentEventName is not blank/undefined
+                linkSlug = parentEventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            }
 
-                const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
+            const seriesKey = `${seriesIdentifier}-${recurringInfo}`;
 
-                if (!uniqueRecurringSeries[seriesKey]) {
-                    uniqueRecurringSeries[seriesKey] = {
-                        eventName: seriesIdentifier,
-                        recurringInfo: recurringInfo, // Use the normalized recurringInfo
-                        slug: linkSlug
-                    };
-                }
-            } else {
-                console.log(`[Venue: ${slug}] Skipping record due to blank/undefined Recurring Info after normalization.`);
+            if (!uniqueRecurringSeries[seriesKey]) {
+                uniqueRecurringSeries[seriesKey] = {
+                    eventName: seriesIdentifier,
+                    recurringInfo: recurringInfo,
+                    slug: linkSlug
+                };
             }
         });
         

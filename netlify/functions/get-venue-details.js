@@ -217,14 +217,15 @@ exports.handler = async function (event, context) {
             }
         }
         
-        // **UPDATED**: Added 'Promo Image' to fields and reverted to card layout
-        const eventRecords = await base('Events').select({
-            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()))`,
+        // --- **NEW**: Fetch one-off events ---
+        const oneOffEventsRecords = await base('Events').select({
+            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()), BLANK({Recurring Info}))`,
             sort: [{ field: 'Date', direction: 'asc' }],
-            fields: ['Event Name', 'Date', 'Slug', 'Promo Image'] 
+            fields: ['Event Name', 'Date', 'Slug', 'Promo Image'],
+            maxRecords: 6
         }).all();
 
-        const upcomingEventsHtml = eventRecords.length > 0 ? eventRecords.map(record => {
+        const oneOffEventsHtml = oneOffEventsRecords.length > 0 ? oneOffEventsRecords.map(record => {
             const event = record.fields;
             const eventDate = new Date(event.Date);
             const imageUrl = event['Promo Image'] ? event['Promo Image'][0].url : 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Event';
@@ -243,7 +244,38 @@ exports.handler = async function (event, context) {
                     </div>
                 </a>
             `;
-        }).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>';
+        }).join('') : '<p class="text-gray-400 text-lg">No upcoming special events scheduled.</p>';
+
+        // --- **NEW**: Fetch and process recurring events ---
+        const recurringEventsRecords = await base('Events').select({
+            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", NOT(BLANK({Recurring Info})))`,
+            sort: [{ field: 'Recurring Info', direction: 'asc' }],
+            fields: ['Event Name', 'Recurring Info', 'Slug']
+        }).all();
+
+        const uniqueRecurringEvents = [];
+        const seenRecurringInfo = new Set();
+
+        recurringEventsRecords.forEach(record => {
+            const recurringInfo = record.get('Recurring Info');
+            if (!seenRecurringInfo.has(recurringInfo)) {
+                seenRecurringInfo.add(recurringInfo);
+                uniqueRecurringEvents.push(record.fields);
+            }
+        });
+        
+        const recurringEventsHtml = uniqueRecurringEvents.length > 0 ? uniqueRecurringEvents.map(event => {
+            return `
+                <a href="/event/${event.Slug}" class="card-bg p-4 flex items-center justify-between hover:bg-gray-800 transition-colors duration-200">
+                     <div>
+                        <h4 class="font-bold text-white text-xl">${event['Event Name']}</h4>
+                        <p class="text-sm text-gray-400">${event['Recurring Info']}</p>
+                    </div>
+                    <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
+                </a>
+            `
+        }).join('') : '<p class="text-gray-400 text-lg">No regular events scheduled.</p>';
+
 
         const photos = venue['Photo'] || [];
         const mainPhoto = photos.length > 0 ? photos[0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';
@@ -282,10 +314,18 @@ exports.handler = async function (event, context) {
                         <div class="absolute bottom-8 left-8"><h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none">${venue.Name}</h1></div>
                     </div>
                     <div class="grid lg:grid-cols-3 gap-16">
-                        <div class="lg:col-span-2">
-                             <h2 class="font-anton text-4xl mb-8"><span class="accent-color">What's On</span> at ${venue.Name}</h2>
-                             <div class="grid md:grid-cols-2 gap-8">
-                                ${upcomingEventsHtml}
+                        <div class="lg:col-span-2 space-y-16">
+                             <div>
+                                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Upcoming</span> Events</h2>
+                                <div class="grid md:grid-cols-2 gap-8">
+                                    ${oneOffEventsHtml}
+                                </div>
+                             </div>
+                             <div>
+                                <h2 class="font-anton text-4xl mb-8"><span class="accent-color">Regular</span> Schedule</h2>
+                                <div class="space-y-4">
+                                    ${recurringEventsHtml}
+                                </div>
                              </div>
                              ${googleReviewsHtml}
                              ${photoGalleryHtml}

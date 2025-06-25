@@ -10,29 +10,196 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/css/main.css">
     <script src="/js/main.js" defer></script>
+
+    <style>
+        /* Existing styles from design-system or main.css (ensure these are present in your main.css too for consistency) */
+        .filter-button {
+            background-color: rgba(42, 42, 42, 0.8); color: #EAEAEA; border: 2px solid transparent;
+            padding: 0.5rem 1rem; border-radius: 9999px; cursor: pointer;
+            font-size: 0.875rem; font-weight: 600; transition: all 0.2s ease-in-out;
+            display: flex; align-items: center; justify-content: center; /* Ensure content is centered */
+        }
+        .filter-button:hover { background-color: rgba(60, 60, 60, 0.8); color: white; }
+        .filter-button.active { background-color: transparent; color: #B564F7; border-color: #B564F7; }
+
+        .popover {
+            display: none; position: absolute; margin-top: 0.5rem; width: 18rem;
+            border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1rem; z-index: 20; background-color: #1e1e1e; border: 1px solid #2e2e2e;
+        }
+        .popover.show { display: block; }
+        .popover-option {
+            display: block; width: 100%; text-align: left; padding: 0.5rem 1rem;
+            border-radius: 0.5rem; color: #D1D5DB;
+        }
+        .popover-option:hover { background-color: #374151; }
+
+        .category-tag {
+            display: inline-block; background-color: rgba(181, 100, 247, 0.1);
+            color: #B564F7; font-size: 0.75rem; font-weight: 600;
+            padding: 0.25rem 0.75rem; border-radius: 9999px; flex-shrink: 0;
+        }
+        .item-card-image-container { /* Ensure correct aspect ratio and sizing for images in cards */
+            width: 100%;
+            padding-bottom: 75%; /* 4:3 Aspect Ratio (height is 75% of width) */
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem 1rem 0 0; /* Match card border-radius */
+            background-color: #1a1a1a; /* Placeholder background */
+        }
+        .item-card-image {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; /* Cover the container */
+            border-radius: 1rem 1rem 0 0; /* Match container corners */
+        }
+        /* Mobile specific layout for cards - Image left, details right */
+        @media (max-width: 767px) {
+            .item-card {
+                flex-direction: row; /* Horizontal layout on mobile */
+                align-items: center; /* Align items vertically in the middle */
+                border-radius: 1rem; /* Full rounded corners on mobile cards */
+            }
+            .item-card .item-card-image-container {
+                width: 35%; /* Image takes up 35% of the card width */
+                min-width: 35%; /* Ensure it doesn't shrink too much */
+                aspect-ratio: 1/1; /* Keep image square */
+                border-radius: 1rem 0 0 1rem; /* Rounded corners only on the left side */
+                padding-bottom: 0; /* Remove padding-bottom trick as height is explicit */
+            }
+            .item-card .item-card-image {
+                border-radius: 1rem 0 0 1rem; /* Match container corners */
+            }
+            .item-card .p-6 {
+                width: 65%; /* Details take up 65% of the card width */
+                padding-left: 1rem; /* Adjust padding for side-by-side */
+                padding-right: 1rem;
+                padding-top: 0.75rem; /* Adjust vertical padding */
+                padding-bottom: 0.75rem; /* Adjust vertical padding */
+            }
+            /* Adjust font sizes for mobile card details to save space */
+            .item-card h3 {
+                font-size: 1.1rem; /* Slightly smaller heading */
+                line-height: 1.3;
+                -webkit-line-clamp: 2; /* Ensure event title wraps to max 2 lines */
+            }
+            .item-card p {
+                font-size: 0.8rem; /* Smaller text for date/venue */
+            }
+        }
+
+        /* Custom styles for filter bar layout */
+        /* Ensure filter buttons stretch to full width on mobile for better touch target */
+        @media (max-width: 767px) {
+            #venue-filter-bar-container {
+                display: grid; /* Changed to grid for 2 columns */
+                grid-template-columns: repeat(2, 1fr); /* Two equal columns */
+                gap: 0.75rem; /* Consistent gap */
+                align-items: center; /* Vertically align items in grid */
+            }
+            /* Apply to all direct children of the filter bar for equal column distribution */
+            #venue-filter-bar-container > * {
+                width: 100%; /* Fill the grid column */
+                margin-left: 0 !important; /* Override any auto margins */
+            }
+            /* Filter buttons within the grid should also fill their space */
+            #venue-filter-bar-container .filter-button {
+                width: 100%; /* Force buttons to fill grid cell */
+                justify-content: center; /* Center text within buttons */
+            }
+            /* Popover width adjustment for mobile */
+            .popover {
+                width: calc(100% - 2rem);
+                left: 1rem; right: 1rem;
+            }
+        }
+        /* Desktop specific layout adjustments */
+        @media (min-width: 768px) {
+            #venue-filter-bar-container {
+                display: flex; /* Back to flex on desktop */
+                flex-direction: row; flex-wrap: wrap; align-items: center;
+                gap: 1rem; /* md:gap-4 from HTML */
+            }
+            /* Apply to all direct children for desktop flex distribution */
+            #venue-filter-bar-container > * {
+                width: auto; /* Revert to auto width */
+            }
+            /* For the filter buttons, allow them to grow and enforce some base styling */
+            #venue-filter-bar-container .filter-button {
+                flex-grow: 1; /* Allow to grow and take equal space */
+                min-width: 120px; /* Optional: minimum width for aesthetic consistency */
+                justify-content: center; /* Center text for equal distribution */
+            }
+            /* Specific adjustments for popover buttons as they contain spans/icons */
+            #vibe-tags-btn, #venue-features-btn, #accessibility-btn {
+                min-width: 150px; /* Adjust as needed for content */
+            }
+        }
+    </style>
 </head>
 <body class="antialiased">
 
     <div id="header-placeholder"></div>
 
     <main class="container mx-auto px-8 py-16">
-        <section id="venues">
-             <div class="text-center mb-16">
+        <section id="venues-list">
+            <div class="text-center mb-16">
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">THE <span class="accent-color-secondary">VENUES</span></h1>
                 <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Discover the best LGBTQ+ friendly bars, clubs, and spaces in Birmingham.</p>
             </div>
+
+            <div id="venue-filter-bar-container" class="mb-12 flex flex-wrap items-center gap-3 md:gap-4">
+                <button id="sort-rating-btn" class="filter-button active">
+                    <span>Rating: High to Low</span>
+                    <i class="fas fa-sort-amount-down-alt text-xs"></i>
+                </button>
+                
+                <div class="relative w-full md:w-auto">
+                    <button id="vibe-tags-btn" class="filter-button">
+                        <span>All Vibe Tags</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="vibe-tags-popover" class="popover max-h-80 overflow-y-auto">
+                        <p class="text-gray-400">Loading vibe tags...</p>
+                    </div>
+                </div>
+
+                <div class="relative w-full md:w-auto">
+                    <button id="venue-features-btn" class="filter-button">
+                        <span>All Features</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="venue-features-popover" class="popover max-h-80 overflow-y-auto">
+                        <p class="text-gray-400">Loading features...</p>
+                    </div>
+                </div>
+
+                <div class="relative w-full md:w-auto">
+                    <button id="accessibility-btn" class="filter-button">
+                        <span>All Accessibility</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="accessibility-popover" class="popover max-h-80 overflow-y-auto">
+                        <p class="text-gray-400">Loading accessibility options...</p>
+                    </div>
+                </div>
+
+                <button id="clear-venue-filters-btn" class="filter-button">Clear Filters</button>
+            </div>
+
             <div id="venue-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div class="col-span-full text-center text-gray-400 flex justify-center items-center gap-4">
                     <div class="loader"></div>
                     <span>Loading venues...</span>
                 </div>
             </div>
-             <div id="no-results-message" class="hidden text-center card-bg p-12 col-span-full">
+            <div id="no-venues-message" class="hidden text-center card-bg p-12 col-span-full">
                 <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gray-800 text-accent-color-secondary">
                     <i class="fas fa-store-alt-slash fa-2x"></i>
                 </div>
                 <h3 class="mt-4 text-xl font-semibold text-white">No Venues Found</h3>
                 <p class="mt-2 text-gray-400">We couldn't find any venues at this time. Why not be the first to <a href="/get-listed.html" class="underline hover:text-white">get listed</a>?</p>
+                <button id="reset-venue-filters-btn" class="mt-6 filter-button active">Clear Filters</button>
             </div>
         </section>
     </main>
@@ -40,42 +207,224 @@
     <div id="footer-placeholder"></div>
 
     <script>
-        async function renderVenues() {
-            const venueGrid = document.getElementById('venue-grid');
-            const noResultsMessage = document.getElementById('no-results-message');
-            try {
-                const venuesResponse = await fetch('/.netlify/functions/get-venues');
-                const venues = await venuesResponse.json();
-                
-                venueGrid.innerHTML = '';
-                venueGrid.style.display = venues.length > 0 ? 'grid' : 'none';
-                noResultsMessage.style.display = venues.length > 0 ? 'none' : 'block';
+        // --- Global State ---
+        let allVenues = [];
+        let currentSortOrder = 'rating-desc'; // 'rating-desc' or 'rating-asc'
+        let activeVibeTagFilter = 'all';
+        let activeVenueFeatureFilter = 'all';
+        let activeAccessibilityFilter = 'all'; 
 
-                if (venues && venues.length > 0) {
-                    venues.forEach(venue => {
-                        const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
-                        const mediumSrc = venue.photo?.medium || placeholder;
-                        const venueCard = `
-                            <a href="/venue/${venue.slug}" class="item-card card-bg block group animate-fade-in">
-                                <div class="item-card-image-container">
-                                    <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
-                                </div>
-                                <div class="p-6">
-                                    <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${venue.name}</h3>
-                                    <p class="text-gray-400 h-12 overflow-hidden">${venue.description}</p>
-                                </div>
-                            </a>
-                        `;
-                        venueGrid.insertAdjacentHTML('beforeend', venueCard);
-                    });
+        // --- DOM Elements ---
+        const venueGrid = document.getElementById('venue-grid');
+        const noVenuesMessage = document.getElementById('no-venues-message');
+        const venueFilterBarContainer = document.getElementById('venue-filter-bar-container'); // Renamed for clarity
+
+        const sortRatingBtn = document.getElementById('sort-rating-btn');
+        const vibeTagsBtn = document.getElementById('vibe-tags-btn');
+        const vibeTagsPopover = document.getElementById('vibe-tags-popover');
+        const venueFeaturesBtn = document.getElementById('venue-features-btn');
+        const venueFeaturesPopover = document.getElementById('venue-features-popover');
+        const accessibilityBtn = document.getElementById('accessibility-btn');
+        const accessibilityPopover = document.getElementById('accessibility-popover');
+        const clearVenueFiltersBtn = document.getElementById('clear-venue-filters-btn');
+        const resetVenueFiltersBtn = document.getElementById('reset-venue-filters-btn');
+
+        // Helper for star ratings (copied from get-venue-details.js context)
+        function generateStars(rating) {
+            let stars = '';
+            const fullStars = Math.floor(rating);
+            const halfStar = rating % 1 >= 0.5;
+            for (let i = 0; i < fullStars; i++) stars += '<i class="fas fa-star text-yellow-400"></i>';
+            if (halfStar) stars += '<i class="fas fa-star-half-alt text-yellow-400"></i>';
+            const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+            for (let i = 0; i < emptyStars; i++) stars += '<i class="far fa-star text-yellow-400"></i>';
+            return stars;
+        }
+
+        // --- Filtering and Sorting Logic ---
+        function applyFiltersAndSort() {
+            let filteredVenues = [...allVenues];
+
+            // Apply Vibe Tag filter
+            if (activeVibeTagFilter !== 'all') {
+                filteredVenues = filteredVenues.filter(venue => venue.vibeTags && venue.vibeTags.includes(activeVibeTagFilter));
+            }
+
+            // Apply Venue Features filter
+            if (activeVenueFeatureFilter !== 'all') {
+                filteredVenues = filteredVenues.filter(venue => venue.venueFeatures && venue.venueFeatures.includes(activeVenueFeatureFilter));
+            }
+
+            // Apply Accessibility filter
+            if (activeAccessibilityFilter !== 'all') {
+                filteredVenues = filteredVenues.filter(venue => venue.accessibilityFeatures && venue.accessibilityFeatures.includes(activeAccessibilityFilter));
+            }
+
+            // Apply Sorting by Google Rating
+            filteredVenues.sort((a, b) => {
+                const ratingA = a.googleRating || 0; // Use 0 if rating is missing or null
+                const ratingB = b.googleRating || 0;
+                if (currentSortOrder === 'rating-desc') {
+                    return ratingB - ratingA;
+                } else { // rating-asc
+                    return ratingA - ratingB;
                 }
-            } catch (error) {
-                console.error("Error fetching venues:", error);
-                venueGrid.innerHTML = '<p class="col-span-full text-center text-red-400">Failed to load venues.</p>';
+            });
+
+            renderVenueCards(filteredVenues);
+        }
+
+        // --- Rendering Venue Cards ---
+        function renderVenueCards(venuesToDisplay) {
+            venueGrid.innerHTML = ''; // Clear previous venues
+            venueGrid.style.display = venuesToDisplay.length > 0 ? 'grid' : 'none';
+            noVenuesMessage.style.display = venuesToDisplay.length > 0 ? 'none' : 'block';
+
+            if (venuesToDisplay.length > 0) {
+                venuesToDisplay.forEach(venue => {
+                    const placeholder = 'https://placehold.co/400x400/1e1e1e/EAEAEA?text=Venue';
+                    const mediumSrc = venue.photo?.medium || placeholder;
+                    const ratingStarsHtml = generateStars(venue.googleRating); 
+                    const vibeTagsHtml = venue.vibeTags.map(tag => `<span class="category-tag">${tag}</span>`).join('');
+
+                    const venueCard = `
+                        <a href="/venue/${venue.slug}" class="item-card card-bg block group animate-fade-in">
+                            <div class="item-card-image-container">
+                                <img src="${mediumSrc}" alt="${venue.name}" class="item-card-image" loading="lazy">
+                                <div class="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-center p-2 rounded-lg z-10">
+                                    ${ratingStarsHtml}
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <h3 class="font-bold text-xl text-white mb-2 truncate group-hover:accent-color">${venue.name}</h3>
+                                <p class="text-gray-400 h-12 overflow-hidden">${venue.description || ''}</p>
+                                <div class="mt-2 flex flex-wrap gap-2">${vibeTagsHtml}</div>
+                            </div>
+                        </a>
+                    `;
+                    venueGrid.insertAdjacentHTML('beforeend', venueCard);
+                });
             }
         }
 
-        document.addEventListener('DOMContentLoaded', renderVenues);
+        // --- Render Popover Options ---
+        function renderFilterOptions(dataArray, popoverElement, filterName) {
+            popoverElement.innerHTML = '';
+            const allButton = document.createElement('button');
+            allButton.className = 'popover-option';
+            allButton.textContent = `All ${filterName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+            allButton.dataset.filterValue = 'all';
+            popoverElement.appendChild(allButton);
+
+            const uniqueOptions = [...new Set(dataArray.flat())].filter(Boolean).sort();
+            uniqueOptions.forEach(item => {
+                const button = document.createElement('button');
+                button.className = 'popover-option';
+                button.textContent = item;
+                button.dataset.filterValue = item;
+                popoverElement.appendChild(button);
+            });
+        }
+
+        // --- Reset Filters ---
+        function resetFilters() {
+            currentSortOrder = 'rating-desc';
+            activeVibeTagFilter = 'all';
+            activeVenueFeatureFilter = 'all';
+            activeAccessibilityFilter = 'all';
+
+            // Reset UI active states/texts
+            document.querySelectorAll('#venue-filter-bar-container .filter-button').forEach(btn => btn.classList.remove('active'));
+            sortRatingBtn.classList.add('active'); // Set default sort to active
+            sortRatingBtn.querySelector('span').textContent = 'Rating: High to Low'; // Ensure text is correct
+            sortRatingBtn.querySelector('i').className = 'fas fa-sort-amount-down-alt text-xs';
+
+            vibeTagsBtn.querySelector('span').textContent = 'All Vibe Tags';
+            venueFeaturesBtn.querySelector('span').textContent = 'All Features';
+            accessibilityBtn.querySelector('span').textContent = 'All Accessibility';
+
+            applyFiltersAndSort();
+        }
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            // Sorting by Rating
+            sortRatingBtn.addEventListener('click', () => {
+                if (currentSortOrder === 'rating-desc') {
+                    currentSortOrder = 'rating-asc';
+                    sortRatingBtn.querySelector('span').textContent = 'Rating: Low to High';
+                    sortRatingBtn.querySelector('i').className = 'fas fa-sort-amount-up-alt text-xs';
+                } else {
+                    currentSortOrder = 'rating-desc';
+                    sortRatingBtn.querySelector('span').textContent = 'Rating: High to Low';
+                    sortRatingBtn.querySelector('i').className = 'fas fa-sort-amount-down-alt text-xs';
+                }
+                applyFiltersAndSort();
+            });
+
+            // Popover Toggles
+            vibeTagsBtn.addEventListener('click', (e) => { e.stopPropagation(); venueFeaturesPopover.classList.remove('show'); accessibilityPopover.classList.remove('show'); vibeTagsPopover.classList.toggle('show'); });
+            venueFeaturesBtn.addEventListener('click', (e) => { e.stopPropagation(); vibeTagsPopover.classList.remove('show'); accessibilityPopover.classList.remove('show'); venueFeaturesPopover.classList.toggle('show'); });
+            accessibilityBtn.addEventListener('click', (e) => { e.stopPropagation(); vibeTagsPopover.classList.remove('show'); venueFeaturesPopover.classList.remove('show'); accessibilityPopover.classList.toggle('show'); });
+
+            // Popover Option Clicks
+            vibeTagsPopover.addEventListener('click', (e) => {
+                const btn = e.target.closest('.popover-option');
+                if (btn) { activeVibeTagFilter = btn.dataset.filterValue; vibeTagsBtn.querySelector('span').textContent = btn.textContent; vibeTagsPopover.classList.remove('show'); applyFiltersAndSort(); }
+            });
+            venueFeaturesPopover.addEventListener('click', (e) => {
+                const btn = e.target.closest('.popover-option');
+                if (btn) { activeVenueFeatureFilter = btn.dataset.filterValue; venueFeaturesBtn.querySelector('span').textContent = btn.textContent; venueFeaturesPopover.classList.remove('show'); applyFiltersAndSort(); }
+            });
+            accessibilityPopover.addEventListener('click', (e) => {
+                const btn = e.target.closest('.popover-option');
+                if (btn) { activeAccessibilityFilter = btn.dataset.filterValue; accessibilityBtn.querySelector('span').textContent = btn.textContent; accessibilityPopover.classList.remove('show'); applyFiltersAndSort(); }
+            });
+
+            // Clear All Filters Button
+            clearVenueFiltersBtn.addEventListener('click', resetFilters);
+            resetVenueFiltersBtn.addEventListener('click', resetFilters); // For no-results message
+
+            // Close popovers when clicking outside
+            window.addEventListener('click', () => {
+                vibeTagsPopover.classList.remove('show');
+                venueFeaturesPopover.classList.remove('show');
+                accessibilityPopover.classList.remove('show');
+            });
+        }
+
+        // --- Initialization ---
+        async function initializePage() {
+            const loader = venueGrid.querySelector('.loader')?.parentElement; // Get the loader container
+            if (loader) loader.style.display = 'flex'; // Show loader
+
+            try {
+                const response = await fetch('/.netlify/functions/get-venues');
+                if (!response.ok) throw new Error('Failed to fetch venues. Status: ' + response.status);
+                const fetchedVenues = await response.json();
+                
+                allVenues = fetchedVenues; 
+
+                // Populate popover options dynamically
+                renderFilterOptions(allVenues.map(v => v.vibeTags), vibeTagsPopover, 'vibe-tags');
+                renderFilterOptions(allVenues.map(v => v.venueFeatures), venueFeaturesPopover, 'venue-features');
+                renderFilterOptions(allVenues.map(v => v.accessibilityFeatures), accessibilityPopover, 'accessibility-features');
+
+                setupEventListeners();
+                applyFiltersAndSort(); // Apply initial sort and filters
+            } catch (error) {
+                console.error("Error initializing venues page:", error);
+                venueGrid.innerHTML = ''; // Clear loader
+                venueGrid.style.display = 'none';
+                noVenuesMessage.style.display = 'block';
+                noVenuesMessage.querySelector('p').textContent = 'Failed to load venues. Please try again later.'; // More specific error
+            } finally {
+                if (loader) loader.style.display = 'none'; // Hide loader regardless of success/failure
+            }
+        }
+
+        // Call initializePage when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initializePage);
     </script>
 </body>
 </html>

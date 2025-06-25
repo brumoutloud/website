@@ -35,134 +35,123 @@ function generateStars(rating) {
     return stars;
 }
 
-// **NEW**: Helper function to get the dynamic Open/Closed status
+/**
+ * **NEW & IMPROVED**: Parses opening hours text to determine current status.
+ * Handles single time slots, multiple (comma-separated) slots, day ranges, and overnight hours.
+ * @param {string} openingHoursText - The multi-line text from Airtable.
+ * @returns {{html: string}} - The HTML for the status badge.
+ */
 function getOpeningStatus(openingHoursText) {
     if (!openingHoursText || openingHoursText === 'Not Available') {
         return { html: '' }; // No hours, no status
     }
 
-    const schedule = {}; // 0=Sun, 1=Mon...
+    const schedule = {}; // { 0: [{opens: 1020, closes: 1380, ...}], 1: [{isClosed: true}], ... }
     const dayIndexes = { "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6 };
-    const dayShortNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+    const toMinutes = (timeStr, period) => {
+        let [hour, minute] = timeStr.split(':').map(Number);
+        minute = minute || 0;
+        if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+        if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
+        return hour * 60 + minute;
+    };
+    
+    // 1. Parse the text and build a detailed schedule object
     const lines = openingHoursText.split('<br>');
     for (const line of lines) {
         const parts = line.split(':');
         if (parts.length < 2) continue;
-        const [dayPart, timePart] = parts;
-        
+        const dayPart = parts[0].trim();
+        const timePart = parts[1].trim();
+
         const daysToApply = [];
-        const trimmedDayPart = dayPart.trim();
-        if (trimmedDayPart.includes('-')) {
-            const [startDay, endDay] = trimmedDayPart.split('-').map(d => d.trim());
-            let current = dayIndexes[startDay];
-            let end = dayIndexes[endDay];
+        if (dayPart.includes('-')) {
+            const [startDay, endDay] = dayPart.split('-').map(d => d.trim());
+            let current = dayIndexes[startDay], end = dayIndexes[endDay];
             if (current === undefined || end === undefined) continue;
-            
-            while (true) {
-                daysToApply.push(current);
-                if (current === end) break;
-                current = (current + 1) % 7;
-            }
+            while (true) { daysToApply.push(current); if (current === end) break; current = (current + 1) % 7; }
         } else {
-             const dayIndex = dayIndexes[trimmedDayPart];
-             if (dayIndex !== undefined) daysToApply.push(dayIndex);
+            const dayIndex = dayIndexes[dayPart];
+            if (dayIndex !== undefined) daysToApply.push(dayIndex);
         }
 
-        if (timePart.trim().toLowerCase() === 'closed') {
-            daysToApply.forEach(dayIndex => schedule[dayIndex] = { isClosed: true });
+        daysToApply.forEach(dayIndex => { if (!schedule[dayIndex]) schedule[dayIndex] = []; });
+
+        if (timePart.toLowerCase() === 'closed') {
+            daysToApply.forEach(dayIndex => schedule[dayIndex].push({ isClosed: true }));
             continue;
         }
-        
-        const timeMatches = timePart.trim().match(/(\d{1,2}(?::\d{2})?)(am|pm)\s*-\s*(\d{1,2}(?::\d{2})?)(am|pm)/i);
-        if (!timeMatches) continue;
 
-        let [, openTimeStr, openPeriod, closeTimeStr, closePeriod] = timeMatches;
-
-        const toMinutes = (timeStr, period) => {
-            let [hour, minute] = timeStr.split(':').map(Number);
-            minute = minute || 0;
-            if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
-            if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
-            return hour * 60 + minute;
-        };
-
-        const openMinutes = toMinutes(openTimeStr, openPeriod);
-        const closeMinutes = toMinutes(closeTimeStr, closePeriod);
-
-        daysToApply.forEach(dayIndex => {
-            schedule[dayIndex] = {
-                isClosed: false,
-                opens: openMinutes,
-                closes: closeMinutes,
-                openDisplay: `${openTimeStr}${openPeriod}`,
-                closeDisplay: `${closeTimeStr}${closePeriod}`
-            };
-        });
+        const timeSlots = timePart.split(',');
+        for (const slot of timeSlots) {
+            const timeMatches = slot.trim().match(/(\d{1,2}(?::\d{2})?)(am|pm)\s*-\s*(\d{1,2}(?::\d{2})?)(am|pm)/i);
+            if (!timeMatches) continue;
+            
+            let [, openTimeStr, openPeriod, closeTimeStr, closePeriod] = timeMatches;
+            daysToApply.forEach(dayIndex => {
+                schedule[dayIndex].push({
+                    isClosed: false,
+                    opens: toMinutes(openTimeStr, openPeriod),
+                    closes: toMinutes(closeTimeStr, closePeriod),
+                    openDisplay: `${openTimeStr}${openPeriod}`,
+                    closeDisplay: `${closeTimeStr}${closePeriod}`
+                });
+            });
+        }
     }
     
-    // Now determine status
+    // 2. Determine the current status based on the schedule
     const now = new Date();
     const londonTimeOpts = { timeZone: 'Europe/London' };
-    const currentDayIndex = now.getDay(); // 0 for Sunday, 1 for Monday, etc.
+    const currentDayIndex = now.getDay();
     const prevDayIndex = (currentDayIndex + 6) % 7;
-    
     const hour = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, hour: '2-digit', hour12: false }), 10);
     const minute = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, minute: '2-digit' }), 10);
     const currentTimeInMinutes = hour * 60 + minute;
 
-    let status = 'Closed';
-    let message = 'Currently Closed';
-    let color = 'red';
+    let status = 'Closed', message = 'Currently Closed', color = 'red';
 
-    const todaySchedule = schedule[currentDayIndex];
-    const yesterdaySchedule = schedule[prevDayIndex];
-
-    // Check if still open from yesterday
-    if (yesterdaySchedule && !yesterdaySchedule.isClosed && yesterdaySchedule.closes < yesterdaySchedule.opens) {
-        if (currentTimeInMinutes < yesterdaySchedule.closes) {
-            status = 'Open';
-            message = `Open until ${yesterdaySchedule.closeDisplay}`;
-            color = 'green';
+    const checkStatus = () => {
+        // Check if still open from yesterday's overnight slots
+        for (const slot of (schedule[prevDayIndex] || [])) {
+            if (!slot.isClosed && slot.closes < slot.opens && currentTimeInMinutes < slot.closes) {
+                return { status: 'Open', message: `Open until ${slot.closeDisplay}`, color: 'green' };
+            }
         }
-    }
-
-    // If not open from yesterday, check today's schedule
-    if (status === 'Closed' && todaySchedule && !todaySchedule.isClosed) {
-        const opensToday = todaySchedule.opens;
-        const closesToday = todaySchedule.closes;
-
-        const isOpenNow = (closesToday > opensToday) ? // Same day closing
-            (currentTimeInMinutes >= opensToday && currentTimeInMinutes < closesToday) :
-            (currentTimeInMinutes >= opensToday); // Overnight closing
-
-        if (isOpenNow) {
-            status = 'Open';
-            message = `Open until ${todaySchedule.closeDisplay}`;
-            color = 'green';
-        } else if (currentTimeInMinutes < opensToday && (opensToday - currentTimeInMinutes <= 60)) {
-            // Check if it opens soon
-            status = 'Opens Soon';
-            message = `Opens at ${todaySchedule.openDisplay}`;
-            color = 'orange';
+        // Check today's slots
+        for (const slot of (schedule[currentDayIndex] || [])) {
+            if (slot.isClosed) continue;
+            const isOpenNow = (slot.closes > slot.opens) ?
+                (currentTimeInMinutes >= slot.opens && currentTimeInMinutes < slot.closes) :
+                (currentTimeInMinutes >= slot.opens);
+            if (isOpenNow) {
+                return { status: 'Open', message: `Open until ${slot.closeDisplay}`, color: 'green' };
+            }
         }
-    }
-    
-    const colorClasses = {
-        red: 'bg-red-500/10 text-red-400 border-red-500/30',
-        green: 'bg-green-500/10 text-green-400 border-green-500/30',
-        orange: 'bg-orange-500/10 text-orange-400 border-orange-500/30'
+        return null; // Not currently open
     };
-
-    const statusHtml = `
-        <div class="p-3 rounded-lg border text-center ${colorClasses[color]} mb-4">
-            <p class="font-bold text-lg">${status}</p>
-            <p class="text-sm">${message}</p>
-        </div>
-    `;
     
-    return { html: statusHtml };
+    const currentStatus = checkStatus();
+    
+    if (currentStatus) {
+        ({ status, message, color } = currentStatus);
+    } else { // If closed, check if it opens soon
+        for (const slot of (schedule[currentDayIndex] || [])) {
+             if (!slot.isClosed && currentTimeInMinutes < slot.opens && (slot.opens - currentTimeInMinutes <= 60)) {
+                 status = 'Opens Soon';
+                 message = `Opens at ${slot.openDisplay}`;
+                 color = 'orange';
+                 break; 
+             }
+        }
+    }
+    
+    // 3. Generate HTML
+    const colorClasses = { red: 'bg-red-500/10 text-red-400 border-red-500/30', green: 'bg-green-500/10 text-green-400 border-green-500/30', orange: 'bg-orange-500/10 text-orange-400 border-orange-500/30' };
+    return { html: `<div class="p-3 rounded-lg border text-center ${colorClasses[color]} mb-6"><p class="font-bold text-lg">${status}</p><p class="text-sm">${message}</p></div>` };
 }
+
 
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
@@ -174,10 +163,7 @@ exports.handler = async function (event, context) {
         const venueRecords = await base('Venues').select({
             maxRecords: 1,
             filterByFormula: `{Slug} = "${slug}"`,
-            fields: [
-                "Name", "Description", "Address", "Opening Hours", "Accessibility", "Website", "Instagram", "Facebook", "TikTok", 
-                "Photo", "Google Place ID", "Vibe Tags", "Venue Features", "Accessibility Rating", "Accessibility Features", "Parking Exception"
-            ]
+            fields: [ "Name", "Description", "Address", "Opening Hours", "Accessibility", "Website", "Instagram", "Facebook", "TikTok", "Photo", "Google Place ID", "Vibe Tags", "Venue Features", "Accessibility Rating", "Accessibility Features", "Parking Exception" ]
         }).all();
 
         if (!venueRecords || venueRecords.length === 0) {
@@ -195,13 +181,14 @@ exports.handler = async function (event, context) {
         let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
 
         if (GOOGLE_PLACES_API_KEY) {
+            // Logic to fetch Google Place ID and details (unchanged)
             if (!placeId) {
                 const findPlaceQuery = encodeURIComponent(`${venue.Name}, ${venue.Address}`);
                 const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${findPlaceQuery}&inputtype=textquery&fields=place_id&key=${GOOGLE_PLACES_API_KEY}`;
                 try {
                     const findPlaceResponse = await fetch(findPlaceUrl);
                     const findPlaceData = await findPlaceResponse.json();
-                    if (findPlaceData.status === 'OK' && findPlaceData.candidates && findPlaceData.candidates.length > 0) {
+                    if (findPlaceData.status === 'OK' && findPlaceData.candidates.length > 0) {
                         placeId = findPlaceData.candidates[0].place_id;
                         await base('Venues').update([{ id: venueRecordId, fields: { "Google Place ID": placeId } }]);
                     }
@@ -219,88 +206,32 @@ exports.handler = async function (event, context) {
 
                         if (rating) {
                             const stars = generateStars(rating);
-                            googleRatingHtml = createSidebarSection(
-                                'Google Rating',
-                                `<div class="flex items-center space-x-2 text-xl"><div>${stars}</div><p class="text-white font-semibold">${rating} <span class="text-gray-400">(${user_ratings_total})</span></p></div>
-                                 <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline text-sm mt-1 block">View on Google Maps</a>`,
-                                'fab fa-google'
-                            );
+                            googleRatingHtml = createSidebarSection( 'Google Rating', `<div class="flex items-center space-x-2 text-xl"><div>${stars}</div><p class="text-white font-semibold">${rating} <span class="text-gray-400">(${user_ratings_total})</span></p></div> <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline text-sm mt-1 block">View on Google Maps</a>`, 'fab fa-google' );
                         }
 
                         if (reviews && reviews.length > 0) {
-                             googleReviewsHtml = `
-                                <div class="mt-24">
-                                    <h2 class="font-anton text-5xl text-white mb-8">Recent Reviews from Google</h2>
-                                    <div class="space-y-4">
-                                        ${reviews.slice(0, 3).map(review => {
-                                            const reviewStars = generateStars(review.rating);
-                                            let reviewText = review.text;
-                                            let readMoreLink = '';
-                                            if (reviewText.length > 280) {
-                                                reviewText = reviewText.substring(0, 280) + '...';
-                                                readMoreLink = `<a href="${googleMapsUrl}" target="_blank" class="text-blue-400 hover:underline text-xs">Read more on Google</a>`;
-                                            }
-
-                                            return `
-                                            <div class="card-bg p-4 space-y-2">
-                                                <div class="flex items-center justify-between">
-                                                    <p class="font-semibold text-white">${review.author_name}</p>
-                                                    <div class="text-xs">${reviewStars}</div>
-                                                </div>
-                                                <p class="text-gray-300 text-sm">${reviewText}</p>
-                                                ${readMoreLink}
-                                            </div>
-                                        `}).join('')}
-                                        <div class="mt-8 text-center">
-                                            <img src="https://www.gstatic.com/marketing-cms/assets/images/c5/3a/200414104c669203c62270f7884f/google-wordmarks-2x.webp" alt="Powered by Google" style="max-width:120px; height: auto; margin: 0 auto;">
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
+                             googleReviewsHtml = `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Recent Reviews from Google</h2><div class="space-y-4">${reviews.slice(0, 3).map(review => { const reviewStars = generateStars(review.rating); let reviewText = review.text; let readMoreLink = ''; if (reviewText.length > 280) { reviewText = reviewText.substring(0, 280) + '...'; readMoreLink = `<a href="${googleMapsUrl}" target="_blank" class="text-blue-400 hover:underline text-xs">Read more on Google</a>`; } return `<div class="card-bg p-4 space-y-2"><div class="flex items-center justify-between"><p class="font-semibold text-white">${review.author_name}</p><div class="text-xs">${reviewStars}</div></div><p class="text-gray-300 text-sm">${reviewText}</p>${readMoreLink}</div>` }).join('')}<div class="mt-8 text-center"><img src="https://www.gstatic.com/marketing-cms/assets/images/c5/3a/200414104c669203c62270f7884f/google-wordmarks-2x.webp" alt="Powered by Google" style="max-width:120px; height: auto; margin: 0 auto;"></div></div></div>`;
                         }
                     }
                 } catch (error) { console.error("Error fetching place details:", error); }
             }
         }
         
-        const eventRecords = await base('Events').select({
-            filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()))`,
-            sort: [{ field: 'Date', direction: 'asc' }],
-            fields: ['Event Name', 'Date', 'Slug'] 
-        }).all();
-
-        const upcomingEventsHtml = eventRecords.length > 0 ? eventRecords.map(record => {
-            const event = record.fields;
-            const eventDate = new Date(event.Date);
-            return `
-                <a href="/event/${event.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block">
-                    <div class="text-center w-20 flex-shrink-0">
-                        <p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p>
-                        <p class="text-lg text-gray-400">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p>
-                    </div>
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-white text-xl">${event['Event Name']}</h4>
-                        <p class="text-sm text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p>
-                    </div>
-                    <div class="text-accent-color"><i class="fas fa-arrow-right"></i></div>
-                </a>
-            `;
-        }).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>';
+        // Event fetching logic (unchanged)
+        const eventRecords = await base('Events').select({ filterByFormula: `AND({Venue Name} = "${venue.Name.replace(/"/g, '\\"')}", IS_AFTER({Date}, TODAY()))`, sort: [{ field: 'Date', direction: 'asc' }], fields: ['Event Name', 'Date', 'Slug'] }).all();
+        const upcomingEventsHtml = eventRecords.length > 0 ? eventRecords.map(record => { const event = record.fields; const eventDate = new Date(event.Date); return `<a href="/event/${event.Slug}" class="card-bg p-4 flex items-center space-x-4 hover:bg-gray-800 transition-colors duration-200 block"><div class="text-center w-20 flex-shrink-0"><p class="text-2xl font-bold text-white">${eventDate.toLocaleDateString('en-GB', { day: 'numeric' })}</p><p class="text-lg text-gray-400">${eventDate.toLocaleDateString('en-GB', { month: 'short' })}</p></div><div class="flex-grow"><h4 class="font-bold text-white text-xl">${event['Event Name']}</h4><p class="text-sm text-gray-400">${eventDate.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Europe/London' })}</p></div><div class="text-accent-color"><i class="fas fa-arrow-right"></i></div></a>`; }).join('') : '<p class="text-gray-400 text-lg">No upcoming events scheduled at this venue.</p>';
 
         const photos = venue['Photo'] || [];
         const mainPhoto = photos.length > 0 ? photos[0].url : 'https://placehold.co/1200x675/1a1a1a/f5efe6?text=Venue+Photo';
-        
-        const photoGalleryHtml = photos.length > 1 ? `
-            <div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Photo Gallery</h2><div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            ${photos.slice(1).map(p => `<a href="${p.url}" target="_blank"><img src="${p.thumbnails.large.url}" alt="${venue.Name} Photo" class="w-full h-full aspect-square object-cover rounded-lg shadow-md hover:opacity-80 transition-opacity"></a>`).join('')}
-            </div></div>` : '';
+        const photoGalleryHtml = photos.length > 1 ? `<div class="mt-24"><h2 class="font-anton text-5xl text-white mb-8">Photo Gallery</h2><div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">${photos.slice(1).map(p => `<a href="${p.url}" target="_blank"><img src="${p.thumbnails.large.url}" alt="${venue.Name} Photo" class="w-full h-full aspect-square object-cover rounded-lg shadow-md hover:opacity-80 transition-opacity"></a>`).join('')}</div></div>` : '';
 
-        const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
-        const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
+        // Prepare data for sidebar
         const openingHoursText = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
         const openingStatus = getOpeningStatus(openingHoursText);
-        const openingHoursContent = openingStatus.html + openingHoursText;
+        const openingHoursContent = openingHoursText; // Keep it clean for the section body
         
+        const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
+        const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
         let accessibilityInfo = [];
         if (venue['Accessibility Rating']) accessibilityInfo.push(`<strong>Rating:</strong> ${venue['Accessibility Rating']}`);
         if (venue['Accessibility Features']) accessibilityInfo.push(`<strong>Features:</strong> ${venue['Accessibility Features'].join(', ')}`);
@@ -333,21 +264,24 @@ exports.handler = async function (event, context) {
                              ${googleReviewsHtml}
                              ${photoGalleryHtml}
                         </div>
-                        <div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8 space-y-6">
-                            <div>
-                                <h3 class="font-bold text-lg accent-color-secondary mb-2">The Vibe</h3>
-                                <p class="text-gray-300 text-base">${venue.Description || 'Info coming soon.'}</p>
+                        <div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8">
+                            ${openingStatus.html}
+                            <div class="space-y-6">
+                                <div>
+                                    <h3 class="font-bold text-lg accent-color-secondary mb-2">The Vibe</h3>
+                                    <p class="text-gray-300 text-base">${venue.Description || 'Info coming soon.'}</p>
+                                </div>
+                                ${createSidebarSection('Address', `${venue.Address}<br><a href="${googleMapsUrl}" target="_blank" class="text-sm text-accent-color hover:underline">Get Directions</a>`, 'fa-solid fa-map-location-dot')}
+                                ${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}
+                                ${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}
+                                ${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}
+                                ${googleRatingHtml}
+                                <div class="border-t border-gray-700 pt-6 flex flex-wrap gap-4">
+                                    ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="social-button flex-grow"><i class="fas fa-globe mr-2"></i>Website</a>` : ''}
+                                    ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="social-button flex-grow"><i class="fab fa-instagram mr-2"></i>Instagram</a>` : ''}
+                                </div>
+                                <div class="pt-4 text-center"><a href="mailto:feedback@brumoutloud.co.uk?subject=Issue with ${encodeURIComponent(venue.Name)} page" class="text-xs text-gray-500 hover:text-accent-color">Something wrong? Let us know</a></div>
                             </div>
-                            ${createSidebarSection('Address', `${venue.Address}<br><a href="${googleMapsUrl}" target="_blank" class="text-sm text-accent-color hover:underline">Get Directions</a>`, 'fa-solid fa-map-location-dot')}
-                            ${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}
-                            ${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}
-                            ${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}
-                            ${googleRatingHtml}
-                            <div class="border-t border-gray-700 pt-6 flex flex-wrap gap-4">
-                                ${venue.Website ? `<a href="${venue.Website}" target="_blank" class="social-button flex-grow"><i class="fas fa-globe mr-2"></i>Website</a>` : ''}
-                                ${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" class="social-button flex-grow"><i class="fab fa-instagram mr-2"></i>Instagram</a>` : ''}
-                            </div>
-                            <div class="pt-4 text-center"><a href="mailto:feedback@brumoutloud.co.uk?subject=Issue with ${encodeURIComponent(venue.Name)} page" class="text-xs text-gray-500 hover:text-accent-color">Something wrong? Let us know</a></div>
                         </div></div>
                     </div>
                 </main>
@@ -359,3 +293,4 @@ exports.handler = async function (event, context) {
         return { statusCode: 500, body: 'Server error building venue page.' };
     }
 };
+

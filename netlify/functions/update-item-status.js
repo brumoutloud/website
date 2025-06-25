@@ -5,6 +5,20 @@ const AIRTABLE_PERSONAL_ACCESS_TOKEN = process.env.AIRTABLE_PERSONAL_ACCESS_TOKE
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const base = new Airtable({ apiKey: AIRTABLE_PERSONAL_ACCESS_TOKEN }).base(AIRTABLE_BASE_ID);
 
+// Helper function to create a URL-friendly slug from a string
+const slugify = (text) => {
+  if (!text) return '';
+  return text
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
+};
+
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -24,17 +38,34 @@ exports.handler = async (event) => {
         const tableName = 'Events';
 
         const fieldsToUpdate = {
-            "Status": status // Update the Status field (e.g., 'Approved', 'Rejected')
+            "Status": status
         };
 
-        // FIX: Re-added logic to write to "Rejection Reason" field now that it exists in Airtable
         if (status === 'Rejected' && rejectionReason) {
             fieldsToUpdate["Rejection Reason"] = rejectionReason;
-            // You might also want to set a 'Visible on Site' or similar boolean to false when rejected
-            // Example: fieldsToUpdate["Visible on Site"] = false;
         } else if (status === 'Approved') {
-             // If approved, ensure it's visible if you have such a field
-             // Example: fieldsToUpdate["Visible on Site"] = true;
+            // --- NEW SLUG GENERATION LOGIC ---
+            // Fetch the record to get the data needed for the slug
+            const record = await base(tableName).find(id);
+            const eventName = record.get('Event Name');
+            const parentName = record.get('Parent Event Name');
+            const eventDate = record.get('Date');
+            
+            let newSlug = '';
+            // If it's a recurring event instance (it has a Parent Event Name)
+            if (parentName && eventDate) {
+                const baseSlug = slugify(parentName);
+                const dateString = new Date(eventDate).toISOString().split('T')[0];
+                newSlug = `${baseSlug}-${dateString}`;
+            } else {
+                // Otherwise, it's a one-off event
+                newSlug = slugify(eventName);
+            }
+
+            if (newSlug) {
+                fieldsToUpdate['Slug'] = newSlug;
+            }
+            // --- END NEW SLUG LOGIC ---
         }
 
 

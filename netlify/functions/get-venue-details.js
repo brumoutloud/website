@@ -104,8 +104,8 @@ function getOpeningStatus(openingHoursText) {
     // 2. Determine the current status based on the schedule
     const now = new Date();
     const londonTimeOpts = { timeZone: 'Europe/London' };
-    const currentDayIndex = now.getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
-    const prevDayIndex = (currentDayIndex + 6) % 7; // Day before currentDayIndex
+    const currentDayIndex = now.getDay();
+    const prevDayIndex = (currentDayIndex + 6) % 7;
     const hour = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, hour: '2-digit', hour12: false }), 10);
     const minute = parseInt(now.toLocaleString('en-GB', { ...londonTimeOpts, minute: '2-digit' }), 10);
     const currentTimeInMinutes = hour * 60 + minute;
@@ -121,15 +121,14 @@ function getOpeningStatus(openingHoursText) {
                 }
             }
         }
-
-        // Then, check today's slots
+        // Check today's slots
         for (const slot of (schedule[currentDayIndex] || [])) {
             if (slot.isClosed) continue;
 
             let isOpenNow;
             if (slot.closes > slot.opens) { // Standard slot: starts and ends on the same day
                 isOpenNow = (currentTimeInMinutes >= slot.opens && currentTimeInMinutes < slot.closes);
-            } else { // Overnight slot: starts today, ends tomorrow
+            } else { // Overnight slot: starts today, ends tomorrow (THIS IS THE FIX)
                 isOpenNow = (currentTimeInMinutes >= slot.opens || currentTimeInMinutes < slot.closes);
             }
 
@@ -144,16 +143,14 @@ function getOpeningStatus(openingHoursText) {
     
     if (currentStatus) {
         ({ status, message, color } = currentStatus);
-    } else { // If closed, check if it opens soon (within 60 minutes)
-        // Find the next opening time for today
-        const todaySlots = (schedule[currentDayIndex] || []).filter(s => !s.isClosed && s.opens > currentTimeInMinutes).sort((a, b) => a.opens - b.opens);
-        if (todaySlots.length > 0) {
-            const nextOpening = todaySlots[0];
-            if (nextOpening.opens - currentTimeInMinutes <= 60) {
-                status = 'Opens Soon';
-                message = `Opens at ${nextOpening.openDisplay}`;
-                color = 'orange';
-            }
+    } else { // If closed, check if it opens soon
+        for (const slot of (schedule[currentDayIndex] || [])) {
+             if (!slot.isClosed && currentTimeInMinutes < slot.opens && (slot.opens - currentTimeInMinutes <= 60)) {
+                 status = 'Opens Soon';
+                 message = `Opens at ${slot.openDisplay}`;
+                 color = 'orange';
+                 break; 
+             }
         }
     }
     
@@ -173,7 +170,6 @@ exports.handler = async function (event, context) {
         const venueRecords = await base('Venues').select({
             maxRecords: 1,
             filterByFormula: `{Slug} = "${slug}"`,
-            // Fetch all fields necessary for a venue details page
             fields: [ "Name", "Description", "Address", "Opening Hours", "Accessibility", "Website", "Instagram", "Facebook", "TikTok", "Photo", "Google Place ID", "Vibe Tags", "Venue Features", "Accessibility Rating", "Accessibility Features", "Parking Exception" ]
         }).all();
 
@@ -182,15 +178,15 @@ exports.handler = async function (event, context) {
         }
         
         const venueRecord = venueRecords[0];
-        const venue = venueRecord.fields; // Correctly get venue fields
+        const venue = venueRecord.fields;
         const venueRecordId = venueRecord.id;
 
         // --- GOOGLE PLACES API INTEGRATION ---
         let placeId = venue['Google Place ID'];
         let googleRatingHtml = '';
         let googleReviewsHtml = '';
-        // Corrected googleMapsUrl: using standard Google Maps query
-        let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}`;
+        // Corrected googleMapsUrl interpolation
+        let googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.Name + ', ' + venue.Address)}&query_place_id=${placeId || ''}`;
 
 
         if (GOOGLE_PLACES_API_KEY) {
@@ -236,7 +232,7 @@ exports.handler = async function (event, context) {
         const description = venue['Description'] || 'No description provided.';
         const openingHoursText = venue['Opening Hours'] ? venue['Opening Hours'].replace(/\n/g, '<br>') : 'Not Available';
         const openingStatus = getOpeningStatus(openingHoursText);
-        const openingHoursContent = openingHoursText;
+        const openingHoursContent = openingHoursText; // This is the raw parsed text for display
         const vibeTagsHtml = createTagsHtml(venue['Vibe Tags'], 'fa-solid fa-martini-glass-citrus');
         const venueFeaturesHtml = createTagsHtml(venue['Venue Features'], 'fa-solid fa-star');
         let accessibilityInfo = [];
@@ -246,7 +242,7 @@ exports.handler = async function (event, context) {
         if (venue['Parking Exception']) accessibilityInfo.push(`<strong>Parking:</strong> ${venue['Parking Exception']}`);
         const accessibilityHtml = accessibilityInfo.length > 0 ? accessibilityInfo.join('<br><br>') : 'No specific accessibility information has been provided.';
 
-        const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${venue.Name} | Brum Out Loud</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><link rel="stylesheet" href="/css/main.css"><script src="/js/main.js" defer></script><style>.hero-image-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background-color: #1e1e1e; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); } .hero-image-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: blur(24px) brightness(0.5); transform: scale(1.1); transition: opacity 0.4s ease; } .hero-image-container:hover .hero-image-bg { opacity: 1; } .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; } .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); } .suggested-card { border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); background-color: #1e1e1e; transition: transform 0.3s ease, box-shadow 0.3s ease; } .suggested-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.5); } .suggested-carousel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1); } .suggested-carousel::-webkit-scrollbar { height: 4px; } .suggested-carousel::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 2px; } .suggested-carousel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }</style></head><body class="antialiased"><div id="header-placeholder"></div><main class="container mx-auto px-8 py-16"><div class="grid lg:grid-cols-3 gap-16"><div class="lg:col-span-2"><div class="hero-image-container mb-8"><img src="${mainPhoto}" alt="" class="hero-image-bg" aria-hidden="true"><img src="${mainPhoto}" alt="${venue.Name}" class="hero-image-fg"></div><p class="font-semibold accent-color mb-2">VENUE DETAILS</p><h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${venue.Name}</h1><div class="prose prose-invert prose-lg max-w-none text-gray-300">${description.replace(/\n/g, '<br>')}</div></div><div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8 space-y-6"><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Date & Time</h3><p class="text-2xl font-semibold">${openingHoursContent}</p></div><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3><p class="text-2xl font-semibold">${venue.Address}</p><a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-sm text-accent-color hover:underline">Get Directions</a></div>${googleRatingHtml}<div class="border-t border-gray-700 pt-6"><h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Contact & Social</h3><div class="grid grid-cols-1 gap-2">${venue.Website ? `<a href="${venue.Website}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">Website</a>` : ''}${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">Instagram</a>` : ''}${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">Facebook</a>` : ''}${venue.TikTok ? `<a href="${venue.TikTok}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">TikTok</a>` : ''}</div></div></div></div></div>${googleReviewsHtml}</main><div id="footer-placeholder"></div></body></html>`;
+        const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${venue.Name} | Brum Out Loud</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><link rel="stylesheet" href="/css/main.css"><script src="/js/main.js" defer></script><style>.hero-image-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background-color: #1e1e1e; overflow: hidden; border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); } .hero-image-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: blur(24px) brightness(0.5); transform: scale(1.1); transition: opacity 0.4s ease; } .hero-image-container:hover .hero-image-bg { opacity: 1; } .hero-image-fg { position: relative; width: 100%; height: 100%; object-fit: cover; z-index: 10; transition: all 0.4s ease; } .hero-image-container:hover .hero-image-fg { object-fit: contain; transform: scale(0.9); } .suggested-card { border-radius: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); background-color: #1e1e1e; transition: transform 0.3s ease, box-shadow 0.3s ease; } .suggested-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.5); } .suggested-carousel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1); } .suggested-carousel::-webkit-scrollbar { height: 4px; } .suggested-carousel::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 2px; } .suggested-carousel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }</style></head><body class="antialiased"><div id="header-placeholder"></div><main class="container mx-auto px-8 py-16"><div class="grid lg:grid-cols-3 gap-16"><div class="lg:col-span-2"><div class="hero-image-container mb-8"><img src="${mainPhoto}" alt="" class="hero-image-bg" aria-hidden="true"><img src="${mainPhoto}" alt="${venue.Name}" class="hero-image-fg"></div><p class="font-semibold accent-color mb-2">VENUE DETAILS</p><h1 class="font-anton text-6xl lg:text-8xl heading-gradient leading-none mb-8">${venue.Name}</h1><div class="prose prose-invert prose-lg max-w-none text-gray-300">${description.replace(/\n/g, '<br>')}</div></div><div class="lg:col-span-1"><div class="card-bg p-8 sticky top-8 space-y-6"><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Current Status</h3>${openingStatus.html}</div><div><h3 class="font-bold text-lg accent-color-secondary mb-2">Location</h3><p class="text-2xl font-semibold">${venue.Address}</p><a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="text-sm text-accent-color hover:underline">Get Directions</a></div>${createSidebarSection('Opening Hours', openingHoursContent, 'fa-solid fa-clock')}${createSidebarSection('The Vibe', vibeTagsHtml, 'fa-solid fa-martini-glass-citrus')}${createSidebarSection('Venue Features', venueFeaturesHtml, 'fa-solid fa-star')}${createSidebarSection('Accessibility', accessibilityHtml, 'fa-solid fa-universal-access')}${googleRatingHtml}<div class="border-t border-gray-700 pt-6"><h3 class="font-bold text-lg accent-color-secondary mb-4 text-center">Contact & Social</h3><div class="grid grid-cols-1 gap-2">${venue.Website ? `<a href="${venue.Website}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">Website</a>` : ''}${venue.Instagram ? `<a href="${venue.Instagram}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">Instagram</a>` : ''}${venue.Facebook ? `<a href="${venue.Facebook}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">Facebook</a>` : ''}${venue.TikTok ? `<a href="${venue.TikTok}" target="_blank" rel="noopener noreferrer" class="block w-full text-center bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600">TikTok</a>` : ''}</div></div></div></div></div>${googleReviewsHtml}</main><div id="footer-placeholder"></div></body></html>`;
 
         return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
 

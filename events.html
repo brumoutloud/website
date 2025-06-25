@@ -68,14 +68,14 @@
             background-color: rgba(181, 100, 247, 0.1); /* Same background as category-tag */
             color: #B564F7; /* Same text color as category-tag */
             font-size: 0.75rem; /* Same font size as category-tag */
-            font-weight: 600; /* Same font weight as category-tag */
-            padding: 0.25rem 0.75rem; /* Same padding as category-tag */
-            border-radius: 9999px; /* Same border-radius as category-tag */
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
             cursor: pointer;
-            position: absolute; /* Position absolutely within the wrapper */
+            position: absolute;
             right: 0;
             top: 0;
-            z-index: 4; /* Increased z-index to appear above the gradient */
+            z-index: 4;
         }
 
         @media (max-width: 767px) {
@@ -86,8 +86,7 @@
         }
 
         .event-tags-wrapper {
-            position: relative; /* Ensure positioning context for ::after */
-            /* Existing flex flex-nowrap overflow-hidden gap-2 classes will apply from HTML */
+            position: relative;
         }
         .event-tags-wrapper::after {
             content: '';
@@ -95,10 +94,10 @@
             top: 0;
             right: 0;
             height: 100%;
-            width: 40px; /* Width of the gradient fade */
-            background: linear-gradient(to right, transparent, #1e1e1e 80%); /* Fade from transparent to card background */
-            pointer-events: none; /* Allow clicks to pass through to the indicator below */
-            z-index: 3; /* Needs to be above the indicator */
+            width: 40px;
+            background: linear-gradient(to right, transparent, #1e1e1e 80%);
+            pointer-events: none;
+            z-index: 3;
         }
 
         .hamburger { cursor: pointer; width: 24px; height: 24px; transition: all 0.25s; position: relative; }
@@ -109,232 +108,107 @@
         .open .hamburger-middle { display: none; }
         .open .hamburger-bottom { transform: rotate(-45deg) translateY(6px) translateX(-6px); }
 
-        /* --- NEW: Featured Banner (Slideshow) Styles with 2-column layout --- */
-        .slideshow-wrapper { margin-bottom: 4rem; filter: drop-shadow(0 0 20px rgba(181, 100, 247, 0.25)); /* Using existing accent-color */ }
-        .slideshow-container { position: relative; width: 100%; height: 450px; /* Increased height for poster aspect ratio */ border-radius: 1rem; overflow: hidden; }
-
-        /* Each slide is a flex container for its inner content */
+        .slideshow-wrapper { margin-bottom: 4rem; filter: drop-shadow(0 0 20px rgba(181, 100, 247, 0.25)); }
+        .slideshow-container { position: relative; width: 100%; height: 450px; border-radius: 1rem; overflow: hidden; }
         .slide {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0;
             transition: opacity 1s ease-in-out;
-            display: flex; /* Make slide a flex container */
-            flex-direction: column; /* Default to column on small screens */
-            justify-content: flex-end;
-            background-color: #1e1e1e; /* Ensure background color for entire slide */
+            display: flex; flex-direction: column; justify-content: flex-end;
+            background-color: #1e1e1e;
         }
         .slide.active { opacity: 1; }
-
         .slide-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            /* **THE FIX**: Changed from 0.6 to 0.75 for a darker effect */
-            background-color: rgba(17, 17, 17, 0.75);
-            z-index: 2;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(17, 17, 17, 0.75); z-index: 2;
         }
-
-        /* Inner content for the two columns */
         .slide-inner-content {
-            position: relative; /* Positioning context for children */
-            display: flex;
-            flex-direction: column; /* Stack columns on mobile */
-            height: 100%; /* Take full height of slide */
-            width: 100%;
-            z-index: 3; /* Above overlay */
+            position: relative; display: flex; flex-direction: column; height: 100%; width: 100%; z-index: 3;
         }
-
         .slide-text-content {
-            flex: 1; /* Takes remaining space */
-            padding: 2rem;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* Center content vertically */
-            background: rgba(0,0,0,0.7); /* Background for text area on mobile */
-            border-radius: 1rem; /* Full rounded corners on mobile */
+            flex: 1; padding: 2rem; color: white; display: flex; flex-direction: column;
+            justify-content: center; background: rgba(0,0,0,0.7); border-radius: 1rem;
         }
-
         .slide-poster-container {
-            width: 100%; /* Full width on mobile */
-            height: 50%; /* Image takes top half on mobile */
-            overflow: hidden;
-            border-radius: 1rem 1rem 0 0; /* Rounded corners on top for mobile */
-            background-color: black; /* Added background for contain mode */
-            display: flex; /* Use flex to center image if it doesn't fill container */
-            justify-content: center;
-            align-items: center;
+            width: 100%; height: 50%; overflow: hidden; border-radius: 1rem 1rem 0 0;
+            background-color: black; display: flex; justify-content: center; align-items: center;
         }
-
         .slide-poster-image {
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Changed to contain to show full poster aspect ratio */
-            transition: transform 0.4s ease;
+            width: 100%; height: 100%; object-fit: contain; transition: transform 0.4s ease;
         }
-        .slide:hover .slide-poster-image {
-            transform: scale(1.05);
-        }
+        .slide:hover .slide-poster-image { transform: scale(1.05); }
 
-        /* Responsive adjustments for desktop/larger screens */
         @media (min-width: 768px) {
-            .slide-inner-content {
-                flex-direction: row; /* Two columns on desktop */
-            }
+            .slide-inner-content { flex-direction: row; }
             .slide-text-content {
-                flex: 1; /* Takes roughly half */
-                max-width: 55%; /* Adjusted width for text content */
-                justify-content: center; /* Center content vertically on desktop */
-                background: transparent; /* No background on desktop, relies on overlay */
-                border-radius: 0;
-                padding-bottom: 2rem; /* Adjusted padding-bottom */
+                flex: 1; max-width: 55%; justify-content: center; background: transparent;
+                border-radius: 0; padding-bottom: 2rem;
             }
             .slide-poster-container {
-                width: 45%; /* Adjusted width for image container */
-                height: 100%; /* Full height of slide */
-                border-radius: 0 1rem 1rem 0; /* Rounded corners on right for desktop */
-                position: absolute; /* Position to the right */
-                right: 0;
-                top: 0;
-                background-color: black; /* Keep background for contain mode */
+                width: 45%; height: 100%; border-radius: 0 1rem 1rem 0;
+                position: absolute; right: 0; top: 0; background-color: black;
             }
-            .slide-poster-image {
-                border-radius: 0 1rem 1rem 0; /* Match container corners */
-            }
-            .slide-overlay {
-                background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 80%);
-            }
+            .slide-poster-image { border-radius: 0 1rem 1rem 0; }
+            .slide-overlay { background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 80%); }
         }
 
-
-        .featured-banner-label { /* New element for "Featured Event" text on the banner */
-            font-weight: 600;
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #B564F7; /* Using existing accent-color */
-            margin-bottom: 0.5rem;
+        .featured-banner-label {
+            font-weight: 600; font-size: 0.875rem; text-transform: uppercase;
+            letter-spacing: 0.05em; color: #B564F7; margin-bottom: 0.5rem;
         }
         .slide-title {
-            font-family: 'Anton', sans-serif;
-            font-size: 2.5rem; /* Adjusted for this layout */
-            line-height: 1;
-            text-shadow: 0 4px 15px rgba(0,0,0,0.6);
-            margin-bottom: 0.5rem;
+            font-family: 'Anton', sans-serif; font-size: 2.5rem; line-height: 1;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.6); margin-bottom: 0.5rem;
         }
-        @media (min-width: 768px) {
-            .slide-title {
-                font-size: 3.5rem; /* Larger on desktop */
-            }
-        }
-        .slide-venue {
-            margin-top: 0.25rem;
-            font-size: 1.125rem;
-            opacity: 0.9;
-        }
-        .slide-description { /* For longer text */
-            font-size: 1rem;
-            opacity: 0.8;
-            margin-top: 0.75rem;
-            display: -webkit-box;
-            -webkit-line-clamp: 3; /* Limit description to 3 lines */
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        @media (min-width: 768px) { .slide-title { font-size: 3.5rem; } }
+        .slide-venue { margin-top: 0.25rem; font-size: 1.125rem; opacity: 0.9; }
+        .slide-description {
+            font-size: 1rem; opacity: 0.8; margin-top: 0.75rem; display: -webkit-box;
+            -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;
         }
         .slide-content .cta-button {
-            margin-top: 1rem;
-            background-color: #B564F7; /* Using existing accent-color */
-            color: white;
-            font-weight: 700;
-            padding: 0.6rem 1.25rem;
-            border-radius: 0.5rem;
-            text-decoration: none;
-            display: inline-block;
-            transition: background-color 0.2s;
-            font-size: 0.875rem;
+            margin-top: 1rem; background-color: #B564F7; color: white; font-weight: 700;
+            padding: 0.6rem 1.25rem; border-radius: 0.5rem; text-decoration: none;
+            display: inline-block; transition: background-color 0.2s; font-size: 0.875rem;
         }
-        .slide-content .cta-button:hover { background-color: #9d4fd6; /* Darker shade of existing accent-color */ }
+        .slide-content .cta-button:hover { background-color: #9d4fd6; }
 
-        .slideshow-dots { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 0.75rem; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.4); cursor: pointer; transition: background-color 0.3s ease; }
+        .slideshow-dots {
+            position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+            z-index: 4; display: flex; gap: 0.75rem;
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.4);
+            cursor: pointer; transition: background-color 0.3s ease; }
         .dot.active { background-color: white; }
-        /* The featured-tag for the banner itself */
         .featured-tag {
-            position: absolute;
-            top: 1.5rem;
-            left: 1.5rem;
-            background-color: rgba(0,0,0,0.5);
-            backdrop-filter: blur(5px);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 700;
-            z-index: 4;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            position: absolute; top: 1.5rem; left: 1.5rem; background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px); color: white; padding: 0.5rem 1rem;
+            border-radius: 9999px; font-size: 0.875rem; font-weight: 700; z-index: 4;
+            display: flex; align-items: center; gap: 0.5rem;
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        /* --- NEW: Boosted Listing Card Styles (PRESERVED ACCENT/CARD-BG COLORS) --- */
         .item-card.boosted-listing {
-            background-color: #2e2e2e; /* Slightly darker than original card-bg #1e1e1e */
-            border-color: #B564F7; /* Using existing accent-color */
-            box-shadow: 0 0 20px rgba(181, 100, 247, 0.2); /* Glow effect using existing accent-color */
-            position: relative; /* Needed for the tag positioning */
+            background-color: #2e2e2e; border-color: #B564F7;
+            box-shadow: 0 0 20px rgba(181, 100, 247, 0.2); position: relative;
         }
         .boosted-listing-tag {
-            position: absolute;
-            top: 0.75rem;
-            right: 0.75rem;
-            background-color: #B564F7; /* Using existing accent-color */
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            z-index: 2; /* Ensure tag is above image */
+            position: absolute; top: 0.75rem; right: 0.75rem; background-color: #B564F7;
+            color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem;
+            font-size: 0.75rem; font-weight: 600; z-index: 2;
         }
-        /* Mobile specific layout for cards - Image left, details right (PRESERVED) */
         @media (max-width: 767px) {
-            .item-card {
-                flex-direction: row; /* Horizontal layout on mobile */
-                align-items: center; /* Align items vertically in the middle */
-            }
+            .item-card { flex-direction: row; align-items: center; }
             .item-card .item-card-image-container {
-                width: 35%; /* Image takes up 35% of the card width */
-                min-width: 35%; /* Ensure it doesn't shrink too much */
-                aspect-ratio: 1/1; /* Keep image square */
-                border-radius: 1rem 0 0 1rem; /* Rounded corners only on the left side */
-                overflow: hidden;
+                width: 35%; min-width: 35%; aspect-ratio: 1/1;
+                border-radius: 1rem 0 0 1rem; overflow: hidden;
             }
-            .item-card .item-card-image {
-                border-radius: 1rem 0 0 1rem; /* Match container corners */
-            }
+            .item-card .item-card-image { border-radius: 1rem 0 0 1rem; }
             .item-card .p-6 {
-                width: 65%; /* Details take up 65% of the card width */
-                padding-left: 1rem; /* Adjust padding for side-by-side */
-                padding-right: 1rem;
-                padding-top: 0.75rem; /* Adjust vertical padding */
-                padding-bottom: 0.75rem; /* Adjust vertical padding */
+                width: 65%; padding-left: 1rem; padding-right: 1rem;
+                padding-top: 0.75rem; padding-bottom: 0.75rem;
             }
-            /* Adjust font sizes for mobile card details to save space */
-            .item-card h3 {
-                font-size: 1.1rem; /* Slightly smaller heading */
-                line-height: 1.3;
-                -webkit-line-clamp: 2; /* Ensure event title wraps to max 2 lines */
-            }
-            .item-card p {
-                font-size: 0.8rem; /* Smaller text for date/venue */
-            }
+            .item-card h3 { font-size: 1.1rem; line-height: 1.3; -webkit-line-clamp: 2; }
+            .item-card p { font-size: 0.8rem; }
         }
 
         /* Styles for the toggle switch (from design system) */
@@ -351,7 +225,6 @@
         input:checked ~ .block {
              background-color: #B564F7; /* Primary accent color for track when active */
         }
-        /* sr-only is defined globally by Tailwind, no need to redefine */
 
         /* Custom styles for filter bar layout */
         /* Ensure filter buttons stretch to full width on mobile for better touch target */
@@ -368,7 +241,9 @@
             #filter-bar-container .grid {
                 width: 100%; /* Ensure nested grids also take full width */
             }
-            #filter-bar-container .filter-button {
+            /* Ensure filter buttons within the grid also fill their space */
+            #filter-bar-container .grid .filter-button {
+                width: 100%; /* Force buttons to fill grid cell */
                 justify-content: center; /* Center text within buttons */
             }
             /* Adjust popover width to match full container width on mobile */
@@ -378,59 +253,47 @@
                 right: 1rem;
             }
             /* NSFW toggle specific mobile layout */
-            #nsfw-toggle-container { /* Target the div wrapping the toggle */
-                 order: 99; /* Push to the end of the flex container so it wraps cleanly */
-                 margin-top: 0.75rem; /* Add some space above it if it wraps */
-                 margin-left: 0 !important; /* Override ml-auto from desktop */
+            #nsfw-toggle-container {
+                 order: 99;
+                 margin-top: 0.75rem;
+                 margin-left: 0 !important;
                  width: 100%;
             }
-            #nsfw-toggle-label { /* The label itself inside the filter button */
-                 justify-content: space-between; /* Space out toggle and text */
+            #nsfw-toggle-label {
+                 justify-content: space-between;
             }
-            #nsfw-mode-text-mobile { /* The specific span for mobile text */
-                display: block; /* Make sure it's visible */
-                flex-grow: 1; /* Allow it to take available space */
-                text-align: right; /* Align text to the right for toggle */
-                padding-right: 0.5rem; /* Small padding */
-                white-space: nowrap; /* Prevent text from wrapping */
-                overflow: hidden; /* Hide overflow if text is too long */
-                text-overflow: ellipsis; /* Add ellipsis if text overflows */
+            #nsfw-mode-text-mobile {
+                display: block; flex-grow: 1; text-align: right; padding-right: 0.5rem;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
-            #nsfw-mode-text-desktop { /* Hide desktop text on mobile */
+            #nsfw-mode-text-desktop {
                 display: none;
             }
         }
         /* Desktop specific layout adjustments */
         @media (min-width: 768px) {
             #filter-bar-container {
-                flex-direction: row; /* Back to row on desktop */
-                align-items: center; /* Align items vertically */
-                flex-wrap: wrap; /* Allow wrapping if there are many filters */
+                flex-direction: row; align-items: center; flex-wrap: wrap;
             }
-            /* Direct children buttons and popover containers */
             #filter-bar-container > * {
-                width: auto; /* Revert to auto width on desktop */
+                width: auto;
             }
-            /* Specific width for the groups that have grid layout inside */
             #filter-bar-container .grid {
-                width: auto; /* Revert to auto width on desktop */
+                width: auto;
             }
             #filter-bar-container .filter-button {
                 justify-content: flex-start;
             }
             #nsfw-toggle-container {
-                order: auto; /* Revert order */
-                margin-top: 0; /* Remove top margin */
-                margin-left: auto; /* Apply ml-auto for alignment */
-                width: auto;
+                order: auto; margin-top: 0; margin-left: auto; width: auto;
             }
             #nsfw-toggle-label {
-                 justify-content: flex-start; /* Revert spacing */
+                 justify-content: flex-start;
             }
-            #nsfw-mode-text-mobile { /* Hide mobile text on desktop */
+            #nsfw-mode-text-mobile {
                 display: none;
             }
-            #nsfw-mode-text-desktop { /* Show desktop text on desktop */
+            #nsfw-mode-text-desktop {
                 display: inline;
             }
         }
@@ -458,10 +321,10 @@
             <div id="filter-bar-container" class="mb-12 flex flex-col md:flex-row items-center gap-3 md:gap-4">
 
                 <div class="grid grid-cols-2 gap-3 w-full md:flex md:flex-row md:w-auto md:gap-4">
-                    <button class="filter-button active" data-filter-type="date" data-filter-value="all">All Upcoming</button>
-                    <button class="filter-button" data-filter-type="date" data-filter-value="today">Today</button>
-                    <button class="filter-button" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
-                    <div class="relative w-full"> <button id="custom-date-btn" class="filter-button">Custom Date</button>
+                    <button class="filter-button active w-full" data-filter-type="date" data-filter-value="all">All Upcoming</button>
+                    <button class="filter-button w-full" data-filter-type="date" data-filter-value="today">Today</button>
+                    <button class="filter-button w-full" data-filter-type="date" data-filter-value="this-weekend">This Weekend</button>
+                    <div class="relative w-full"> <button id="custom-date-btn" class="filter-button w-full">Custom Date</button>
                         <div id="custom-date-popover" class="popover">
                             <label for="date-from" class="block text-sm font-semibold mb-1 text-gray-400">From</label>
                             <input type="date" id="date-from" class="w-full p-2 bg-gray-800 rounded-md mb-3 text-white">
@@ -472,7 +335,7 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 w-full md:flex md:flex-row md:w-auto md:gap-4">
-                    <div class="relative w-full"> <button id="category-btn" class="filter-button">
+                    <div class="relative w-full"> <button id="category-btn" class="filter-button w-full">
                             <span>All Categories</span>
                             <i class="fas fa-chevron-down text-xs"></i>
                         </button>
@@ -481,7 +344,7 @@
                         </div>
                     </div>
 
-                    <div class="relative w-full"> <button id="venue-btn" class="filter-button">
+                    <div class="relative w-full"> <button id="venue-btn" class="filter-button w-full">
                             <span>All Venues</span>
                             <i class="fas fa-chevron-down text-xs"></i>
                         </button>

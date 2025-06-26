@@ -3,6 +3,7 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN }
 
 exports.handler = async function (event, context) {
     const slug = event.path.split("/").pop();
+    const baseUrl = process.env.URL || 'https://www.brumoutloud.co.uk';
     if (!slug) {
         return { statusCode: 400, body: 'Error: Event slug not provided.' };
     }

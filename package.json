@@ -3,14 +3,17 @@
   "version": "1.0.0",
   "dependencies": {
     "airtable": "^0.12.2",
-    "cloudinary": "^1.41.3",
-    "node-fetch": "^2.6.7",
     "cheerio": "^1.0.0-rc.12",
-    "xlsx": "^0.18.5",
-    "firebase-admin": "^12.1.0",
+    "cloudinary": "^1.41.3",
     "firebase": "^10.12.2",
+    "firebase-admin": "^12.1.0",
     "formidable": "^3.5.1",
     "lambda-multipart-parser": "^1.0.1",
-    "parse-multipart": "^1.0.4"
+    "node-fetch": "^2.6.7",
+    "parse-multipart": "^1.0.4",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "netlify-cli": "^22.1.6"
   }
 }

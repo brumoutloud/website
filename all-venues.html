@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Venues | Brum Out Loud</title>
+    <title>LGBTQ+ Venues in Birmingham | Brum Outloud</title>
+    <meta name="description" content="Discover the best LGBTQ+ friendly bars, clubs, and spaces in Birmingham with Brum Outloud. Find your perfect queer venue.">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="preload" href="/css/fonts/Omnes Bold.woff" as="font" type="font/woff" crossorigin>
     <link rel="stylesheet" href="/css/main.css">
     <script src="/js/main.js" defer></script>
 
@@ -53,40 +55,7 @@
             object-fit: cover; /* Cover the container */
             border-radius: 1rem 1rem 0 0; /* Match container corners */
         }
-        /* Mobile specific layout for cards - Image left, details right */
-        @media (max-width: 767px) {
-            .item-card {
-                flex-direction: row; /* Horizontal layout on mobile */
-                align-items: center; /* Align items vertically in the middle */
-                border-radius: 1rem; /* Full rounded corners on mobile cards */
-            }
-            .item-card .item-card-image-container {
-                width: 35%; /* Image takes up 35% of the card width */
-                min-width: 35%; /* Ensure it doesn't shrink too much */
-                aspect-ratio: 1/1; /* Keep image square */
-                border-radius: 1rem 0 0 1rem; /* Rounded corners only on the left side */
-                padding-bottom: 0; /* Remove padding-bottom trick as height is explicit */
-            }
-            .item-card .item-card-image {
-                border-radius: 1rem 0 0 1rem; /* Match container corners */
-            }
-            .item-card .p-6 {
-                width: 65%; /* Details take up 65% of the card width */
-                padding-left: 1rem; /* Adjust padding for side-by-side */
-                padding-right: 1rem;
-                padding-top: 0.75rem; /* Adjust vertical padding */
-                padding-bottom: 0.75rem; /* Adjust vertical padding */
-            }
-            /* Adjust font sizes for mobile card details to save space */
-            .item-card h3 {
-                font-size: 1.1rem; /* Slightly smaller heading */
-                line-height: 1.3;
-                -webkit-line-clamp: 2; /* Ensure event title wraps to max 2 lines */
-            }
-            .item-card p {
-                font-size: 0.8rem; /* Smaller text for date/venue */
-            }
-        }
+        
 
         /* Custom styles for filter bar layout */
         /* Ensure filter buttons stretch to full width on mobile for better touch target */

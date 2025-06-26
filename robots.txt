@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Disallow access to admin pages
+Disallow: /admin/
+Disallow: /admin-add-venue.html
+Disallow: /admin-approvals.html
+Disallow: /admin-edit-events.html
+Disallow: /admin-login.html
+Disallow: /admin-manage-venues.html
+Disallow: /admin-migrate.html
+Disallow: /admin-poster-tool.html
+Disallow: /admin-review.html
+Disallow: /admin-settings.html
+
+# Specify the sitemap location
+Sitemap: https://www.brumoutloud.co.uk/sitemap.xml

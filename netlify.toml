@@ -97,3 +97,10 @@
     from = "/admin/edit-events"
     to = "/admin-edit-events.html"
     status = 200
+
+# Rule for the dynamic sitemap
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+  force = true

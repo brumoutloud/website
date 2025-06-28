@@ -34,45 +34,11 @@ exports.handler = async function (event, context) {
         if (newStatus === 'Approved') {
             const recordSlug = updatedRecords[0].fields.Slug;
             const liveUrl = recordSlug ? `https://brumoutloud.co.uk/${type.toLowerCase()}/${recordSlug}` : `https://brumoutloud.co.uk`;
-            
-            subject = `✅ Your submission is live! "${name}"`;
-            body = `
-                Hi there,
-
-                Great news! Your submission for "${name}" has been approved and is now live on BrumOutLoud.
-
-                You can view and share it here:
-                ${liveUrl}
-
-                Thanks for contributing to the scene!
-
-                The BrumOutLoud Team
-            `;
-        } else if (newStatus === 'Rejected') {
-             if (!reason) {
-                return { statusCode: 400, body: JSON.stringify({ message: 'Rejection reason is required.'})};
-             }
-            
-            subject = `⚠️ Action required for your submission: "${name}"`;
-            body = `
-                Hi there,
-
-                Thanks for your submission for "${name}". It needs a little more information before we can approve it.
-
-                Reason provided: ${reason}
-
-                Please feel free to correct this and resubmit using our promoter tools:
-                https://brumoutloud.co.uk/promoter-tool
-
-                If you have any questions, please feel free to reply to this email.
-
-                Thanks,
-                The BrumOutLoud Team
-            `;
-        }
-
-        if (subject && body) {
-            const mail = { from: 'hello@brumoutloud.co.uk', to: contactEmail, subject: subject, text: body, };
+L42: Great news! Your submission for "${name}" has been approved and is now live on Brum Outloud.
+L49: The Brum Outloud Team
+L65: https://brumoutloud.co.uk/promoter-tool
+L70: The Brum Outloud Team
+L75: const mail = { from: 'hello@brumoutloud.co.uk', to: contactEmail, subject: subject, text: body, };
             console.log('--- EMAIL TO BE SENT ---');
             console.log(JSON.stringify(mail, null, 2));
         }

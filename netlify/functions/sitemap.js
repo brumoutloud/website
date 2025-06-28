@@ -17,7 +17,10 @@ exports.handler = async function (event, context) {
             '/contact.html',
             '/promoter-tool.html',
             '/promoter-submit.html',
-            '/get-listed.html'
+            '/get-listed.html',
+            '/privacy-policy.html',
+            '/terms-and-conditions.html',
+            '/terms-of-submission.html'
         ];
 
         staticPages.forEach(page => {

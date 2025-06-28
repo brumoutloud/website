@@ -12,6 +12,7 @@
     <link rel="preload" href="/css/fonts/Omnes Bold.woff" as="font" type="font/woff" crossorigin>
     <link rel="stylesheet" href="/css/main.css">
     <link rel="icon" href="/faviconV2.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
 </head>
 <body class="antialiased">
 
@@ -68,7 +69,13 @@
                         </div>
                     </div>
                     <div id="form-status" class="text-center hidden p-4 rounded-lg"></div>
-                    <div class="text-right pt-4"><button type="submit" id="submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity">Submit Event</button></div>
+                    <div class="mt-6 flex items-center justify-end space-x-4">
+                        <div class="flex items-center">
+                            <input id="terms-agree" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-accent-color focus:ring-accent-color">
+                            <label for="terms-agree" class="ml-2 block text-sm text-gray-400">I agree to the <a href="/terms-of-submission.html" target="_blank" class="underline hover:text-white">Terms of Submission</a></label>
+                        </div>
+                        <button type="submit" id="submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50" disabled>Submit Event</button>
+                    </div>
                 </form>
             </div>
         </section>
@@ -84,6 +91,11 @@
             const newVenueAddressInput = document.getElementById('new-venue-address');
             const statusDiv = document.getElementById('form-status');
             const submitButton = document.getElementById('submit-button');
+            const termsCheckbox = document.getElementById('terms-agree');
+
+            termsCheckbox.addEventListener('change', () => {
+                submitButton.disabled = !termsCheckbox.checked;
+            });
 
             fetch('/.netlify/functions/get-venue-list')
                 .then(response => response.json())

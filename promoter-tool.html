@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="/css/main.css">
     <script src="/js/main.js" defer></script>
     <link rel="icon" href="/faviconV2.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
 </head>
 <body class="antialiased">
 
@@ -22,7 +23,7 @@
         <section class="text-center mb-8">
             <div class="text-center mb-16">
                 <h1 class="font-anton text-7xl md:text-8xl leading-none tracking-wider heading-gradient">PROMOTER <span class="accent-color">TOOLS</span></h1>
-                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Choose the best way to add your events to BrumOutLoud. All submissions are reviewed by our team before going live.</p>
+                <p class="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">Choose the best way to add your events to Brum Outloud. All submissions are reviewed by our team before going live.</p>
             </div>
 
             <div class="space-y-8">
@@ -41,7 +42,13 @@
                             <input type="file" id="poster-file" name="poster" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept="image/png, image/jpeg, image/gif" required>
                         </div>
                         <div id="image-preview" class="hidden"><img id="preview-img" class="rounded-lg max-h-64 mx-auto" alt="Image preview"></div>
-                        <div class="pt-4"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg w-full flex items-center justify-center">Parse Poster</button></div>
+                        <div class="mt-6 flex items-center justify-end space-x-4">
+                            <div class="flex items-center">
+                                <input id="poster-terms-agree" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-accent-color focus:ring-accent-color">
+                                <label for="poster-terms-agree" class="ml-2 block text-sm text-gray-400">I agree to the <a href="/terms-of-submission.html" target="_blank" class="underline hover:text-white">Terms of Submission</a></label>
+                            </div>
+                            <button type="submit" id="poster-submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg flex items-center justify-center disabled:opacity-50" disabled>Parse Poster</button>
+                        </div>
                     </form>
                 </div>
 
@@ -53,10 +60,16 @@
                             <label for="spreadsheet-file" class="block text-sm font-semibold mb-2 accent-color-secondary">Upload Spreadsheet (.csv, .xlsx)</label>
                             <input type="file" id="spreadsheet-file" name="spreadsheet" class="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
                         </div>
-                        <div class="pt-6"><button type="submit" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 w-full flex items-center justify-center">
-                            <span id="bulk-submit-text">Parse Spreadsheet</span>
-                            <span id="bulk-submit-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
-                        </button></div>
+                        <div class="mt-6 flex items-center justify-end space-x-4">
+                            <div class="flex items-center">
+                                <input id="bulk-terms-agree" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-accent-color focus:ring-accent-color">
+                                <label for="bulk-terms-agree" class="ml-2 block text-sm text-gray-400">I agree to the <a href="/terms-of-submission.html" target="_blank" class="underline hover:text-white">Terms of Submission</a></label>
+                            </div>
+                            <button type="submit" id="bulk-submit-button" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg hover:opacity-90 flex items-center justify-center disabled:opacity-50" disabled>
+                                <span id="bulk-submit-text">Parse Spreadsheet</span>
+                                <span id="bulk-submit-loader" class="loader ml-3 w-5 h-5 border-2 hidden"></span>
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -83,6 +96,23 @@
             const resultsContainer = document.getElementById('results-container');
             const statusMessage = document.getElementById('status-message');
             const VALID_CATEGORIES = ["Comedy", "Drag", "Live Music", "Men Only", "Party", "Pride", "Social", "Theatre", "Viewing Party", "Women Only", "Fetish", "Community", "Exhibition", "Health", "Quiz"];
+
+            const posterTermsCheckbox = document.getElementById('poster-terms-agree');
+            const posterSubmitButton = document.getElementById('poster-submit-button');
+            const bulkTermsCheckbox = document.getElementById('bulk-terms-agree');
+            const bulkSubmitButton = document.getElementById('bulk-submit-button');
+
+            if (posterTermsCheckbox) {
+                posterTermsCheckbox.addEventListener('change', () => {
+                    posterSubmitButton.disabled = !posterTermsCheckbox.checked;
+                });
+            }
+
+            if (bulkTermsCheckbox) {
+                bulkTermsCheckbox.addEventListener('change', () => {
+                    bulkSubmitButton.disabled = !bulkTermsCheckbox.checked;
+                });
+            }
 
             if(fileInput) {
                 fileInput.addEventListener('change', () => {

@@ -1,0 +1,21 @@
+{
+  "name": "Brum Outloud",
+  "short_name": "BrumOutloud",
+  "description": "Your essential guide to Birmingham's vibrant LGBTQ+ scene. Discover queer-friendly events, venues, and community resources for residents and visitors.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#8a2be2",
+  "icons": [
+    {
+      "src": "/faviconV2.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/faviconV2.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
